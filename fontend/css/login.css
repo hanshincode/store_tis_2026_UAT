@@ -1,0 +1,13 @@
+/* css/login.css */
+.login-container {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e9ecef;
+}
+.login-card {
+    width: 400px;
+    border-radius: 10px;
+    border: none;
+}

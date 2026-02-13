@@ -1,0 +1,185 @@
+/* CONTAINER & LAYOUT */
+.profile-container {
+    padding-top: 80px; /* Tránh bị Navbar che */
+    padding-bottom: 50px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* HEADER PROFILE */
+.profile-header {
+    background: linear-gradient(135deg, #0d6efd 0%, #0099ff 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 20px rgba(13, 110, 253, 0.2);
+    display: flex;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Hiệu ứng vòng tròn trang trí nền header */
+.profile-header::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 200px;
+    height: 200px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+}
+
+.profile-avatar {
+    width: 80px;
+    height: 80px;
+    background: white;
+    color: #0d6efd;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: bold;
+    margin-right: 20px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+/* TABS NAVIGATION */
+.nav-pills .nav-link {
+    border-radius: 50px;
+    padding: 10px 25px;
+    font-weight: 600;
+    color: #6c757d;
+    transition: all 0.3s ease;
+    margin-right: 10px;
+    background: white;
+    border: 1px solid #e9ecef;
+}
+
+.nav-pills .nav-link.active {
+    background-color: #0d6efd;
+    color: white;
+    box-shadow: 0 4px 10px rgba(13, 110, 253, 0.3);
+    border-color: #0d6efd;
+    transform: translateY(-2px);
+}
+
+.nav-pills .nav-link:hover:not(.active) {
+    background-color: #f8f9fa;
+    transform: translateY(-1px);
+}
+
+/* ORDER CARDS (Danh sách đơn hàng) */
+.order-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    border: 1px solid #f0f0f0;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    animation: fadeInUp 0.5s ease-out; /* Hiệu ứng bay lên khi load */
+}
+
+.order-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    border-color: #0d6efd;
+}
+
+/* Đường viền màu bên trái để phân biệt trạng thái */
+.order-card.pending {
+    border-left: 5px solid #ffc107;
+}
+.order-card.active {
+    border-left: 5px solid #198754;
+}
+.order-card.cancelled {
+    border-left: 5px solid #dc3545;
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.order-code {
+    font-weight: bold;
+    color: #333;
+}
+
+.order-price {
+    font-size: 1.1rem;
+    color: #dc3545;
+    font-weight: 700;
+}
+
+.order-detail {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+/* STATUS BADGES */
+.status-badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.bg-pending { background-color: #fff3cd; color: #856404; }
+.bg-active { background-color: #d1e7dd; color: #0f5132; }
+
+/* EMPLOYEE FORM (Cho Doanh nghiệp) */
+.employee-section {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.add-emp-form {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.emp-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    transition: background 0.2s;
+}
+.emp-list-item:hover {
+    background-color: #f8fbff;
+}
+.emp-avatar {
+    width: 40px;
+    height: 40px;
+    background: #e9ecef;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    color: #6c757d;
+}
+
+/* ANIMATION KEYFRAMES */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

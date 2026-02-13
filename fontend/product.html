@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <title>Chi tiết sản phẩm</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-light fixed-top"><div class="container"><a class="navbar-brand" href="index.html">← Quay lại</a></div></nav>
+
+    <div class="container mt-5 pt-5">
+        <div class="card shadow-lg p-4 animate__animated animate__fadeIn">
+            <div class="row" id="product-content">
+                <div class="text-center"><div class="spinner-border"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/common.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const productId = urlParams.get('id');
+
+        async function loadDetail() {
+            if (!productId) return;
+            const p = await fetchAPI(`/products/${productId}/`);
+            if (!p) return;
+
+            // Render Package Options
+            const packagesHtml = p.packages.map(pkg => `
+                <div class="pkg-option d-flex justify-content-between align-items-center">
+                    <div>
+                        <input class="form-check-input me-2" type="radio" name="pkgOption" id="pkg-${pkg.id}" value="${pkg.id}" checked>
+                        <label class="form-check-label fw-bold" for="pkg-${pkg.id}">${pkg.duration_label}</label>
+                    </div>
+                    <span class="text-primary fw-bold">${formatMoney(pkg.price)}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('product-content').innerHTML = `
+                <div class="col-md-6 mb-4">
+                    <img src="${p.images.length ? MEDIA_URL + p.images[0].image : ''}" class="img-fluid rounded shadow hover-card" style="width:100%">
+                </div>
+                <div class="col-md-6">
+                    <h2 class="fw-bold mb-3">${p.name}</h2>
+                    ${p.provider_name ? `<span class="badge bg-danger mb-3">NCC: ${p.provider_name}</span>` : ''}
+                    <p class="text-muted">${p.description}</p>
+                    
+                    <hr class="my-4">
+                    <h5 class="mb-3">Chọn gói bảo hiểm:</h5>
+                    ${packagesHtml}
+                    
+                    <div class="row g-2 mt-4">
+                         <div class="col-3">
+                             <input type="number" id="qty" value="1" min="1" class="form-control form-control-lg text-center">
+                         </div>
+                         <div class="col-9">
+                             <button onclick="buyNow()" class="btn btn-success btn-lg w-100 rounded-pill shadow">
+                                 MUA NGAY
+                             </button>
+                         </div>
+                    </div>
+                    <button onclick="addToCart()" class="btn btn-outline-primary w-100 mt-2 rounded-pill">
+                        <i class="fas fa-cart-plus me-2"></i> Thêm vào giỏ
+                    </button>
+                </div>
+            `;
+        }
+
+        async function buyNow() {
+            if (!getUser()) return alert("Vui lòng đăng nhập!");
+            const pkgId = document.querySelector('input[name="pkgOption"]:checked').value;
+            const qty = document.getElementById('qty').value;
+            const res = await fetchAPI('/orders/buy_now/', 'POST', { package_id: pkgId, quantity: qty });
+            if (res && res.code) {
+                alert("Mua thành công! Mã: " + res.code);
+                window.location.href = 'profile.html';
+            }
+        }
+        
+        async function addToCart() {
+             if (!getUser()) return alert("Vui lòng đăng nhập!");
+             const pkgId = document.querySelector('input[name="pkgOption"]:checked').value;
+             const qty = document.getElementById('qty').value;
+             await fetchAPI('/cart/add/', 'POST', { package_id: pkgId, quantity: qty });
+             alert("Đã thêm vào giỏ hàng!");
+        }
+
+        loadDetail();
+    </script>
+</body>
+</html>

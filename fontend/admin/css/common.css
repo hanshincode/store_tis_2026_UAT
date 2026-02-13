@@ -1,0 +1,22 @@
+/* BIẾN DÙNG CHUNG */
+:root {
+    --primary-color: #D71920; /* Đỏ TIS */
+    --secondary-color: #6c757d;
+    --success-color: #198754;
+    --dark-color: #212529;
+    --light-bg: #f4f6f9;
+}
+
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+/* Các class tiện ích chung */
+.btn-primary { background-color: var(--primary-color); border-color: var(--primary-color); }
+.btn-primary:hover { background-color: #b01218; }
+.text-primary { color: var(--primary-color) !important; }
+.cursor-pointer { cursor: pointer; }
+
+/* CKEditor fix chiều cao chung */
+.ck-editor__editable_inline { min-height: 200px; }
+
+/* Loading Spinner căn giữa */
+.loading-center { display: flex; justify-content: center; padding: 20px; }

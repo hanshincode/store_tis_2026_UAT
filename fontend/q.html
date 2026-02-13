@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIS Admin Portal - Quản trị Hệ thống</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.min.css">
+    
+    <script src="https://cdn.ckeditor.com/ckeditor5/40.0.0/classic/ckeditor.js"></script>
+
+    <style>
+        /* ADMIN LAYOUT CSS */
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 260px; height: 100vh; position: fixed; top: 0; left: 0;
+            background: #212529; color: #fff; z-index: 1000; overflow-y: auto;
+            transition: all 0.3s;
+        }
+        .sidebar-header { padding: 20px; text-align: center; border-bottom: 1px solid #343a40; background: #1a1d20; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; }
+        .sidebar-menu a {
+            display: flex; align-items: center; padding: 15px 25px; color: #c2c7d0; 
+            text-decoration: none; transition: 0.2s; border-left: 4px solid transparent; cursor: pointer;
+        }
+        .sidebar-menu a:hover, .sidebar-menu a.active {
+            background: #343a40; color: #fff; border-left-color: #d71920;
+        }
+        .sidebar-menu i { width: 30px; text-align: center; font-size: 1.1rem; }
+
+        /* Main Content */
+        .main-content { margin-left: 260px; padding: 20px; min-height: 100vh; transition: all 0.3s; }
+        
+        /* Cards & Tables */
+        .admin-card {
+            background: #fff; border-radius: 8px; padding: 20px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: none; margin-bottom: 20px;
+        }
+        .top-bar {
+            background: #fff; padding: 15px 25px; border-radius: 8px; margin-bottom: 25px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center;
+        }
+        .table img { width: 45px; height: 45px; object-fit: cover; border-radius: 6px; }
+        
+        /* CKEditor Custom Height */
+        .ck-editor__editable_inline { min-height: 200px; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar { margin-left: -260px; }
+            .sidebar.active { margin-left: 0; }
+            .main-content { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h4 class="fw-bold m-0 text-white"><i class="fas fa-shield-alt text-danger me-2"></i>TIS ADMIN</h4>
+        </div>
+        <div class="sidebar-menu mt-2">
+            <a onclick="switchTab('dashboard')" class="active"><i class="fas fa-tachometer-alt"></i> Tổng quan</a>
+            <a onclick="switchTab('orders')"><i class="fas fa-file-invoice-dollar"></i> Đơn hàng</a>
+            <a onclick="switchTab('products')"><i class="fas fa-box-open"></i> Sản phẩm</a>
+            <a onclick="switchTab('news')"><i class="fas fa-newspaper"></i> Tin tức</a>
+            <a onclick="switchTab('consultations')"><i class="fas fa-comments"></i> Tư vấn & Chat</a>
+            
+            <a onclick="switchTab('staff')" id="menu-staff" class="d-none border-top border-secondary mt-2 pt-2">
+                <i class="fas fa-users-cog"></i> Nhân sự
+            </a>
+        </div>
+        <div class="p-3 position-absolute bottom-0 w-100 bg-dark border-top border-secondary">
+            <button onclick="logout()" class="btn btn-outline-danger w-100 btn-sm"><i class="fas fa-sign-out-alt"></i> Đăng xuất</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="top-bar">
+            <div class="d-flex align-items-center">
+                <button class="btn btn-light d-md-none me-3" onclick="document.getElementById('sidebar').classList.toggle('active')"><i class="fas fa-bars"></i></button>
+                <h5 class="m-0 fw-bold text-uppercase text-secondary" id="page-title">Tổng quan</h5>
+            </div>
+            <div class="d-flex align-items-center">
+                <div class="text-end me-3">
+                    <div class="fw-bold text-dark" id="admin-name">Admin User</div>
+                    <small class="text-muted">Online</small>
+                </div>
+                <div class="bg-light rounded-circle p-2"><i class="fas fa-user-circle fa-2x text-primary"></i></div>
+            </div>
+        </div>
+
+        <div id="tab-dashboard" class="content-tab">
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="admin-card border-start border-success border-4 h-100">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div><h6 class="text-muted mb-1">Doanh thu</h6><h3 class="fw-bold m-0 text-dark" id="stat-revenue">0 đ</h3></div>
+                            <div class="text-success fs-1 opacity-25"><i class="fas fa-money-bill-wave"></i></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="admin-card border-start border-warning border-4 h-100">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div><h6 class="text-muted mb-1">Chờ xử lý</h6><h3 class="fw-bold m-0 text-dark" id="stat-pending">0</h3></div>
+                            <div class="text-warning fs-1 opacity-25"><i class="fas fa-clock"></i></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="admin-card border-start border-primary border-4 h-100">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div><h6 class="text-muted mb-1">Tổng đơn hàng</h6><h3 class="fw-bold m-0 text-dark" id="stat-total">0</h3></div>
+                            <div class="text-primary fs-1 opacity-25"><i class="fas fa-shopping-bag"></i></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="admin-card">
+                <h5 class="mb-3 fw-bold border-bottom pb-2">Đơn hàng mới nhất</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light"><tr><th>Mã đơn</th><th>Khách hàng</th><th>Tổng tiền</th><th>Trạng thái</th><th>Ngày tạo</th></tr></thead>
+                        <tbody id="dashboard-orders"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-orders" class="content-tab d-none">
+            <div class="admin-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold m-0">Quản lý Đơn hàng</h5>
+                    <div class="btn-group">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="loadOrders('pending')">Chờ duyệt</button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="loadOrders('all')">Tất cả</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light"><tr><th>Mã</th><th>Khách hàng</th><th>SP</th><th>Tổng tiền</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                        <tbody id="orders-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-products" class="content-tab d-none">
+            <div class="admin-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold m-0">Kho Sản phẩm</h5>
+                    <button class="btn btn-primary btn-sm" onclick="showModal('productModal'); loadCategories();">
+                        <i class="fas fa-plus"></i> Thêm mới
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead class="table-light"><tr><th>Ảnh</th><th>Tên sản phẩm</th><th>NCC</th><th>Đối tượng</th><th>Giá niêm yết</th><th>Thao tác</th></tr></thead>
+                        <tbody id="products-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-news" class="content-tab d-none">
+            <div class="admin-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold m-0">Tin tức & Sự kiện</h5>
+                    <button class="btn btn-primary btn-sm" onclick="showModal('newsModal')"><i class="fas fa-plus"></i> Đăng tin</button>
+                </div>
+                <div class="row g-4" id="news-list-admin"></div>
+            </div>
+        </div>
+
+        <div id="tab-consultations" class="content-tab d-none">
+            <div class="admin-card">
+                <h5 class="fw-bold mb-3">Yêu cầu Tư vấn & Chat</h5>
+                <div id="consultation-list" class="list-group list-group-flush"></div>
+            </div>
+        </div>
+
+        <div id="tab-staff" class="content-tab d-none">
+            <div class="admin-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold m-0">Danh sách Nhân sự</h5>
+                    <button class="btn btn-primary btn-sm" onclick="showModal('staffModal')"><i class="fas fa-user-plus"></i> Thêm NV</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead class="table-light"><tr><th>Username</th><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th></tr></thead>
+                        <tbody id="staff-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div> <div class="modal fade" id="productModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Thêm Sản Phẩm Mới</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="product-form">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Tên sản phẩm</label>
+                                <input type="text" id="p-name" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Nhà cung cấp</label>
+                                <input type="text" id="p-provider" class="form-control" required>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Danh mục</label>
+                                <select id="p-category" class="form-select" required>
+                                    <option value="">-- Chọn danh mục --</option>
+                                    </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Đối tượng</label>
+                                <select id="p-target" class="form-select">
+                                    <option value="ind">Cá nhân</option>
+                                    <option value="ent">Doanh nghiệp</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Giá cơ bản (1 Năm)</label>
+                                <div class="input-group">
+                                    <input type="number" id="p-price" class="form-control" placeholder="VNĐ">
+                                    <div class="input-group-text bg-white">
+                                        <div class="form-check m-0">
+                                            <input class="form-check-input" type="checkbox" id="p-hidden-price" onchange="togglePriceInput()">
+                                            <label class="form-check-label small text-danger fw-bold" for="p-hidden-price">Liên hệ</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold">Mô tả chi tiết</label>
+                                <textarea id="p-desc" class="form-control" rows="3"></textarea>
+                            </div>
+                            
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold">Ảnh minh họa</label>
+                                <input type="file" id="p-image" class="form-control">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-primary" onclick="submitProduct()">Lưu sản phẩm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="orderModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title fw-bold">Chi tiết đơn hàng</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body" id="order-detail-body"><div class="text-center py-3"><div class="spinner-border"></div></div></div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button class="btn btn-success d-none" id="btn-approve-order">Duyệt đơn này</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="newsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title fw-bold">Đăng Tin Tức</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <form id="news-form">
+                        <div class="mb-3"><label class="form-label">Tiêu đề</label><input type="text" id="n-title" class="form-control" required></div>
+                        <div class="mb-3"><label class="form-label">Nội dung</label><textarea id="n-content" class="form-control" rows="5" required></textarea></div>
+                        <div class="mb-3"><label class="form-label">Hình ảnh</label><input type="file" id="n-image" class="form-control"></div>
+                    </form>
+                </div>
+                <div class="modal-footer"><button class="btn btn-primary" onclick="submitNews()">Đăng bài</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="staffModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title fw-bold">Thêm Nhân Viên</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <form id="staff-form">
+                        <div class="mb-3"><label class="form-label">Tài khoản (SĐT)</label><input type="text" id="s-username" class="form-control" required></div>
+                        <div class="mb-3"><label class="form-label">Họ tên</label><input type="text" id="s-name" class="form-control" required></div>
+                        <div class="mb-3"><label class="form-label">Mật khẩu</label><input type="password" id="s-pass" class="form-control" required></div>
+                        <div class="mb-3"><label class="form-label">Vai trò</label>
+                            <select id="s-role" class="form-select">
+                                <option value="staff">Nhân viên tư vấn</option>
+                                <option value="admin">Quản trị viên (Admin)</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer"><button class="btn btn-primary" onclick="submitStaff()">Tạo tài khoản</button></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script src="js/common.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

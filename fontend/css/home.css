@@ -1,0 +1,7 @@
+/* css/home.css */
+.hero-banner { background: #e3f2fd; padding: 60px 0; border-radius: 15px; }
+.product-card img { height: 200px; object-fit: cover; }
+.provider-badge {
+    position: absolute; top: 10px; right: 10px;
+    background: #dc3545; color: white; padding: 4px 8px; font-size: 12px; border-radius: 4px;
+}

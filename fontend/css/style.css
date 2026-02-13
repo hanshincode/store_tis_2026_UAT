@@ -1,0 +1,210 @@
+/* GLOBAL STYLES - TIS BRANDING */
+:root {
+    /* Màu đỏ lấy từ Logo TIS */
+    --primary-color: #D71920; 
+    --primary-hover: #b01218; /* Đỏ đậm hơn khi hover */
+    --text-dark: #333333;     /* Màu xám đen từ chữ INSURANCE */
+    --accent-color: #ffc107;  /* Vàng (giữ nguyên cho các cảnh báo/sao) */
+}
+
+body {
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: #f8f9fa;
+    color: var(--text-dark);
+    overflow-x: hidden;
+}
+
+a { text-decoration: none; }
+
+/* --- OVERRIDE BOOTSTRAP DEFAULTS (QUAN TRỌNG) --- */
+/* Biến tất cả màu xanh mặc định thành Đỏ TIS */
+
+.text-primary { color: var(--primary-color) !important; }
+.bg-primary { background-color: var(--primary-color) !important; }
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+    background-color: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
+}
+
+.btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(215, 25, 32, 0.25); /* Hiệu ứng focus màu đỏ nhạt */
+}
+
+/* NAVBAR */
+.navbar {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    background: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: blur(10px);
+}
+.navbar-brand img {
+    height: 45px; /* Chiều cao logo */
+    width: auto;
+}
+
+/* HERO SECTION (BANNER) */
+.hero-section {
+    /* Chuyển gradient sang Đỏ - Cam nhẹ */
+    background: linear-gradient(135deg, #D71920 0%, #ff4d4d 100%);
+    color: white;
+    padding: 100px 0 80px;
+    border-radius: 0 0 50px 50px;
+    margin-bottom: 40px;
+    position: relative;
+    overflow: hidden;
+}
+.hero-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 600px;
+    height: 600px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+}
+
+/* CARDS */
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+    background: #fff;
+    overflow: hidden;
+}
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(215, 25, 32, 0.15); /* Shadow đỏ nhạt */
+}
+.card-title { color: var(--text-dark); }
+
+/* BADGES */
+.provider-badge {
+    position: absolute;
+    top: 15px; right: 15px;
+    background: var(--primary-color);
+    color: white;
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* AUTH PAGES (Login/Register) */
+/* AUTH PAGES (Login/Register) */
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Gradient nền đỏ nhạt sang trắng cho đồng bộ */
+    background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%); 
+}
+
+.auth-card {
+    border: none; /* Bỏ border-top bị lỗi */
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(215, 25, 32, 0.1); /* Shadow đỏ nhạt mềm mại */
+    width: 100%;
+    max-width: 420px;
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Thêm thanh đỏ trang trí tinh tế hơn ở trên cùng */
+.auth-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 6px;
+    background: var(--primary-color);
+}
+
+/* Style lại ô input cho trắng sạch */
+.auth-input {
+    background-color: #ffffff !important;
+    border: 1px solid #dee2e6 !important;
+    color: var(--text-dark) !important;
+    font-size: 1rem;
+    padding: 12px 15px;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+.auth-input:focus {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 4px rgba(215, 25, 32, 0.1) !important;
+    background-color: #fff !important;
+}
+
+.auth-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #555;
+    margin-bottom: 8px;
+    display: block;
+}
+
+
+
+/* PROFILE PAGE */
+.profile-header {
+    /* Gradient Đỏ cho header profile */
+    background: linear-gradient(135deg, #D71920 0%, #b01218 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 20px rgba(215, 25, 32, 0.2);
+    display: flex;
+    align-items: center;
+}
+.profile-avatar {
+    background: white;
+    color: var(--primary-color);
+}
+.nav-pills .nav-link.active {
+    background-color: var(--primary-color);
+    box-shadow: 0 4px 10px rgba(215, 25, 32, 0.3);
+}
+.nav-pills .nav-link { color: var(--text-dark); }
+
+/* ORDER STATUS COLORS */
+.status-badge.bg-pending { background-color: #fff3cd !important; color: #856404; }
+.status-badge.bg-active { background-color: #d1e7dd !important; color: #0f5132; }
+.order-card { border-left: 5px solid transparent; }
+.order-card.pending { border-left-color: #ffc107; }
+.order-card.active { border-left-color: #198754; }
+
+/* PACKAGE OPTIONS (Product Detail) */
+.pkg-option:hover, .pkg-option input:checked + label {
+    border-color: var(--primary-color);
+    background-color: #fff5f5; /* Nền đỏ rất nhạt */
+    color: var(--primary-color);
+}
+
+/* CUSTOM SCROLLBAR */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary-color); }

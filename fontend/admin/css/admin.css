@@ -1,0 +1,10 @@
+/* admin/css/admin.css */
+body { background-color: #f4f6f9; overflow-x: hidden; }
+.sidebar { width: 260px; height: 100vh; position: fixed; background: #212529; color: #fff; z-index: 1000; }
+.sidebar-header { padding: 20px; text-align: center; border-bottom: 1px solid #343a40; background: #1a1d20; }
+.sidebar-menu a { display: flex; padding: 15px 25px; color: #c2c7d0; text-decoration: none; border-left: 4px solid transparent; }
+.sidebar-menu a:hover, .sidebar-menu a.active { background: #343a40; color: #fff; border-left-color: #d71920; }
+.sidebar-menu i { width: 30px; text-align: center; }
+.main-content { margin-left: 260px; padding: 20px; min-height: 100vh; }
+.admin-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+.table img { width: 45px; height: 45px; object-fit: cover; border-radius: 4px; }

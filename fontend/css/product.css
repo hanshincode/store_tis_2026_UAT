@@ -1,0 +1,4 @@
+/* css/product.css */
+.pkg-option { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; }
+.pkg-option:hover { background-color: #f1f1f1; }
+.pkg-option input { margin-right: 10px; }
