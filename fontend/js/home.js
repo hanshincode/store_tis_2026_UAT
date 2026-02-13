@@ -1,47 +1,135 @@
 // js/home.js
-checkNavbar(); // Hàm từ common.js
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof AOS !== 'undefined') {
+        AOS.init({ duration: 800, once: true });
+    }
+    loadFeaturedProducts();
+    loadLatestNews();
+});
+
+// Hàm bổ sung để tránh lỗi undefined
+window.handleQuickBuy = async function(packageId, productId) {
+    if (!getAccessToken()) {
+        Toast.fire({ icon: 'warning', title: 'Vui lòng đăng nhập để mua hàng' });
+        setTimeout(() => window.location.href = 'login.html', 1500);
+        return;
+    }
+    try {
+        await fetchAPI('/cart/add/', 'POST', { 
+            product_id: productId, 
+            package_id: packageId, 
+            quantity: 1 
+        });
+        Toast.fire({ icon: 'success', title: 'Đã thêm vào giỏ hàng' });
+        if (typeof updateCartBadge === 'function') updateCartBadge();
+    } catch (e) {
+        Toast.fire({ icon: 'error', title: 'Không thể thêm vào giỏ hàng' });
+    }
+};
 
 async function loadFeaturedProducts() {
-    const products = await fetchAPI('/products/featured/');
     const container = document.getElementById('product-list');
-    
-    if (!products) return;
+    if (!container) return;
 
-    container.innerHTML = products.map(p => `
-        <div class="col-md-4 mb-4">
-            <div class="card product-card h-100 shadow-sm">
-                ${p.provider_name ? `<span class="provider-badge">${p.provider_name}</span>` : ''}
-                <img src="${p.images.length ? MEDIA_URL + p.images[0].image : ''}" class="card-img-top">
-                <div class="card-body">
-                    <h5>${p.name}</h5>
-                    <p class="text-muted small">${p.description.substring(0,80)}...</p>
-                    <a href="product.html?id=${p.id}" class="btn btn-outline-primary w-100">Xem chi tiết</a>
-                </div>
-            </div>
-        </div>
-    `).join('');
+    try {
+        const products = await fetchAPI('/products/');
+        if (!products || products.length === 0) {
+            container.innerHTML = '<div class="col-12 text-center py-5 text-muted">Chưa có sản phẩm nào.</div>';
+            return;
+        }
+
+        container.innerHTML = products.slice(0, 6).map((p, idx) => {
+            // Tối ưu logic lấy ảnh
+            let imageUrl = 'https://placehold.co/400x250?text=TIS+Broker';
+            if (p.images?.length > 0) {
+                const imgPath = p.images[0].image;
+                imageUrl = imgPath.startsWith('http') ? imgPath : DOMAIN + (imgPath.startsWith('/') ? imgPath : `/${imgPath}`);
+            }
+
+            const cleanDesc = p.description ? p.description.replace(/<[^>]+>/g, '').substring(0, 100) + '...' : 'An tâm bảo vệ tài chính cùng TIS.';
+            const priceDisplay = formatMoney(p.base_price);
+            const defaultPackageId = p.packages?.[0]?.id || null;
+
+            return `
+                <div class="col-lg-4 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="${idx * 100}">
+                    <div class="card h-100 shadow-sm border-0" onclick="window.location.href='product-detail.html?id=${p.id}'" style="cursor: pointer;">
+                        <div class="position-relative">
+                            <span class="badge bg-danger position-absolute top-0 start-0 m-3">${p.provider_name || 'TIS'}</span>
+                            <img src="${imageUrl}" class="card-img-top" style="height: 200px; object-fit: cover;" alt="${p.name}">
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="fw-bold">${p.name}</h5>
+                            <p class="text-muted small flex-grow-1">${cleanDesc}</p>
+                            <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                                <div>
+                                    <small class="text-muted d-block">Phí từ</small>
+                                    <span class="text-danger fw-bold h5">${priceDisplay}</span>
+                                </div>
+                                <button onclick="event.stopPropagation(); handleQuickBuy(${defaultPackageId}, ${p.id})" 
+                                        class="btn btn-danger btn-sm rounded-pill px-3">Mua ngay</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+    } catch (e) {
+        container.innerHTML = '<div class="col-12 text-center py-5 text-danger">Lỗi kết nối máy chủ.</div>';
+    }
 }
-loadFeaturedProducts();
 
+async function loadLatestNews() {
+    const container = document.getElementById('news-list');
+    if (!container) return;
 
-async function loadNews() {
-    // Giả sử bạn đã tạo vài tin tức trong Admin
-    const newsList = await fetchAPI('/news/');
-    const container = document.getElementById('news-container'); // Bạn cần thêm div này vào index.html
-    
-    if (!newsList) return;
+    try {
+        const news = await fetchAPI('/news/');
+        
+        if (!news || news.length === 0) {
+            container.innerHTML = '<div class="col-12 text-center py-4 text-muted">Đang cập nhật bài viết mới...</div>';
+            return;
+        }
 
-    container.innerHTML = newsList.map(n => `
-        <div class="col-md-4 mb-3">
-            <div class="card h-100">
-                <img src="${n.image}" class="card-img-top" style="height: 150px; object-fit: cover">
-                <div class="card-body">
-                    <h5 class="card-title">${n.title}</h5>
-                    <p class="card-text small">${n.content.substring(0, 100)}...</p>
-                    <a href="#" class="btn btn-link p-0">Xem thêm</a>
+        container.innerHTML = news.slice(0, 3).map((n, idx) => {
+            let imageUrl = 'https://placehold.co/400x250/f8f9fa/6c757d?text=TIS+News';
+            if (n.image) {
+                let imgPath = n.image;
+                if (imgPath.startsWith('http')) {
+                    imageUrl = imgPath;
+                } else {
+                    if (!imgPath.includes('/media/')) {
+                        imgPath = imgPath.startsWith('/') ? `/media${imgPath}` : `/media/${imgPath}`;
+                    }
+                    imageUrl = DOMAIN + imgPath;
+                }
+            }
+            
+            let cleanDesc = n.content ? n.content.replace(/(<([^>]+)>)/gi, "").substring(0, 90) + '...' : 'Đang cập nhật nội dung...';
+            let dateStr = n.created_at ? new Date(n.created_at).toLocaleDateString('vi-VN') : '';
+
+            return `
+                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="${idx * 100}">
+                    <div class="card news-card bg-white rounded-4 shadow-sm h-100 overflow-hidden border-0 cursor-pointer" 
+                         onclick="window.location.href='news-detail.html?id=${n.id}'">
+                        <div class="product-img-wrapper" style="height: 180px;">
+                            <img src="${imageUrl}" alt="${n.title}" onerror="this.onerror=null; this.src='https://placehold.co/400x250/f8f9fa/6c757d?text=TIS+News';">
+                        </div>
+                        <div class="card-body p-4 d-flex flex-column">
+                            <div class="d-flex align-items-center mb-2 text-muted small">
+                                <i class="far fa-calendar-alt me-2 text-danger"></i> ${dateStr}
+                            </div>
+                            <h5 class="fw-bold mb-3 product-title">
+                                <a href="news-detail.html?id=${n.id}" class="text-dark text-decoration-none hover-red">${n.title}</a>
+                            </h5>
+                            <p class="text-secondary small mb-0 flex-grow-1">${cleanDesc}</p>
+                            <span class="text-danger small fw-bold text-decoration-none mt-3">Đọc tiếp <i class="fas fa-arrow-right ms-1"></i></span>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    `).join('');
+            `;
+        }).join('');
+    } catch (e) {
+        console.error("Lỗi tải tin tức:", e);
+        container.innerHTML = '';
+    }
 }
-loadNews(); // Gọi hàm này cùng lúc với loadFeaturedProducts

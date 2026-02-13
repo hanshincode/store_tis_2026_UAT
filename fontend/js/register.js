@@ -1,150 +1,91 @@
 // js/register.js
-
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // 1. Sự kiện đổi loại tài khoản
+    if (getAccessToken()) window.location.href = '/user/index.html';
+
     const userTypeSelect = document.getElementById('user_type');
-    if (userTypeSelect) {
-        userTypeSelect.addEventListener('change', toggleBizFields);
-    }
+    const entFields = document.getElementById('enterprise-fields');
+    const companyNameInput = document.getElementById('company_name');
+    const taxCodeInput = document.getElementById('tax_code');
 
-    // 2. Sự kiện tra cứu MST
-    const taxInput = document.getElementById('tax_code');
-    const searchBtn = document.getElementById('btn-search-mst');
+    userTypeSelect.addEventListener('change', function(e) {
+        if (e.target.value === 'enterprise') {
+            entFields.classList.remove('d-none');
+            companyNameInput.required = true; taxCodeInput.required = true;
+        } else {
+            entFields.classList.add('d-none');
+            companyNameInput.required = false; taxCodeInput.required = false;
+        }
+    });
 
-    if (taxInput) taxInput.addEventListener('blur', searchMST);
-    if (searchBtn) searchBtn.addEventListener('click', searchMST);
-
-    // 3. Sự kiện Submit Form
-    const registerForm = document.getElementById('register-form');
-    if (registerForm) {
-        registerForm.addEventListener('submit', handleRegister);
-    }
+    document.getElementById('btn-lookup-mst')?.addEventListener('click', lookupMST);
+    taxCodeInput?.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); lookupMST(); }});
+    document.getElementById('password')?.addEventListener('input', checkPasswordStrength);
+    document.getElementById('register-form')?.addEventListener('submit', handleRegister);
 });
 
-function toggleBizFields() {
-    const type = document.getElementById('user_type').value;
-    const bizFields = document.getElementById('biz-fields');
-    const indFields = document.getElementById('ind-fields');
-
-    if (type === 'enterprise') {
-        bizFields.classList.remove('d-none');
-        indFields.classList.add('d-none');
-        
-        document.getElementById('tax_code').required = true;
-        document.getElementById('company_name').required = true;
-        document.getElementById('biz_address').required = true;
-    } else {
-        bizFields.classList.add('d-none');
-        indFields.classList.remove('d-none');
-        
-        document.getElementById('tax_code').required = false;
-        document.getElementById('company_name').required = false;
-        document.getElementById('biz_address').required = false;
-    }
-}
-
-async function searchMST() {
+async function lookupMST() {
     const mst = document.getElementById('tax_code').value.trim();
-    if (!mst || mst.length < 10) return;
+    if (!mst) return Toast.fire({ icon: 'warning', title: 'Vui lòng nhập Mã số thuế!' });
 
-    const icon = document.getElementById('mst-icon');
-    const spinner = document.getElementById('mst-loading');
-    if(icon) icon.classList.add('d-none');
-    if(spinner) spinner.classList.remove('d-none');
+    const btn = document.getElementById('btn-lookup-mst');
+    const companyNameInput = document.getElementById('company_name');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
 
     try {
         const res = await fetch(`https://api.vietqr.io/v2/business/${mst}`);
         const data = await res.json();
+        if (data.code === '00' && data.data) {
+            companyNameInput.value = data.data.name; companyNameInput.readOnly = true;
+            Toast.fire({ icon: 'success', title: 'Lấy thông tin thành công!' });
+        } else throw new Error('Không tìm thấy MST');
+    } catch (e) {
+        Toast.fire({ icon: 'error', title: 'Không tìm thấy MST! Vui lòng nhập tay.' });
+        companyNameInput.value = ''; companyNameInput.readOnly = false; companyNameInput.focus();
+    } finally { btn.innerHTML = 'Tra cứu'; btn.disabled = false; }
+}
 
-        if (data.code === '00') {
-            document.getElementById('company_name').value = data.data.name;
-            document.getElementById('biz_address').value = data.data.address;
-            
-            document.getElementById('tax_code').classList.remove('is-invalid');
-            document.getElementById('tax_code').classList.add('is-valid');
-            document.getElementById('company_name').classList.add('is-valid');
-            
-            if (typeof Toast !== 'undefined') Toast.success("Đã tìm thấy thông tin doanh nghiệp!");
-        } else {
-            if (typeof Toast !== 'undefined') Toast.error("Không tìm thấy thông tin doanh nghiệp này.");
-            document.getElementById('tax_code').classList.add('is-invalid');
-            document.getElementById('company_name').value = "";
-            document.getElementById('biz_address').value = "";
-        }
-    } catch (error) {
-        console.error(error);
-        if (typeof Toast !== 'undefined') Toast.error("Lỗi kết nối đến tổng cục thuế.");
-    } finally {
-        if(icon) icon.classList.remove('d-none');
-        if(spinner) spinner.classList.add('d-none');
-    }
+function checkPasswordStrength(e) {
+    const password = e.target.value;
+    const strengthBar = document.getElementById('password-strength-bar');
+    const strengthText = document.getElementById('password-strength-text');
+    const container = document.getElementById('password-strength-container');
+
+    if (password.length === 0) { container.style.display = 'none'; strengthText.style.display = 'none'; return; }
+    container.style.display = 'flex'; strengthText.style.display = 'block';
+
+    let strength = 0;
+    if (password.length >= 6) strength += 1;
+    if (password.length >= 8) strength += 1;
+    if (password.match(/[a-z]+/)) strength += 1;
+    if (password.match(/[A-Z]+/)) strength += 1;
+    if (password.match(/[0-9]+/)) strength += 1;
+    if (password.match(/[$@#&!%^*?_~]+/)) strength += 1;
+
+    strengthBar.className = 'progress-bar progress-bar-striped progress-bar-animated';
+    if (password.length < 6) { strengthBar.style.width = '20%'; strengthBar.classList.add('bg-danger'); strengthText.textContent = 'Yếu: Cần ít nhất 6 ký tự'; strengthText.className = 'text-danger mt-1 d-block small'; } 
+    else if (strength <= 3) { strengthBar.style.width = '50%'; strengthBar.classList.add('bg-warning'); strengthText.textContent = 'Trung bình: Thêm số hoặc chữ hoa'; strengthText.className = 'text-warning mt-1 d-block small'; } 
+    else if (strength <= 5) { strengthBar.style.width = '75%'; strengthBar.classList.add('bg-info'); strengthText.textContent = 'Khá: Thêm ký tự đặc biệt'; strengthText.className = 'text-info mt-1 d-block small'; } 
+    else { strengthBar.style.width = '100%'; strengthBar.classList.add('bg-success'); strengthText.textContent = 'Tuyệt vời!'; strengthText.className = 'text-success mt-1 d-block small'; }
 }
 
 async function handleRegister(e) {
     e.preventDefault();
-
-    // --- LOGIC MỚI: KIỂM TRA MẬT KHẨU ---
+    const phone = document.getElementById('phone').value.trim();
     const password = document.getElementById('password').value;
-    const confirmPassword = document.getElementById('confirm_password').value;
+    if (password !== document.getElementById('confirm_password').value) return Toast.fire({ icon: 'warning', title: "Mật khẩu không khớp!" });
+    if (password.length < 6) return Toast.fire({ icon: 'warning', title: "Mật khẩu phải từ 6 ký tự!" });
 
-    if (password !== confirmPassword) {
-        if (typeof Toast !== 'undefined') {
-            Toast.error("Mật khẩu nhập lại không khớp!");
-        } else {
-            alert("Mật khẩu nhập lại không khớp!");
-        }
-        // Focus vào ô nhập lại để người dùng sửa
-        document.getElementById('confirm_password').focus();
-        document.getElementById('confirm_password').classList.add('is-invalid');
-        return; // Dừng lại, không gửi dữ liệu đi
-    } else {
-        document.getElementById('confirm_password').classList.remove('is-invalid');
-    }
-    // ------------------------------------
+    const btn = document.getElementById('btn-register'); const originalText = btn.innerText;
+    btn.innerText = 'Đang xử lý...'; btn.disabled = true;
 
-    const type = document.getElementById('user_type').value;
-    
-    const data = {
-        username: document.getElementById('phone').value,
-        password: password,
-        phone: document.getElementById('phone').value,
-        first_name: document.getElementById('full_name').value,
-        role: 'customer',
-        user_type: type,
-        address: type === 'enterprise' ? document.getElementById('biz_address').value : document.getElementById('ind_address').value,
-        company_name: type === 'enterprise' ? document.getElementById('company_name').value : '',
-        tax_code: type === 'enterprise' ? document.getElementById('tax_code').value : '',
-        cccd: type === 'individual' ? document.getElementById('cccd').value : ''
-    };
-
-    const btn = e.target.querySelector('button');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang xử lý...';
-    btn.disabled = true;
-
-    const res = await fetchAPI('/register/', 'POST', data);
-    
-    btn.innerHTML = originalText;
-    btn.disabled = false;
-
-    if (res && res.id) {
-        Swal.fire({
-            icon: 'success',
-            title: 'Đăng ký thành công!',
-            text: 'Tài khoản đã được tạo. Vui lòng đăng nhập.',
-            confirmButtonColor: '#D71920',
-            confirmButtonText: 'Đến trang đăng nhập'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                window.location.href = 'login.html';
-            }
+    try {
+        await fetchAPI('/register/', 'POST', {
+            username: phone, phone: phone, password: password, role: 'customer', user_type: document.getElementById('user_type').value,
+            first_name: document.getElementById('first_name').value.trim(), email: "", 
+            company_name: document.getElementById('company_name')?.value.trim() || "", tax_code: document.getElementById('tax_code')?.value.trim() || ""
         });
-    } else {
-        if (typeof Toast !== 'undefined') {
-            Toast.error("Đăng ký thất bại! SĐT có thể đã tồn tại.");
-        } else {
-            alert("Đăng ký thất bại.");
-        }
-    }
+        Swal.fire({ icon: 'success', title: 'Thành công!', text: 'Vui lòng đăng nhập.', confirmButtonColor: '#D71920' }).then(() => { window.location.href = 'login.html'; });
+    } catch (error) {
+        Toast.fire({ icon: 'error', title: (error.username || error.phone) ? "Số điện thoại đã tồn tại!" : "Lỗi hệ thống!" });
+    } finally { btn.innerText = originalText; btn.disabled = false; }
 }
