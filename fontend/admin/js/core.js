@@ -1,54 +1,71 @@
 /**
  * admin/js/core.js
- * Chức năng: Render Layout (Sidebar, Topbar), Check quyền Admin/Staff, Logout
+ * Chức năng: Core Admin - Layout, Auth, Navigation & Realtime Updates
  */
 
-// 1. ẨN TRANG NGAY LẬP TỨC ĐỂ CHECK QUYỀN
+// 1. CHỐNG NHẤP NHÁY: Ẩn giao diện cho đến khi xác thực xong
 document.documentElement.style.display = 'none';
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // A. CHECK TOKEN
-    const token = localStorage.getItem('access_token'); // Hoặc getAccessToken() từ common.js
+    // A. KIỂM TRA TOKEN
+    const token = getAccessToken();
     if (!token) {
-        window.location.href = '../login.html';
+        window.location.replace('../login.html'); 
         return;
     }
 
     try {
-        // B. GỌI API CHECK USER ROLE
-        // Giả sử API trả về { role: 'admin' | 'staff' | 'user', ... }
-        const user = await fetchAPI('/users/me/'); 
-        
-        if (!['admin', 'super_admin', 'staff'].includes(user.role) && !user.is_superuser) {
-            alert("Bạn không có quyền truy cập trang quản trị!");
-            window.location.href = '../index.html';
+        // B. LẤY THÔNG TIN USER
+        const user = await fetchAPI('/users/me/');
+
+        // C. KIỂM TRA QUYỀN
+        const allowedRoles = ['super_admin', 'admin', 'staff'];
+        const hasAccess = user.is_superuser || allowedRoles.includes(user.role);
+
+        if (!hasAccess) {
+            alert("Tài khoản của bạn không có quyền truy cập trang quản trị!");
+            window.location.replace('../index.html');
             return;
         }
 
-        // C. RENDER LAYOUT & SHOW TRANG
+        sessionStorage.setItem('admin_user', JSON.stringify(user));
+
+        // D. RENDER GIAO DIỆN
         renderAdminLayout(user);
         activeCurrentMenu();
+
+        // E. HIỂN THỊ TRANG
         document.documentElement.style.display = 'block';
 
-    } catch (e) {
-        console.error("Lỗi xác thực Admin:", e);
-        logout();
+        // F. REALTIME UPDATES
+        updateBadgeCount();
+        setInterval(updateBadgeCount, 10000);
+
+    } catch (error) {
+        console.error("Lỗi xác thực Admin:", error);
+        clearTokens();
+        window.location.replace('../login.html');
     }
 });
 
+/**
+ * Render Sidebar và Topbar
+ */
 function renderAdminLayout(user) {
-    // 1. Sidebar HTML
+    const avatarUrl = user.avatar || `https://ui-avatars.com/api/?name=${user.last_name}+${user.first_name}&background=random`;
+    const fullName = `${user.last_name || ''} ${user.first_name || ''}`.trim() || user.username;
+    
+    // HTML SIDEBAR
     const sidebarHtml = `
     <nav id="sidebar" class="bg-white shadow-sm sidebar-wrapper">
-        <div class="sidebar-brand p-3 border-bottom d-flex align-items-center justify-content-center">
-            <a href="index.html" class="text-decoration-none d-flex align-items-center gap-2">
-                <i class="fas fa-shield-alt fa-2x text-danger"></i>
-                <div>
-                    <h5 class="fw-bold text-dark m-0">TIS Admin</h5>
-                    <small class="text-muted" style="font-size: 0.75rem;">Insurance Broker</small>
-                </div>
-            </a>
+        <div class="sidebar-brand p-3 border-bottom d-flex align-items-center justify-content-center gap-2">
+            <i class="fas fa-shield-alt fa-2x text-danger"></i>
+            <div>
+                <h5 class="fw-bold text-dark m-0">TIS Admin</h5>
+                <small class="text-muted" style="font-size: 0.75rem;">Insurance Broker</small>
+            </div>
         </div>
+        
         <div class="sidebar-menu p-3">
             <ul class="list-unstyled">
                 <li class="menu-label text-muted small fw-bold mb-2">QUẢN LÝ CHUNG</li>
@@ -57,54 +74,119 @@ function renderAdminLayout(user) {
                 <li><a href="products.html" id="menu-products" class="nav-link"><i class="fas fa-box-open"></i> Sản phẩm</a></li>
                 <li><a href="categories.html" id="menu-categories" class="nav-link"><i class="fas fa-list"></i> Danh mục</a></li>
                 
-                <li class="menu-label text-muted small fw-bold mt-3 mb-2">KHÁCH HÀNG & NỘI DUNG</li>
-                <li><a href="consultations.html" id="menu-consultations" class="nav-link"><i class="fas fa-headset"></i> Tư vấn</a></li>
+                <li class="menu-label text-muted small fw-bold mt-3 mb-2">KHÁCH HÀNG & SUPPORT</li>
+                <li>
+                    <a href="consultations.html" id="menu-consultations" class="nav-link">
+                        <i class="fas fa-headset"></i> Tư vấn
+                        <span class="badge bg-warning text-dark ms-auto" id="sidebar-consult-badge" style="display:none">0</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="chat.html" id="menu-chat" class="nav-link d-flex align-items-center">
+                        <i class="fab fa-facebook-messenger me-2"></i> Live Chat
+                        <span class="badge bg-danger ms-auto" id="sidebar-chat-badge" style="display:none">0</span>
+                    </a>
+                </li>
+                
+                <li class="menu-label text-muted small fw-bold mt-3 mb-2">NỘI DUNG & HỆ THỐNG</li>
                 <li><a href="news.html" id="menu-news" class="nav-link"><i class="fas fa-newspaper"></i> Tin tức</a></li>
                 <li><a href="staff.html" id="menu-staff" class="nav-link"><i class="fas fa-users-cog"></i> Nhân sự</a></li>
-            </ul>
+                
+                </ul>
         </div>
-        <div class="sidebar-footer p-3 border-top mt-auto">
-            <div class="d-flex align-items-center gap-2">
-                <img src="${user.avatar || 'https://ui-avatars.com/api/?name=' + user.username}" class="rounded-circle" width="40" height="40">
-                <div class="overflow-hidden">
-                    <div class="fw-bold text-truncate">${user.last_name || user.username}</div>
-                    <div class="text-muted small text-truncate">${user.role.toUpperCase()}</div>
+
+        <div class="sidebar-footer p-3 border-top mt-auto bg-light">
+            <div class="d-flex align-items-center gap-2 mb-3 p-2 rounded border bg-white shadow-sm user-profile-btn" 
+                 onclick="window.location.href='profile.html'" 
+                 title="Xem hồ sơ cá nhân"
+                 style="cursor: pointer; transition: all 0.2s ease;">
+                 
+                <img src="${avatarUrl}" class="rounded-circle border" width="40" height="40" style="object-fit: cover;">
+                
+                <div class="overflow-hidden flex-grow-1">
+                    <div class="fw-bold text-dark text-truncate small" title="${fullName}">${fullName}</div>
+                    <div class="text-muted x-small text-truncate">${user.role ? user.role.toUpperCase() : 'ADMIN'}</div>
                 </div>
+                
+                <i class="fas fa-chevron-right text-muted small ms-1"></i>
             </div>
-            <button class="btn btn-outline-danger btn-sm w-100 mt-2" onclick="logout()">
+
+            <button class="btn btn-outline-danger btn-sm w-100" onclick="handleLogout()">
                 <i class="fas fa-sign-out-alt"></i> Đăng xuất
             </button>
         </div>
     </nav>`;
 
-    // 2. Topbar HTML (Nút toggle menu trên mobile)
+    // HTML TOPBAR (Mobile Toggle)
     const topbarHtml = `
-    <div class="topbar d-md-none bg-white shadow-sm p-3 d-flex justify-content-between align-items-center mb-3">
-        <span class="fw-bold">TIS Admin Panel</span>
-        <button class="btn btn-light" onclick="document.getElementById('sidebar').classList.toggle('show')">
+    <div class="topbar d-md-none bg-white shadow-sm p-3 d-flex justify-content-between align-items-center mb-3 sticky-top">
+        <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-shield-alt text-danger fa-lg"></i>
+            <span class="fw-bold">TIS Panel</span>
+        </div>
+        <button class="btn btn-light border" onclick="toggleSidebar()">
             <i class="fas fa-bars"></i>
         </button>
     </div>`;
 
     document.body.insertAdjacentHTML('afterbegin', sidebarHtml);
-    document.querySelector('.main-content').insertAdjacentHTML('afterbegin', topbarHtml);
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+        mainContent.insertAdjacentHTML('afterbegin', topbarHtml);
+    }
+    
+    // Thêm hiệu ứng hover bằng JS (hoặc CSS)
+    const profileBtn = document.querySelector('.user-profile-btn');
+    if(profileBtn) {
+        profileBtn.addEventListener('mouseenter', () => profileBtn.classList.add('bg-light'));
+        profileBtn.addEventListener('mouseleave', () => profileBtn.classList.remove('bg-light'));
+    }
 }
 
+/**
+ * Active menu dựa trên URL
+ */
 function activeCurrentMenu() {
     const path = window.location.pathname;
-    const page = path.split("/").pop().replace('.html', '') || 'index';
+    let page = path.split("/").pop();
+    if (page === '' || page === 'admin') page = 'index.html';
+    const menuId = 'menu-' + page.replace('.html', '');
     
-    // Xóa active cũ
-    document.querySelectorAll('.sidebar-menu .nav-link').forEach(l => l.classList.remove('active'));
-    
-    // Thêm active mới
-    const activeLink = document.getElementById(`menu-${page}`);
-    if (activeLink) activeLink.classList.add('active');
+    const activeLink = document.getElementById(menuId);
+    if (activeLink) {
+        activeLink.classList.add('active');
+        activeLink.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 }
 
-// Hàm logout toàn cục cho Admin
-window.logout = function() {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    window.location.href = '../login.html';
-};
+window.toggleSidebar = function() {
+    document.getElementById('sidebar').classList.toggle('show');
+}
+
+window.handleLogout = function() {
+    if (confirm("Bạn có chắc chắn muốn đăng xuất?")) {
+        clearTokens();
+        sessionStorage.removeItem('admin_user');
+        window.location.replace('../login.html');
+    }
+}
+
+async function updateBadgeCount() {
+    try {
+        const data = await fetchAPI('/consultations/');
+        if (Array.isArray(data)) {
+            const newCount = data.filter(item => item.status === 'new').length;
+            const consultBadge = document.getElementById('sidebar-consult-badge');
+            const chatBadge = document.getElementById('sidebar-chat-badge');
+            
+            if (consultBadge) {
+                consultBadge.innerText = newCount;
+                consultBadge.style.display = newCount > 0 ? 'inline-block' : 'none';
+            }
+            if (chatBadge) {
+                chatBadge.innerText = newCount;
+                chatBadge.style.display = newCount > 0 ? 'inline-block' : 'none';
+            }
+        }
+    } catch (e) {}
+}

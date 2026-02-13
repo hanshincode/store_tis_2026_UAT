@@ -129,10 +129,12 @@ async function handleRefreshToken() {
 }
 
 // --- 6. HÀM TIỆN ÍCH ---
+// fontend/js/common.js
 window.logout = function() {
     clearTokens();
-    // Chuyển hướng tuyệt đối về trang gốc để tránh lỗi sai đường dẫn trong admin/
-    window.location.replace('/login.html');
+    // Sử dụng đường dẫn gốc để không bị ảnh hưởng bởi thư mục hiện tại
+    const rootPath = window.location.origin;
+    window.location.replace(`${rootPath}/login.html`);
 };
 
 function formatMoney(amount) {
