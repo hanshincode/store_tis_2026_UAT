@@ -22,7 +22,8 @@ from .serializers import (
     ProductSerializer, CategorySerializer, OrderSerializer, 
     EnterpriseEmployeeSerializer, RegisterSerializer, 
     CartItemSerializer, OrderItemSerializer,
-    ProductPackageSerializer, ConsultationRequestSerializer, NewsSerializer
+    ProductPackageSerializer, ConsultationRequestSerializer, NewsSerializer,
+    UserSerializer
 )
 
 # --- PHÂN QUYỀN TÙY CHỈNH (INTERNAL) ---
@@ -47,16 +48,15 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
 
-    def get_permissions(self):
+    def get_serializer_class(self):
         if self.action == 'create':
-            return [permissions.AllowAny()]
-        elif self.action == 'me':
-            return [permissions.IsAuthenticated()]
-        return [IsTISAdminOrStaff()]
+            return RegisterSerializer
+        return UserSerializer # Serializer đầy đủ thông tin
 
     @action(detail=False, methods=['get'])
     def me(self, request):
-        serializer = self.get_serializer(request.user)
+        # Đảm bảo dùng UserSerializer ở đây
+        serializer = UserSerializer(request.user)
         return Response(serializer.data)
 
 # --- BUSINESS VIEWSETS ---
@@ -78,6 +78,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'category__name', 'provider_name']
+    
+
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
@@ -163,6 +165,9 @@ class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Order.objects.none() # Trả về list rỗng cho Swagger
+    
         user = self.request.user
         if user.role in ['admin', 'super_admin']:
             return Order.objects.all()
@@ -189,26 +194,147 @@ class OrderViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=False, methods=['post'])
+    def checkout_cart(self, request):
+        try:
+            cart = Cart.objects.get(user=request.user)
+            items = cart.items.all()
+            
+            if not items.exists():
+                return Response({"error": "Giỏ hàng đang trống"}, status=status.HTTP_400_BAD_REQUEST)
+
+            total_amount = sum(item.package.price * item.quantity for item in items)
+            order_code = f"ORD-{int(time.time())}"
+            
+            with transaction.atomic():
+                order = Order.objects.create(
+                    user=request.user,
+                    total_amount=total_amount,
+                    status='pending',
+                    code=order_code
+                )
+                
+                # Chuyển CartItem thành OrderItem
+                for item in items:
+                    OrderItem.objects.create(
+                        order=order, 
+                        package=item.package, 
+                        quantity=item.quantity
+                    )
+                
+                # Xóa sạch giỏ hàng sau khi tạo đơn
+                items.delete()
+
+            return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+        except Cart.DoesNotExist:
+            return Response({"error": "Không tìm thấy giỏ hàng"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
 class EmployeeViewSet(viewsets.ModelViewSet):
     serializer_class = EnterpriseEmployeeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        # 1. Bỏ qua nếu là fake view của Swagger
+        if getattr(self, 'swagger_fake_view', False):
+            return EnterpriseEmployee.objects.none()
+
+        # 2. Đảm bảo user đã đăng nhập
+        if not self.request.user.is_authenticated:
+            return EnterpriseEmployee.objects.none()
+
+        # Code cũ của bạn
         return EnterpriseEmployee.objects.filter(enterprise=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(enterprise=self.request.user)
 
+# backend/api/views.py
+from .models import ChatMessage
+from .serializers import ChatMessageSerializer
+
 class ConsultationRequestViewSet(viewsets.ModelViewSet):
-    queryset = ConsultationRequest.objects.all()
+    queryset = ConsultationRequest.objects.all().order_by('-created_at') # Sắp xếp mới nhất lên đầu
     serializer_class = ConsultationRequestSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    
+    # --- SỬA ĐOẠN NÀY ---
+    def get_permissions(self):
+        # Cho phép bất kỳ ai (kể cả khách) được gửi yêu cầu (POST)
+        if self.action == 'create':
+            return [permissions.AllowAny()]
+        # Các hành động xem/xóa/sửa thì bắt buộc phải đăng nhập
+        return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
+        # Nếu chưa đăng nhập (trường hợp hiếm khi lọt vào get_queryset trừ khi code lỗi) thì trả rỗng
+        if not self.request.user.is_authenticated:
+            return ConsultationRequest.objects.none()
+
         user = self.request.user
+        # Admin/Staff thấy tất cả, User thường chỉ thấy của mình
         if user.role in ['admin', 'super_admin', 'staff']:
-            return ConsultationRequest.objects.all() 
-        return ConsultationRequest.objects.filter(user=user)
+            return ConsultationRequest.objects.all().order_by('-created_at')
+        return ConsultationRequest.objects.filter(user=user).order_by('-created_at')
+
+    @action(detail=True, methods=['post'])
+    def assign_processor(self, request, pk=None):
+        """Staff nhận ticket này để xử lý"""
+        consultation = self.get_object()
+        
+        # Nếu chưa ai nhận thì gán cho user hiện tại
+        if not consultation.processor:
+            consultation.processor = request.user
+            consultation.status = 'processed' # Chuyển trạng thái
+            consultation.save()
+            return Response({"status": "assigned", "processor": request.user.username})
+        
+        # Nếu đã có người nhận rồi
+        return Response({"status": "already_assigned", "processor": consultation.processor.username})
+
+
+# THÊM CÁC ACTION NÀY VÀO:
+    @action(detail=True, methods=['post'])
+    def assign_processor(self, request, pk=None):
+        consultation = self.get_object()
+        if not consultation.processor:
+            consultation.processor = request.user
+            consultation.status = 'processed'
+            consultation.save()
+        return Response({"status": "assigned", "processor": request.user.username})
+
+    @action(detail=True, methods=['get', 'post'])
+    def messages(self, request, pk=None):
+        consultation = self.get_object()
+
+        # 1. LẤY DANH SÁCH TIN NHẮN
+        if request.method == 'GET':
+            messages = consultation.messages.all().order_by('created_at')
+            serializer = ChatMessageSerializer(messages, many=True)
+            return Response(serializer.data)
+
+        # 2. GỬI TIN NHẮN MỚI
+        if request.method == 'POST':
+            message_text = request.data.get('message', '')
+            attachment = request.FILES.get('attachment') # Nếu có gửi file
+
+            if not message_text and not attachment:
+                return Response({"error": "Vui lòng nhập nội dung"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Tạo tin nhắn mới
+            new_message = ChatMessage.objects.create(
+                consultation=consultation,
+                sender=request.user,
+                message=message_text,
+                attachment=attachment,
+                is_staff_reply=False # Đánh dấu đây là tin nhắn của khách
+            )
+            
+            return Response(ChatMessageSerializer(new_message).data, status=status.HTTP_201_CREATED)
+
 
 class NewsViewSet(viewsets.ModelViewSet):
     queryset = News.objects.all()
@@ -262,6 +388,17 @@ class CartViewSet(viewsets.ViewSet):
         except CartItem.DoesNotExist:
             return Response({"error": "Item not found"}, status=404)
 
+    @action(detail=False, methods=['post'])
+    def remove(self, request):
+        item_id = request.data.get('item_id')
+        try:
+            item = CartItem.objects.get(id=item_id, cart__user=request.user)
+            item.delete()
+            return Response({"status": "Đã xóa sản phẩm khỏi giỏ hàng"})
+        except CartItem.DoesNotExist:
+            return Response({"error": "Không tìm thấy sản phẩm trong giỏ"}, status=404)
+
+
 # --- UTILITY VIEWS ---
 
 class DashboardSummaryView(APIView):
@@ -280,3 +417,4 @@ class DashboardSummaryView(APIView):
             "pending_orders": pending_orders,
             "recent_orders": OrderSerializer(recent_orders, many=True).data
         })
+

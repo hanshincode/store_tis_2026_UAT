@@ -39,4 +39,10 @@ urlpatterns = [
     path('login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('dashboard/summary/', DashboardSummaryView.as_view(), name='dashboard-summary'),
+    
+    path('api/auth/', include('dj_rest_auth.urls')),
+    path('api/auth/registration/', include('dj_rest_auth.registration.urls')),
+    path('api/auth/social/', include('allauth.socialaccount.urls')),
+    
+    
 ]

@@ -31,12 +31,13 @@ if not DEBUG:
     X_FRAME_OPTIONS = 'DENY' # Chống bị nhúng vào iframe (Clickjacking)
 
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -51,7 +52,44 @@ INSTALLED_APPS = [
     'django_filters',
     # Local
     'api',
+    'chat',
+    
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',    # Cho Google
+    'allauth.socialaccount.providers.microsoft', # Cho Outlook
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
 ]
+
+# 2. THÊM DÒNG NÀY (Bắt buộc)
+ASGI_APPLICATION = 'insurance_project.asgi.application'
+
+
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
+
+
+# 3. Đảm bảo cấu hình Channel Layers đã có (Dùng cho Chat realtime)
+# TIS Broker - WebSocket / Channels Configuration
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            # Thay đổi thông tin kết nối tại đây
+            # Cú pháp: "redis://:mật_khẩu@IP_CỦA_SERVER_HCM_TIS_DB:6379/0"
+            "hosts": ["redis://:IQ9Dpu76NxwALQTd@192.168.18.207:6379/0"], 
+        },
+    },
+}
+
+
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware', # Đặt đầu tiên
@@ -62,6 +100,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 AUTH_USER_MODEL = 'api.User' # Sử dụng model User tùy chỉnh
@@ -80,8 +120,8 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle'  # User đã đăng nhập
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/day',   # Khách chỉ được gọi 100 lần/ngày
-        'user': '1000/day',  # User được gọi 1000 lần/ngày
+        'anon': '100000000000000000000/day',   # Khách chỉ được gọi 100 lần/ngày
+        'user': '1000000000000000000000/day',  # User được gọi 1000 lần/ngày
     }
 }
 
@@ -89,13 +129,15 @@ REST_FRAMEWORK = {
 
 # settings.py
 
-# Thay vì CORS_ALLOW_ALL_ORIGINS = True (Chỉ dùng khi Dev)
-# Hãy dùng:
+
+# CORS_ALLOW_ALL_ORIGINS = True
+
 CORS_ALLOWED_ORIGINS = [
     "https://tisbroker.com",
     "https://www.tisbroker.com",
     "http://localhost:5500", # Cho phép khi test local
-    "http://localhost:8000"
+    "http://localhost:8000",
+    "https://9j0qhwdr-5500.asse.devtunnels.ms"
 ]
 
 
@@ -124,10 +166,15 @@ WSGI_APPLICATION = 'insurance_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# settings.py
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'tis_db', # Tên DB của bạn
+        'USER': 'tis_user', 
+        'PASSWORD': '6uiQKHpm2cv361eW',
+        'HOST': '192.168.18.207', # Trỏ tới server 192.168.18.207
+        'PORT': '5432',
     }
 }
 
@@ -186,7 +233,29 @@ SIMPLE_JWT = {
 }
 
 
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
 
+
+
+SITE_ID = 1
+# Cấu hình Provider cho Google và Microsoft
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+    },
+    'microsoft': {
+        'TENANT': 'common', # 'common' cho cả tài khoản cá nhân và doanh nghiệp
+    }
+}
+
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'jwt-auth',
+}
 
 # backend/insurance_project/settings.py
 
@@ -197,3 +266,10 @@ MEDIA_URL = '/media/'
 
 # Thư mục thực tế trên ổ cứng để lưu trữ ảnh
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
+
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/chat/'
+
+

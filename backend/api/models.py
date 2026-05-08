@@ -150,8 +150,127 @@ class ConsultationRequest(models.Model): #
     status = models.CharField(max_length=20, default='new')
     created_at = models.DateTimeField(auto_now_add=True)
 
+
+
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    customer_name = models.CharField(max_length=255)
+    customer_contact = models.CharField(max_length=255)
+    note = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=20, default='new') # new, processed, done
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # --- THÊM TRƯỜNG NÀY ---
+    processor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='processed_consultations')
+    updated_at = models.DateTimeField(auto_now=True)
+    guest_session_id = models.CharField(max_length=255, null=True, blank=True) # Lưu session ID của khách vãng lai để gắn với chat
+    def __str__(self):
+        return f"{self.customer_name} - {self.status}"
+
+
+# backend/api/models.py
+
+from django.db import models
+from django.contrib.auth import get_user_model
+
+# Lấy model User hiện tại của hệ thống
+User = get_user_model()
 class ChatMessage(models.Model):
-    consultation = models.ForeignKey(ConsultationRequest, related_name='messages', on_delete=models.CASCADE)
-    sender = models.ForeignKey(User, on_delete=models.CASCADE) # Admin hoặc Staff hoặc User
-    message = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
+    # Định nghĩa các loại tệp đính kèm được hỗ trợ
+    ATTACHMENT_TYPES = (
+        ('image', 'Hình ảnh'),
+        ('document', 'Tài liệu'),
+        ('video', 'Video'),
+        ('audio', 'Âm thanh'),
+    )
+
+    consultation = models.ForeignKey(
+        'ConsultationRequest', 
+        on_delete=models.CASCADE,
+        related_name='messages',
+        verbose_name="Yêu cầu tư vấn"
+    )
+    
+    # Người gửi: Null nếu là khách vãng lai chưa có tài khoản
+    sender = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sent_messages',
+        verbose_name="Người gửi" 
+    )
+
+    # TRƯỜNG QUAN TRỌNG: Lưu tên của khách vãng lai (nếu sender = Null)
+    guest_name = models.CharField(
+        max_length=100, 
+        null=True, 
+        blank=True, 
+        verbose_name="Tên khách vãng lai"
+    )
+    
+    # Cho phép null/blank vì người dùng có thể chỉ gửi mỗi bức ảnh mà không có text
+    message = models.TextField(
+        blank=True, 
+        null=True,
+        verbose_name="Nội dung tin nhắn"
+    )
+    
+    is_staff_reply = models.BooleanField(
+        default=False,
+        verbose_name="Là phản hồi của Admin/Staff"
+    )
+
+    # --- TỆP ĐÍNH KÈM ---
+    attachment = models.FileField(
+        upload_to='chat_attachments/%Y/%m/', # Tự động tạo thư mục theo năm/tháng
+        blank=True,
+        null=True,
+        verbose_name="Tệp đính kèm"
+    )
+    
+    attachment_type = models.CharField(
+        max_length=20,
+        choices=ATTACHMENT_TYPES,
+        blank=True,
+        null=True,
+        verbose_name="Loại tệp đính kèm"
+    )
+    
+    is_read = models.BooleanField(
+        default=False,
+        verbose_name="Trạng thái đã xem"
+    )
+
+    # --- THỜI GIAN ---
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Thời gian gửi")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Thời gian cập nhật")
+
+# THÊM 2 DÒNG NÀY VÀO DƯỚI CÙNG CỦA MODEL
+    attachment_url = models.CharField(max_length=500, null=True, blank=True)
+    attachment_type = models.CharField(max_length=50, null=True, blank=True)
+
+    class Meta:
+        # Sắp xếp mặc định theo thời gian tăng dần (Tin nhắn cũ ở trên, mới ở dưới)
+        ordering = ['created_at'] 
+        verbose_name = "Tin nhắn chat"
+        verbose_name_plural = "Quản lý tin nhắn"
+
+    def __str__(self):
+        # Xử lý ưu tiên tên hiển thị: User đăng nhập -> Tên khách nhập -> Mặc định
+        if self.sender:
+            sender_name = f"{self.sender.last_name} {self.sender.first_name}".strip() or self.sender.username
+        elif self.guest_name:
+            sender_name = self.guest_name
+        else:
+            sender_name = "Khách vãng lai"
+
+        # Nếu không có text (chỉ có ảnh), hiển thị preview là loại file
+        if self.message:
+            msg_preview = self.message[:30] + ('...' if len(self.message) > 30 else '')
+        elif self.attachment:
+            msg_preview = f"[{self.get_attachment_type_display()}]"
+        else:
+            msg_preview = "[Tin nhắn trống]"
+            
+        return f"[{self.created_at.strftime('%H:%M %d/%m')}] {sender_name}: {msg_preview}"

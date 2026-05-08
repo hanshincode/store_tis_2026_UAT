@@ -155,15 +155,32 @@ class CategorySerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 # --- 3. CART & ORDER SERIALIZERS ---
+from rest_framework import serializers
+from .models import CartItem
+
 class CartItemSerializer(serializers.ModelSerializer):
+    package_name = serializers.CharField(source='package.duration_label', read_only=True)
     product_name = serializers.CharField(source='package.product.name', read_only=True)
     price = serializers.DecimalField(source='package.price', max_digits=15, decimal_places=0, read_only=True)
-    duration = serializers.CharField(source='package.duration_label', read_only=True)
+    image = serializers.SerializerMethodField()
+    subtotal = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
-        fields = ['id', 'package', 'product_name', 'duration', 'price', 'quantity']
+        fields = ['id', 'package', 'package_name', 'product_name', 'price', 'quantity', 'subtotal', 'image']
 
+    def get_image(self, obj):
+        # Lấy ảnh đầu tiên của sản phẩm trong album
+        first_image = obj.package.product.images.first()
+        if first_image and first_image.image:
+            return first_image.image.url
+        return None
+
+    def get_subtotal(self, obj):
+        return obj.package.price * obj.quantity
+    
+    
+    
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='package.product.name', read_only=True)
     duration = serializers.CharField(source='package.duration_label', read_only=True)
@@ -181,18 +198,73 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 # --- 4. CHAT & NEWS SERIALIZERS ---
+# backend/api/serializers.py
+
 class ChatMessageSerializer(serializers.ModelSerializer):
-    sender_name = serializers.CharField(source='sender.username', read_only=True)
+    sender_name = serializers.SerializerMethodField()
+    avatar = serializers.SerializerMethodField()
+    created_at = serializers.DateTimeField(format="%H:%M %d/%m", read_only=True)
+
     class Meta:
         model = ChatMessage
-        fields = '__all__'
+        fields = [
+            'id', 'consultation', 'sender', 'message', 
+            'is_staff_reply', 'created_at', 'sender_name', 
+            'avatar', 'attachment_url', 'attachment_type'
+        ]
+
+    def get_sender_name(self, obj):
+        if obj.sender:
+            return f"{obj.sender.last_name} {obj.sender.first_name}".strip() or obj.sender.username
+        return obj.guest_name or "Khách hàng"
+
+    def get_avatar(self, obj):
+        # Trả về avatar của người gửi (Staff hoặc User có tài khoản)
+        if obj.sender and obj.sender.avatar:
+            return obj.sender.avatar.url
+        return None
 
 class ConsultationRequestSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    created_at_formatted = serializers.DateTimeField(source='created_at', format="%d/%m/%Y %H:%M", read_only=True)
+    processor_name = serializers.SerializerMethodField()
+    last_message = serializers.SerializerMethodField()
+
     class Meta:
         model = ConsultationRequest
         fields = '__all__'
 
+    def get_processor_name(self, obj):
+        if obj.processor:
+            return f"{obj.processor.last_name} {obj.processor.first_name}".strip()
+        return None
+
+    def get_last_message(self, obj):
+        last_msg = obj.messages.last()
+        if last_msg:
+            # Nếu tin nhắn trống nhưng có file đính kèm
+            content = last_msg.message
+            if not content and (last_msg.attachment or last_msg.attachment_url):
+                content = "[Tệp đính kèm]"
+            
+            return {
+                "message": content,
+                "time": last_msg.created_at.strftime("%H:%M"),
+                "is_staff": last_msg.is_staff_reply
+            }
+        return None
 class NewsSerializer(serializers.ModelSerializer):
     class Meta:
         model = News
         fields = '__all__'
+
+
+# Thêm vào backend/api/serializers.py
+# backend/api/serializers.py
+
+# Thêm vào vị trí thích hợp (ví dụ ngay sau RegisterSerializer)
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        # Các trường cần thiết cho Frontend phân quyền và hiển thị
+        fields = ['id', 'username', 'email', 'role', 'first_name', 'last_name', 'avatar', 'is_superuser']
