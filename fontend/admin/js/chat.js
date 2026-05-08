@@ -1,12 +1,12 @@
 /**
- * fontend/admin/js/chat.js
+ * frontend/admin/js/chat.js
  * Chức năng: WebSocket Chat Client cho Admin
  */
 
 let currentConsultationId = null;
 let chatSocket = null;
 let currentUser = null;
-let reconnectInterval = null; // Biến để quản lý thử lại kết nối
+let reconnectInterval = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Lấy thông tin Admin đang đăng nhập
@@ -59,8 +59,6 @@ function filterConversations(query) {
 async function loadConversations(activeId) {
     const listEl = document.getElementById('conv-list');
     try {
-        // Lấy tất cả yêu cầu tư vấn
-        // Backend nên có filter chỉ lấy những cái status='processed' hoặc 'new'
         const data = await fetchAPI('/consultations/'); 
         
         if (!data || data.length === 0) {
@@ -70,14 +68,12 @@ async function loadConversations(activeId) {
 
         listEl.innerHTML = data.map(item => {
             const isActive = item.id == activeId ? 'active' : '';
-            // Lấy tin nhắn cuối (Backend cần trả về last_message trong serializer)
             const lastMsg = item.last_message ? item.last_message.message : 'Chưa có tin nhắn';
-            const time = item.last_message ? item.last_message.time : new Date(item.created_at).toLocaleDateString('vi-VN');
-            const avatarLetter = item.customer_name.charAt(0).toUpperCase();
             const relativeTime = getRelativeTime(item.last_message?.created_at || item.created_at);
+            const avatarLetter = item.customer_name.charAt(0).toUpperCase();
             
             return `
-            <div class="msgr-item ${isActive}" onclick="openChat(${item.id}, '${item.customer_name}')" id="conv-item-${item.id}" data-conversation-id="${item.id}">
+            <div class="msgr-item ${isActive}" onclick="openChat(${item.id}, '${item.customer_name}', '${item.customer_contact || ''}', '${item.note || ''}')" id="conv-item-${item.id}" data-conversation-id="${item.id}">
                 <div class="msgr-avatar">${avatarLetter}</div>
                 <div class="flex-grow-1 overflow-hidden">
                     <div class="d-flex justify-content-between align-items-center">
@@ -89,10 +85,9 @@ async function loadConversations(activeId) {
             </div>`;
         }).join('');
 
-        // Nếu có ID active thì mở chat luôn
         if (activeId) {
             const activeItem = data.find(i => i.id == activeId);
-            if(activeItem) openChat(activeId, activeItem.customer_name);
+            if(activeItem) openChat(activeId, activeItem.customer_name, activeItem.customer_contact, activeItem.note);
         }
 
     } catch (e) { 
@@ -102,10 +97,9 @@ async function loadConversations(activeId) {
 }
 
 // --- 2. MỞ CHAT VÀ KẾT NỐI WEBSOCKET ---
-async function openChat(id, name) {
-    if (currentConsultationId === id) return; // Đang chat với người này rồi thì thôi
+async function openChat(id, name, contact, note) {
+    if (currentConsultationId === id) return; 
 
-    // Đóng socket cũ nếu có
     if (chatSocket) {
         chatSocket.close();
         clearInterval(reconnectInterval);
@@ -116,78 +110,112 @@ async function openChat(id, name) {
     // UI Update Header
     document.getElementById('header-name').innerText = name;
     document.getElementById('header-avatar').innerText = name.charAt(0).toUpperCase();
-    updateStatus('connecting'); // Cập nhật trạng thái "Đang kết nối..."
-    document.getElementById('input-area').style.display = 'flex'; // Hiện khung nhập
     
-    // UI Update Active List
+    // In SĐT và Ghi chú ra dưới tên khách hàng
+    let extraInfo = '';
+    if (contact) extraInfo += `<i class="fas fa-phone-alt ms-3 text-success"></i> ${contact} `;
+    if (note) extraInfo += `<i class="fas fa-sticky-note ms-2 text-warning"></i> <span title="${note}">${note.substring(0, 25)}${note.length > 25 ? '...' : ''}</span>`;
+    
+    let infoDiv = document.getElementById('header-extra-info');
+    if (!infoDiv) {
+        infoDiv = document.createElement('div');
+        infoDiv.id = 'header-extra-info';
+        infoDiv.className = 'text-muted mt-1';
+        infoDiv.style.fontSize = '0.8rem';
+        document.getElementById('header-name').parentNode.appendChild(infoDiv);
+    }
+    infoDiv.innerHTML = extraInfo;
+
+    updateStatus('connecting'); 
+    document.getElementById('input-area').style.display = 'flex'; 
+    
+    // Tải lịch sử và kết nối WebSocket
+    fetchHistory(id);
+    connectWebSocket(id);
+
+    // Cập nhật giao diện danh sách bên trái (in đậm người đang chat)
     document.querySelectorAll('.msgr-item').forEach(el => el.classList.remove('active'));
     const activeItem = document.getElementById(`conv-item-${id}`);
-    if(activeItem) activeItem.classList.add('active');
+    if (activeItem) activeItem.classList.add('active');
+} 
 
-    // Load Lịch sử Chat (HTTP API)
-    await fetchHistory(id);
-
-    // Kết nối WebSocket
-    connectWebSocket(id);
-}
-
-// Hàm kết nối WebSocket (Có tự động kết nối lại)
 function connectWebSocket(id) {
-    // Tự động chọn ws:// hoặc wss:// dựa trên giao thức web hiện tại
     const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const host = window.location.hostname; // Tự động lấy 127.0.0.1, localhost, hoặc domain
     
-    // [QUAN TRỌNG] Port Backend thường là 8000. Nếu deploy server thật thì bỏ :8000 đi
-    // Thay 127.0.0.1 bằng domain server nếu deploy
-    const wsUrl = `ws://127.0.0.1:8000/ws/chat/${id}/`; 
+    // Sửa lỗi tự động gán port 8000 nếu đang chạy ở môi trường local
+    const wsPort = (host === "127.0.0.1" || host === "localhost") ? ":8000" : "";
+    const wsUrl = `${protocol}${host}${wsPort}/ws/chat/${id}/`; 
 
-    console.log("Connecting to:", wsUrl);
+    console.log("Đang kết nối WebSocket tới:", wsUrl);
+
+    if (chatSocket) {
+        chatSocket.close();
+    }
+
     chatSocket = new WebSocket(wsUrl);
 
-    // KHI KẾT NỐI THÀNH CÔNG
     chatSocket.onopen = function(e) {
-        console.log("WebSocket Connected!");
-        updateStatus('online');
-        clearInterval(reconnectInterval); // Ngừng thử lại
-    };
-
-    // KHI NHẬN TIN NHẮN MỚI
-    chatSocket.onmessage = function(e) {
-        const data = JSON.parse(e.data);
-        
-        // Nếu là thông báo 'typing', hiển thị indicator
-        if (data.type === 'typing') {
-            showTypingIndicator();
-        } else if (data.type === 'stop_typing') {
-            hideTypingIndicator();
-        } else {
-            hideTypingIndicator(); // Ẩn khi có tin nhắn mới
-            appendMessage(data); // Vẽ tin nhắn lên màn hình
-            
-            // Cập nhật tin nhắn cuối ở sidebar trái
-            const lastMsgEl = document.getElementById(`last-msg-${id}`);
-            if(lastMsgEl) lastMsgEl.innerText = data.message;
+        console.log("WebSocket kết nối thành công!");
+        updateStatus('online'); 
+        if (reconnectInterval) {
+            clearInterval(reconnectInterval);
+            reconnectInterval = null;
         }
     };
 
-    // KHI MẤT KẾT NỐI (Đóng hoặc Lỗi)
+    chatSocket.onmessage = function(e) {
+        try {
+            const data = JSON.parse(e.data);
+            
+            switch(data.type) {
+                case 'typing':
+                    if (!data.is_staff) showTypingIndicator(); 
+                    break;
+                case 'stop_typing':
+                    if (!data.is_staff) hideTypingIndicator(); 
+                    break;
+                default:
+                    hideTypingIndicator(); 
+                    appendMessage(data); 
+                    
+                    const lastMsgEl = document.getElementById(`last-msg-${id}`);
+                    if (lastMsgEl) {
+                        lastMsgEl.innerText = data.message || '[Tệp đính kèm]';
+                    }
+
+                    // Bật thông báo nếu tin nhắn NÀY LÀ CỦA KHÁCH GỬI
+                    if (!data.is_staff && !data.is_staff_reply) {
+                        if (typeof showNewMessageNotification === "function") {
+                            showNewMessageNotification(data.sender_name || 'Khách hàng', data.message);
+                        }
+                    }
+                    break;
+            }
+        } catch (err) {
+            console.error("Lỗi xử lý dữ liệu JSON:", err);
+        }
+    };
+
     chatSocket.onclose = function(e) {
-        console.warn("WebSocket Closed. Reconnecting in 3s...", e);
+        console.warn("WebSocket đã đóng.", e);
         updateStatus('offline');
-        
-        // Thử kết nối lại sau 3 giây (nếu vẫn đang ở chat room này)
         if (currentConsultationId === id) {
-            clearInterval(reconnectInterval);
-            reconnectInterval = setTimeout(() => connectWebSocket(id), 3000);
+            if (!reconnectInterval) {
+                reconnectInterval = setTimeout(() => {
+                    reconnectInterval = null;
+                    connectWebSocket(id);
+                }, 3000);
+            }
         }
     };
 
     chatSocket.onerror = function(err) {
-        console.error("WebSocket Error:", err);
-        chatSocket.close(); // Gọi close để kích hoạt onclose và thử lại
+        console.error("Lỗi WebSocket:", err);
+        chatSocket.close(); 
     };
 }
 
-// Helper cập nhật trạng thái online/offline
 function updateStatus(state) {
     const el = document.getElementById('header-status');
     if (state === 'online') {
@@ -205,7 +233,6 @@ async function fetchHistory(id) {
     box.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>';
     
     try {
-        // Gọi API lấy lịch sử (đã tạo ở Backend bước trước)
         const msgs = await fetchAPI(`/consultations/${id}/messages/`);
         
         if(msgs.length === 0) {
@@ -213,82 +240,127 @@ async function fetchHistory(id) {
             return;
         }
         
-        box.innerHTML = ''; // Xóa loading
+        box.innerHTML = ''; 
         msgs.forEach(m => {
-            // Map dữ liệu từ API sang format chung
             const formattedMsg = {
                 message: m.message,
                 is_staff_reply: m.is_staff_reply,
                 created_at: new Date(m.created_at).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'}),
                 sender_name: m.sender_name,
-                avatar: m.avatar
+                avatar: m.avatar,
+                attachment_url: m.attachment_url, 
+                attachment_type: m.attachment_type
             };
             appendMessage(formattedMsg);
         });
         
-        // Cuộn xuống đáy sau khi load xong
         scrollToBottom();
 
     } catch (e) { 
-        console.error(e);
         box.innerHTML = '<div class="text-danger text-center">Không thể tải lịch sử chat.</div>';
     }
 }
 
 function appendMessage(data) {
     const box = document.getElementById('message-box');
-    const isMe = data.is_staff_reply; // Admin/Staff luôn là 'Me' (bên phải)
+    const isMe = data.is_staff_reply !== undefined ? data.is_staff_reply : data.is_staff;
     
     const alignClass = isMe ? 'msg-right' : 'msg-left';
     const justifyClass = isMe ? 'justify-content-end' : 'justify-content-start';
     
-    // Avatar cho tin nhắn khách (bên trái)
+    const avatarLetter = data.sender_name ? data.sender_name.charAt(0).toUpperCase() : 'K';
     const avatarHtml = !isMe 
-        ? `<div class="msgr-avatar bg-light text-dark me-2" style="width:28px;height:28px;font-size:0.8rem;font-weight:bold">${data.sender_name?.charAt(0).toUpperCase() || 'K'}</div>` 
+        ? `<div class="msgr-avatar bg-light text-dark me-2 flex-shrink-0 mt-1" style="width:28px;height:28px;font-size:0.8rem;font-weight:bold">${avatarLetter}</div>` 
         : '';
     
-    // Xác định nếu cần hiển thị tên (grouping)
     const lastMessage = box.lastElementChild;
-    const shouldShowName = !lastMessage || lastMessage.dataset.sender !== data.sender_name || !data.is_staff_reply === lastMessage.dataset.isStaff;
+    const shouldShowName = !lastMessage || 
+                           lastMessage.dataset.sender !== String(data.sender_name) || 
+                           lastMessage.dataset.isstaff !== String(isMe);
+                           
+    const nameHtml = (shouldShowName && !isMe) 
+        ? `<small class="text-muted text-truncate ms-2 mb-1" style="font-size:0.7rem; max-width:150px;">${data.sender_name || 'Khách hàng'}</small>` 
+        : '';
     
-    const nameHtml = shouldShowName && !isMe ? `<small class="text-muted text-truncate ms-2" style="font-size:0.7rem;width:28px;text-align:center">${data.sender_name || 'Khách'}</small>` : '';
+    let contentHtml = '';
     
-    // Status check marks (✓✓ for seen, ✓ for sent)
-    const statusHtml = isMe ? `<small class="text-success ms-1" style="font-size:0.8rem;" title="Đã gửi">✓✓</small>` : '';
+    if (data.message) {
+        const safeText = data.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        contentHtml += `<div class="msg-text">${safeText.replace(/\n/g, '<br>')}</div>`;
+    }
+
+    if (data.attachment_url) {
+        const marginClass = data.message ? 'mt-2' : ''; 
+        
+        if (data.attachment_type === 'image') {
+            contentHtml += `
+                <div class="${marginClass}">
+                    <a href="${data.attachment_url}" target="_blank" title="Bấm để xem ảnh lớn">
+                        <img src="${data.attachment_url}" alt="Image" style="max-width: 220px; max-height: 250px; border-radius: 8px; object-fit: cover;">
+                    </a>
+                </div>`;
+        } else {
+            const linkColor = isMe ? 'text-white' : 'text-primary';
+            contentHtml += `
+                <div class="${marginClass} p-2 rounded d-flex align-items-center gap-2" style="background: rgba(0,0,0,0.05);">
+                    <i class="fas fa-file-alt fs-4 ${linkColor}"></i>
+                    <a href="${data.attachment_url}" target="_blank" class="${linkColor} text-decoration-none fw-bold" style="font-size: 0.85rem;">
+                        Tệp đính kèm
+                    </a>
+                </div>`;
+        }
+    }
+    
+    if (!contentHtml) contentHtml = '<i class="text-muted">Tin nhắn không có nội dung</i>';
+
+    let statusHtml = '';
+    if (isMe) {
+        if (data.is_read) {
+            statusHtml = `<span class="text-success ms-1" style="font-size:0.75rem;" title="Khách đã xem">✓✓</span>`;
+        } else {
+            statusHtml = `<span class="text-white-50 ms-1" style="font-size:0.75rem;" title="Đã gửi">✓</span>`;
+        }
+    }
 
     const html = `
-    <div class="d-flex w-100 ${justifyClass} mb-2 animate-fade-in" data-sender="${data.sender_name}" data-isStaff="${isMe}">
+    <div class="d-flex w-100 ${justifyClass} mb-2 animate-fade-in" data-sender="${data.sender_name}" data-isstaff="${isMe}">
          ${avatarHtml}
-         <div class="d-flex flex-column align-items-${isMe ? 'end' : 'start'}">
+         <div class="d-flex flex-column align-items-${isMe ? 'end' : 'start'}" style="max-width: 75%;">
             ${nameHtml}
-            <div class="msg-bubble ${alignClass}" title="${data.sender_name} • ${data.created_at}">
-                ${data.message}${statusHtml}
+            <div class="msg-bubble ${alignClass}" title="${data.sender_name || 'Hệ thống'} • ${data.created_at}">
+                ${contentHtml}
+                
+                <div class="d-flex align-items-center justify-content-end mt-1 gap-1" style="opacity: 0.8;">
+                    <small style="font-size:0.65rem;">${data.created_at}</small>
+                    ${statusHtml}
+                </div>
             </div>
-            <small class="text-muted mt-1" style="font-size:0.7rem">${data.created_at}</small>
          </div>
     </div>`;
 
-    // Nếu đang hiện thông báo trống thì xóa đi
     const emptyState = box.querySelector('.msgr-empty');
     if(emptyState) emptyState.remove();
-    if(box.querySelector('.text-center.text-muted')) box.innerHTML = '';
+    
+    const loadingSpinner = box.querySelector('.spinner-border');
+    if (loadingSpinner) box.innerHTML = '';
 
     box.insertAdjacentHTML('beforeend', html);
     scrollToBottom();
 }
 
 let typingTimeout = null;
+
 function showTypingIndicator() {
     clearTimeout(typingTimeout);
     const box = document.getElementById('message-box');
-    let indicator = box.querySelector('.typing-indicator');
+    let indicator = box.querySelector('.typing-indicator-wrapper');
     if (!indicator) {
         indicator = document.createElement('div');
-        indicator.className = 'typing-indicator d-flex align-items-center gap-2';
+        indicator.className = 'typing-indicator-wrapper d-flex w-100 justify-content-start mb-2 animate-fade-in align-items-end';
         indicator.innerHTML = `
-            <div class="msgr-avatar text-dark" style="width:28px;height:28px;font-size:0.8rem;font-weight:bold">K</div>
-            <div class="msg-bubble msg-left">
-                <span></span><span></span><span></span>
+            <div class="msgr-avatar bg-light text-dark me-2 flex-shrink-0 mt-1" style="width:28px;height:28px;font-size:0.8rem;font-weight:bold">K</div>
+            <div class="msg-bubble msg-left d-flex align-items-center gap-1" style="padding: 12px 16px; margin-bottom: 0; background: #e4e6eb; border-radius: 18px;">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
             </div>
         `;
         box.appendChild(indicator);
@@ -299,7 +371,7 @@ function showTypingIndicator() {
 function hideTypingIndicator() {
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
-        const indicator = document.querySelector('.typing-indicator');
+        const indicator = document.querySelector('.typing-indicator-wrapper');
         if (indicator) indicator.remove();
     }, 200);
 }
@@ -327,6 +399,27 @@ function scrollToBottom() {
 
 // --- 4. GỬI TIN NHẮN ---
 let typingSent = false;
+
+// Bắt sự kiện gõ phím để gửi trạng thái "đang gõ..."
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('msg-input');
+    if (input) {
+        input.addEventListener('input', () => {
+            if (!typingSent && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                chatSocket.send(JSON.stringify({ type: 'typing', sender_id: currentUser.id, is_staff: true }));
+                typingSent = true;
+            }
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                if (typingSent && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                    chatSocket.send(JSON.stringify({ type: 'stop_typing', is_staff: true }));
+                    typingSent = false;
+                }
+            }, 1500);
+        });
+    }
+});
+
 function sendMessage() {
     const input = document.getElementById('msg-input');
     const message = input.value.trim();
@@ -334,21 +427,18 @@ function sendMessage() {
     if (!message) return;
 
     if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
-        // Fallback: Nếu socket chưa sẵn sàng, có thể báo lỗi hoặc thử gửi qua API HTTP (tùy chọn)
         alert("Mất kết nối! Đang thử kết nối lại...");
         return;
     }
 
-    // Gửi qua WebSocket
     chatSocket.send(JSON.stringify({
         'message': message,
-        'sender_id': currentUser.id, // ID của Admin đang login
-        'is_staff': true // Cờ báo hiệu đây là Staff
+        'sender_id': currentUser.id, 
+        'is_staff': true 
     }));
     
-    // Gửi stop_typing nếu cần
     if (typingSent) {
-        chatSocket.send(JSON.stringify({ type: 'stop_typing' }));
+        chatSocket.send(JSON.stringify({ type: 'stop_typing', is_staff: true }));
         typingSent = false;
     }
 
@@ -356,46 +446,117 @@ function sendMessage() {
     input.focus();
 }
 
-// Gửi typing indicator khi người dùng đang gõ
+// =========================================================
+// TÍNH NĂNG UPLOAD FILE & ẢNH (DÀNH CHO ADMIN)
+// =========================================================
+
 document.addEventListener('DOMContentLoaded', () => {
-    const msgInput = document.getElementById('msg-input');
-    if (msgInput) {
-        msgInput.addEventListener('input', () => {
-            if (!typingSent && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-                chatSocket.send(JSON.stringify({ type: 'typing' }));
-                typingSent = true;
-            }
-        });
+    // 1. Tạo thẻ input file ẩn nếu chưa có
+    if (!document.getElementById('chat-file-upload')) {
+        document.body.insertAdjacentHTML('beforeend', `
+            <input type="file" id="chat-file-upload" style="display: none;" accept="image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip, .rar">
+        `);
     }
+
+    const fileInput = document.getElementById('chat-file-upload');
+
+    // 2. Gắn sự kiện click cho các icon Thêm file / Gửi ảnh của Admin
+    const attachIcons = document.querySelectorAll('.msgr-footer-icons .fa-plus-circle, .msgr-footer-icons .fa-image');
+    attachIcons.forEach(icon => {
+        icon.addEventListener('click', () => {
+            if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
+                alert("Vui lòng kết nối vào phòng chat trước khi gửi file!");
+                return;
+            }
+            fileInput.click();
+        });
+    });
+
+    // 3. Xử lý khi Admin đã chọn file xong
+    fileInput.addEventListener('change', async function() {
+        const file = this.files[0];
+        if (!file) return;
+
+        // Reset value để có thể chọn lại file giống hệt sau đó
+        this.value = '';
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert("File quá lớn. Vui lòng chọn file dưới 5MB.");
+            return;
+        }
+
+        // Bật trạng thái loading
+        const msgInput = document.getElementById('msg-input');
+        const oldPlaceholder = msgInput.placeholder || 'Aa';
+        msgInput.placeholder = "Đang tải file...";
+        msgInput.disabled = true;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // ĐÃ SỬA: Tính toán Base URL linh hoạt cho cả localhost và Production
+        const uploadHost = window.location.hostname;
+        const uploadPort = (uploadHost === "127.0.0.1" || uploadHost === "localhost") ? ":8000" : "";
+        const BASE_URL = window.location.protocol + `//${uploadHost}${uploadPort}`;
+
+        try {
+            // Gọi API lưu file
+            const response = await fetch(`${BASE_URL}/api/chat/upload/`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.attachment_url) {
+                // Phát sóng URL qua WebSocket (Dùng currentUser và is_staff: true cho Admin)
+                chatSocket.send(JSON.stringify({
+                    'message': '', 
+                    'sender_id': currentUser.id, 
+                    'is_staff': true,
+                    'attachment_url': data.attachment_url,
+                    'attachment_type': data.attachment_type
+                }));
+            } else {
+                alert("Không nhận được phản hồi file từ Server.");
+            }
+        } catch (error) {
+            console.error("Lỗi upload file:", error);
+            alert("Đã xảy ra lỗi khi tải file lên hệ thống.");
+        } finally {
+            // Tắt trạng thái loading
+            msgInput.placeholder = oldPlaceholder;
+            msgInput.disabled = false;
+            msgInput.focus();
+        }
+    });
 });
 
 function handleEnter(e) {
     if(e.key === 'Enter') sendMessage();
 }
 
-// CSS Animation nhúng (để tin nhắn hiện mượt hơn) + Typing indicator animation
+// CSS Animation nhúng
 const style = document.createElement('style');
 style.innerHTML = `
-    .animate-fade-in { 
-        animation: fadeIn 0.3s ease-in; 
-    } 
+    .animate-fade-in { animation: fadeIn 0.3s ease-in; } 
     @keyframes fadeIn { 
         from { opacity:0; transform: translateY(10px); } 
         to { opacity:1; transform: translateY(0); } 
     }
-    .typing-indicator span {
-        width: 8px;
-        height: 8px;
+    .typing-indicator-wrapper .dot {
+        width: 6px;
+        height: 6px;
         border-radius: 50%;
-        background: #999;
+        background: #8e8e8e;
         display: inline-block;
-        animation: typing 1.4s infinite;
+        animation: typing-dots 1.4s infinite;
     }
-    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes typing {
+    .typing-indicator-wrapper .dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator-wrapper .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing-dots {
         0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
-        30% { opacity: 1; transform: translateY(-10px); }
+        30% { opacity: 1; transform: translateY(-5px); }
     }
 `;
 document.head.appendChild(style);

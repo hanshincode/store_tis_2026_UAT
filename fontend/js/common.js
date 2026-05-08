@@ -4,7 +4,7 @@
  */
 
 // --- 1. CẤU HÌNH HỆ THỐNG ---
-const DOMAIN = "http://127.0.0.1:8000";
+const DOMAIN = "http://hcm-tis-uat.tisbroker.local:8000";
 const API_BASE_URL = `${DOMAIN}/api`;
 
 // --- 2. QUẢN LÝ TOKEN ---
@@ -141,3 +141,37 @@ function formatMoney(amount) {
     if (!amount) return '0đ';
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 }
+
+document.addEventListener("DOMContentLoaded", function() {
+    // Tìm tất cả các nút có class là toggle-password
+    const togglePasswordButtons = document.querySelectorAll('.toggle-password');
+
+    togglePasswordButtons.forEach(function(button) {
+        button.addEventListener('click', function() {
+            // Tìm ô input nằm cùng trong một div input-group với nút này
+            const inputField = this.closest('.input-group').querySelector('input');
+            // Tìm thẻ icon (ví dụ: <i class="fas fa-eye"></i>) để đổi biểu tượng
+            const icon = this.querySelector('i');
+
+            // Kiểm tra và đảo ngược trạng thái
+            if (inputField.type === 'password') {
+                inputField.type = 'text'; // Hiện mật khẩu
+                
+                // Đổi icon từ mắt mở sang mắt nhắm (Tùy thuộc bạn đang dùng thư viện icon nào)
+                // Ví dụ dưới đây áp dụng cho FontAwesome:
+                if (icon) {
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash'); 
+                }
+            } else {
+                inputField.type = 'password'; // Ẩn mật khẩu
+                
+                // Đổi ngược lại thành mắt mở
+                if (icon) {
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            }
+        });
+    });
+});
