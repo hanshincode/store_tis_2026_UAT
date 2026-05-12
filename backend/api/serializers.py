@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.utils.html import strip_tags
 from .models import (
     User, Product, ProductImage, ProductPackage, 
@@ -17,12 +18,52 @@ class RegisterSerializer(serializers.ModelSerializer):
             'company_name', 'tax_code', 'cccd', 'address', 
             'first_name', 'last_name', 'email'
         ]
+        extra_kwargs = {
+            'username': {'required': False, 'allow_blank': True},
+            'phone': {'required': True},
+        }
+
+    def validate_phone(self, value):
+        phone = (value or '').strip()
+        if not phone:
+            raise serializers.ValidationError("Vui lòng nhập số điện thoại.")
+        return phone
+
+    def validate_role(self, value):
+        request = self.context.get('request')
+        is_internal_admin = (
+            request
+            and request.user.is_authenticated
+            and request.user.role in ['super_admin', 'admin']
+        )
+        return value if is_internal_admin else 'customer'
 
     def create(self, validated_data):
-        if 'username' not in validated_data and 'phone' in validated_data:
+        if not validated_data.get('username') and 'phone' in validated_data:
             validated_data['username'] = validated_data['phone']
         user = User.objects.create_user(**validated_data)
         return user
+
+
+class PhoneTokenObtainPairSerializer(TokenObtainPairSerializer):
+    phone = serializers.CharField(write_only=True, required=False)
+    username = serializers.CharField(write_only=True, required=False)
+
+    def validate(self, attrs):
+        phone = (attrs.get('phone') or attrs.get('username') or '').strip()
+        password = attrs.get('password')
+
+        if not phone or not password:
+            raise serializers.ValidationError({"detail": "Vui lòng nhập số điện thoại và mật khẩu."})
+
+        try:
+            user = User.objects.get(phone=phone)
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"detail": "Số điện thoại hoặc mật khẩu không đúng."})
+
+        attrs[self.username_field] = user.get_username()
+        attrs['password'] = password
+        return super().validate(attrs)
 
 class EnterpriseEmployeeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -84,7 +125,7 @@ class ProductSerializer(serializers.ModelSerializer):
         product = super().create(validated_data)
 
         # Xử lý GIÁ: Nếu có nhập giá, tạo gói mặc định 1 năm
-        if price and price > 0:
+        if price and price > 0 and not product.is_price_hidden:
             ProductPackage.objects.create(
                 product=product,
                 duration_label="1 Năm",
@@ -112,7 +153,7 @@ class ProductSerializer(serializers.ModelSerializer):
             ProductImage.objects.filter(id__in=deleted_ids, product=instance).delete()
 
         # Xử lý CẬP NHẬT GIÁ
-        if price is not None:
+        if price is not None and not instance.is_price_hidden:
             package = instance.packages.first()
             if package:
                 package.price = price
@@ -264,7 +305,16 @@ class NewsSerializer(serializers.ModelSerializer):
 
 # Thêm vào vị trí thích hợp (ví dụ ngay sau RegisterSerializer)
 class UserSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        # Các trường cần thiết cho Frontend phân quyền và hiển thị
-        fields = ['id', 'username', 'email', 'role', 'first_name', 'last_name', 'avatar', 'is_superuser']
+        fields = [
+            'id', 'username', 'email', 'role', 'first_name', 'last_name',
+            'full_name', 'avatar', 'is_superuser', 'is_staff', 'is_active',
+            'phone', 'user_type', 'company_name'
+        ]
+        read_only_fields = ['id', 'username', 'role', 'is_superuser', 'is_staff', 'is_active']
+
+    def get_full_name(self, obj):
+        return obj.get_full_name() or obj.username

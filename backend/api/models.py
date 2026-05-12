@@ -140,24 +140,13 @@ class CartItem(models.Model):
 
 # --- 4. CONSULTATION / CHAT ---
 class ConsultationRequest(models.Model): # 
-    customer_name = models.CharField(max_length=255)
-    customer_contact = models.CharField(max_length=255) # Email hoặc SĐT
-    product = models.ForeignKey(Product, null=True, on_delete=models.SET_NULL)
-    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL) # Nếu đã login
-    
-    # Auto assign staff based on category 
+    # Auto assign staff based on category
     assigned_staff = models.ForeignKey(User, related_name='consultations', null=True, blank=True, on_delete=models.SET_NULL)
-    status = models.CharField(max_length=20, default='new')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-
-
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     customer_name = models.CharField(max_length=255)
     customer_contact = models.CharField(max_length=255)
     note = models.TextField(blank=True, null=True)
-    status = models.CharField(max_length=20, default='new') # new, processed, done
     created_at = models.DateTimeField(auto_now_add=True)
     
     # --- THÊM TRƯỜNG NÀY ---
@@ -179,13 +168,6 @@ class ConsultationRequest(models.Model): #
 
 
 
-# backend/api/models.py
-
-from django.db import models
-from django.contrib.auth import get_user_model
-
-# Lấy model User hiện tại của hệ thống
-User = get_user_model()
 class ChatMessage(models.Model):
     # Định nghĩa các loại tệp đính kèm được hỗ trợ
     ATTACHMENT_TYPES = (
@@ -240,14 +222,6 @@ class ChatMessage(models.Model):
         verbose_name="Tệp đính kèm"
     )
     
-    attachment_type = models.CharField(
-        max_length=20,
-        choices=ATTACHMENT_TYPES,
-        blank=True,
-        null=True,
-        verbose_name="Loại tệp đính kèm"
-    )
-    
     is_read = models.BooleanField(
         default=False,
         verbose_name="Trạng thái đã xem"
@@ -259,7 +233,13 @@ class ChatMessage(models.Model):
 
 # THÊM 2 DÒNG NÀY VÀO DƯỚI CÙNG CỦA MODEL
     attachment_url = models.CharField(max_length=500, null=True, blank=True)
-    attachment_type = models.CharField(max_length=50, null=True, blank=True)
+    attachment_type = models.CharField(
+        max_length=50,
+        choices=ATTACHMENT_TYPES,
+        null=True,
+        blank=True,
+        verbose_name="Loại tệp đính kèm",
+    )
 
     class Meta:
         # Sắp xếp mặc định theo thời gian tăng dần (Tin nhắn cũ ở trên, mới ở dưới)

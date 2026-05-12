@@ -25,6 +25,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data)
         msg_type = data.get('type')
 
+        if msg_type in [
+            'video_call_request', 'video_call_accept', 'video_call_reject',
+            'video_offer', 'video_answer', 'video_ice_candidate', 'video_call_end'
+        ]:
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'video_signal',
+                    'payload': data,
+                }
+            )
+            return
+
         if msg_type in ['typing', 'stop_typing']:
             await self.channel_layer.group_send(
                 self.room_group_name,
@@ -87,6 +100,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # ĐÃ SỬA: Bắt buộc phải phát sóng (broadcast) cờ is_staff lại cho Frontend
             'is_staff': event.get('is_staff', False) 
         }))
+
+    async def video_signal(self, event):
+        await self.send(text_data=json.dumps(event['payload']))
 
     @database_sync_to_async
     def save_message(self, message, sender_id, is_staff, sender_name_payload, attachment_url, attachment_type):

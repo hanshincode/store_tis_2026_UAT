@@ -1,11 +1,14 @@
 # backend/api/views.py
 
 import time
+import uuid
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import viewsets, permissions, status, filters, mixins
-from rest_framework.decorators import action
+from rest_framework.decorators import action, permission_classes
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -23,7 +26,7 @@ from .serializers import (
     EnterpriseEmployeeSerializer, RegisterSerializer, 
     CartItemSerializer, OrderItemSerializer,
     ProductPackageSerializer, ConsultationRequestSerializer, NewsSerializer,
-    UserSerializer
+    UserSerializer, PhoneTokenObtainPairSerializer
 )
 
 # --- PHÂN QUYỀN TÙY CHỈNH (INTERNAL) ---
@@ -34,7 +37,21 @@ class IsTISAdminOrStaff(permissions.BasePermission):
     """
     def has_permission(self, request, view):
         return request.user.is_authenticated and \
-               (request.user.is_staff or request.user.role in ['super_admin', 'admin', 'staff'])
+               (request.user.is_superuser or request.user.is_staff or request.user.role in ['super_admin', 'admin', 'staff'])
+
+
+def make_order_code():
+    return f"ORD-{int(time.time())}-{uuid.uuid4().hex[:4].upper()}"
+
+
+def parse_positive_int(value, default=1, field_name="quantity"):
+    try:
+        number = int(value if value is not None else default)
+    except (TypeError, ValueError):
+        raise ValueError(f"{field_name} không hợp lệ")
+    if number <= 0:
+        raise ValueError(f"{field_name} phải lớn hơn 0")
+    return number
 
 # --- AUTH VIEWSETS ---
 
@@ -43,10 +60,26 @@ class RegisterView(viewsets.GenericViewSet, mixins.CreateModelMixin):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
 
+
+class PhoneTokenObtainPairView(TokenObtainPairView):
+    serializer_class = PhoneTokenObtainPairSerializer
+
 class UserViewSet(viewsets.ModelViewSet):
     """Quản lý thông tin người dùng và lấy dữ liệu cá nhân (me)"""
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
+
+    def get_permissions(self):
+        if self.action == 'create' or (self.action == 'messages' and self.request.method == 'GET'):
+            return [permissions.AllowAny()]
+        if self.action in ['me', 'set_password']:
+            return [permissions.IsAuthenticated()]
+        return [IsTISAdminOrStaff()]
+
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return User.objects.none()
+        return User.objects.all()
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -58,6 +91,79 @@ class UserViewSet(viewsets.ModelViewSet):
         # Đảm bảo dùng UserSerializer ở đây
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='staff-list')
+    def staff_list(self, request):
+        users = User.objects.filter(role__in=['super_admin', 'admin', 'staff']).order_by('role', 'username')
+        return Response(UserSerializer(users, many=True, context={'request': request}).data)
+
+    @action(detail=False, methods=['post'], url_path='create-staff')
+    def create_staff(self, request):
+        if not (request.user.is_superuser or request.user.role in ['super_admin', 'admin']):
+            return Response({"detail": "Bạn không có quyền tạo nhân sự."}, status=status.HTTP_403_FORBIDDEN)
+
+        username = (request.data.get('username') or '').strip()
+        password = request.data.get('password') or ''
+        full_name = (request.data.get('full_name') or '').strip()
+        email = (request.data.get('email') or '').strip()
+        role = request.data.get('role') if request.data.get('role') in ['admin', 'staff'] else 'staff'
+
+        if not username or not password:
+            return Response({"detail": "Vui lòng nhập tài khoản và mật khẩu."}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(username=username).exists():
+            return Response({"detail": "Tài khoản đã tồn tại."}, status=status.HTTP_400_BAD_REQUEST)
+
+        name_parts = full_name.split(maxsplit=1)
+        first_name = name_parts[-1] if name_parts else ''
+        last_name = name_parts[0] if len(name_parts) > 1 else ''
+
+        try:
+            user = User.objects.create_user(
+                username=username,
+                phone=username,
+                password=password,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                role=role,
+                is_staff=True,
+            )
+        except DjangoValidationError as exc:
+            return Response({"detail": "; ".join(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(UserSerializer(user, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='toggle-status')
+    def toggle_status(self, request, pk=None):
+        if not (request.user.is_superuser or request.user.role in ['super_admin', 'admin']):
+            return Response({"detail": "Bạn không có quyền cập nhật trạng thái nhân sự."}, status=status.HTTP_403_FORBIDDEN)
+
+        user = self.get_object()
+        if user.id == request.user.id:
+            return Response({"detail": "Không thể tự khóa tài khoản đang đăng nhập."}, status=status.HTTP_400_BAD_REQUEST)
+        if user.role not in ['super_admin', 'admin', 'staff'] and not user.is_staff:
+            return Response({"detail": "Chỉ được cập nhật tài khoản nhân sự."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.is_active = not user.is_active
+        user.save(update_fields=['is_active'])
+        return Response(UserSerializer(user, context={'request': request}).data)
+
+    @action(detail=False, methods=['post'], url_path='set_password')
+    def set_password(self, request):
+        current_password = request.data.get('current_password') or ''
+        new_password = request.data.get('new_password') or ''
+
+        if not request.user.check_password(current_password):
+            return Response({"current_password": ["Mật khẩu hiện tại không đúng."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            validate_password(new_password, request.user)
+        except DjangoValidationError as exc:
+            return Response({"new_password": exc.messages}, status=status.HTTP_400_BAD_REQUEST)
+
+        request.user.set_password(new_password)
+        request.user.save(update_fields=['password'])
+        return Response({"detail": "Đổi mật khẩu thành công."})
 
 # --- BUSINESS VIEWSETS ---
 
@@ -78,7 +184,19 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'category__name', 'provider_name']
-    
+
+    def get_queryset(self):
+        queryset = Product.objects.all().order_by('-created_at')
+        category_id = self.request.query_params.get('category')
+        target = self.request.query_params.get('target') or self.request.query_params.get('target_audience')
+
+        if category_id and category_id != 'all':
+            queryset = queryset.filter(category_id=category_id)
+
+        if target in ['ind', 'ent']:
+            queryset = queryset.filter(target_audience=target)
+
+        return queryset
 
 
     def get_permissions(self):
@@ -95,58 +213,11 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
-        """Xử lý tạo Sản phẩm + Gói giá + Nhiều ảnh trong 1 lần gửi"""
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        product = serializer.save()
-
-        # Xử lý Gói giá phí mặc định
-        base_price = request.data.get('base_price')
-        is_hidden = request.data.get('is_price_hidden')
-        if base_price and not (is_hidden == 'True' or is_hidden is True):
-            try:
-                # ÉP KIỂU SỐ ĐỂ ĐẢM BẢO KHÔNG LƯU 0
-                numeric_price = float(base_price) 
-                ProductPackage.objects.create(
-                    product=product,
-                    duration_label='1 Năm',
-                    duration_days=365,
-                    price=numeric_price
-                )
-            except (ValueError, TypeError):
-                print("Lỗi định dạng giá phí!")
-
-        # Xử lý Upload nhiều ảnh
-        images = request.FILES.getlist('uploaded_images')
-        for img in images:
-            ProductImage.objects.create(product=product, image=img)
-
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return super().create(request, *args, **kwargs)
 
     @transaction.atomic
     def update(self, request, *args, **kwargs):
-        """Cập nhật Sản phẩm và đồng bộ hóa Gói giá/Ảnh"""
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        product = serializer.save()
-
-        # Cập nhật hoặc Tạo mới gói giá
-        base_price = request.data.get('base_price')
-        if base_price:
-            ProductPackage.objects.update_or_create(
-                product=product,
-                duration_label='1 Năm',
-                defaults={'price': base_price, 'duration_days': 365}
-            )
-
-        # Thêm ảnh mới nếu có
-        images = request.FILES.getlist('uploaded_images')
-        for img in images:
-            ProductImage.objects.create(product=product, image=img)
-
-        return Response(serializer.data)
+        return super().update(request, *args, **kwargs)
 
     @action(detail=True, methods=['delete'])
     def delete_image(self, request, pk=None):
@@ -176,12 +247,12 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def buy_now(self, request):
         package_id = request.data.get('package_id')
-        quantity = int(request.data.get('quantity', 1))
         
         try:
+            quantity = parse_positive_int(request.data.get('quantity', 1))
             package = ProductPackage.objects.get(id=package_id)
             total = package.price * quantity
-            order_code = f"ORD-{int(time.time())}"
+            order_code = make_order_code()
             
             order = Order.objects.create(
                 user=request.user,
@@ -191,7 +262,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
             OrderItem.objects.create(order=order, package=package, quantity=quantity)
             return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
-        except Exception as e:
+        except (ValueError, ProductPackage.DoesNotExist) as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['post'])
@@ -204,7 +275,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 return Response({"error": "Giỏ hàng đang trống"}, status=status.HTTP_400_BAD_REQUEST)
 
             total_amount = sum(item.package.price * item.quantity for item in items)
-            order_code = f"ORD-{int(time.time())}"
+            order_code = make_order_code()
             
             with transaction.atomic():
                 order = Order.objects.create(
@@ -271,6 +342,9 @@ class ConsultationRequestViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # Nếu chưa đăng nhập (trường hợp hiếm khi lọt vào get_queryset trừ khi code lỗi) thì trả rỗng
+        if self.action == 'messages':
+            return ConsultationRequest.objects.all()
+
         if not self.request.user.is_authenticated:
             return ConsultationRequest.objects.none()
 
@@ -280,23 +354,6 @@ class ConsultationRequestViewSet(viewsets.ModelViewSet):
             return ConsultationRequest.objects.all().order_by('-created_at')
         return ConsultationRequest.objects.filter(user=user).order_by('-created_at')
 
-    @action(detail=True, methods=['post'])
-    def assign_processor(self, request, pk=None):
-        """Staff nhận ticket này để xử lý"""
-        consultation = self.get_object()
-        
-        # Nếu chưa ai nhận thì gán cho user hiện tại
-        if not consultation.processor:
-            consultation.processor = request.user
-            consultation.status = 'processed' # Chuyển trạng thái
-            consultation.save()
-            return Response({"status": "assigned", "processor": request.user.username})
-        
-        # Nếu đã có người nhận rồi
-        return Response({"status": "already_assigned", "processor": consultation.processor.username})
-
-
-# THÊM CÁC ACTION NÀY VÀO:
     @action(detail=True, methods=['post'])
     def assign_processor(self, request, pk=None):
         consultation = self.get_object()
@@ -361,9 +418,9 @@ class CartViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['post'])
     def add(self, request):
         package_id = request.data.get('package_id')
-        quantity = int(request.data.get('quantity', 1))
-        cart, _ = Cart.objects.get_or_create(user=request.user)
         try:
+            quantity = parse_positive_int(request.data.get('quantity', 1))
+            cart, _ = Cart.objects.get_or_create(user=request.user)
             package = ProductPackage.objects.get(id=package_id)
             item, created = CartItem.objects.get_or_create(cart=cart, package=package)
             if not created:
@@ -372,12 +429,14 @@ class CartViewSet(viewsets.ViewSet):
             return Response({"status": "Added to cart"})
         except ProductPackage.DoesNotExist:
              return Response({"error": "Product Package not found"}, status=404)
+        except ValueError as e:
+             return Response({"error": str(e)}, status=400)
 
     @action(detail=False, methods=['post'])
     def update_item(self, request):
         item_id = request.data.get('item_id')
-        quantity = int(request.data.get('quantity'))
         try:
+            quantity = int(request.data.get('quantity'))
             item = CartItem.objects.get(id=item_id, cart__user=request.user)
             if quantity <= 0:
                 item.delete()
@@ -387,6 +446,8 @@ class CartViewSet(viewsets.ViewSet):
             return Response({"status": "Cart updated"})
         except CartItem.DoesNotExist:
             return Response({"error": "Item not found"}, status=404)
+        except (TypeError, ValueError):
+            return Response({"error": "quantity không hợp lệ"}, status=400)
 
     @action(detail=False, methods=['post'])
     def remove(self, request):
@@ -428,6 +489,7 @@ from .models import ConsultationRequest
 from .serializers import ConsultationRequestSerializer
 
 @api_view(['PATCH'])
+@permission_classes([IsTISAdminOrStaff])
 def update_consultation_status(request, pk):
     try:
         # Tìm cuộc hội thoại theo ID truyền từ URL

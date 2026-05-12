@@ -9,7 +9,8 @@ from .views import (
     DashboardSummaryView,
     EmployeeViewSet,
     CartViewSet,
-    CategoryViewSet
+    CategoryViewSet,
+    PhoneTokenObtainPairView
 )
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -39,13 +40,13 @@ urlpatterns = [
     path('', include(router.urls)),
     
     path('register/', UserViewSet.as_view({'post': 'create'}), name='register'),
-    path('login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('login/', PhoneTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('dashboard/summary/', DashboardSummaryView.as_view(), name='dashboard-summary'),
     
-    path('api/auth/', include('dj_rest_auth.urls')),
-    path('api/auth/registration/', include('dj_rest_auth.registration.urls')),
-    path('api/auth/social/', include('allauth.socialaccount.urls')),
+    path('auth/', include('dj_rest_auth.urls')),
+    path('auth/registration/', include('dj_rest_auth.registration.urls')),
+    path('auth/social/', include('allauth.socialaccount.urls')),
     
     path('consultations/<int:pk>/', views.update_consultation_status, name='update-consultation'),
 ]
