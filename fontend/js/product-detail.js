@@ -391,7 +391,7 @@ window.addToCart = async function() {
             confirmButtonColor: '#D71920',
             confirmButtonText: 'Đăng nhập ngay',
             cancelButtonText: 'Để sau'
-        }).then((r) => { if (r.isConfirmed) window.location.href = 'login.html'; });
+        }).then((r) => { if (r.isConfirmed) redirectTo('login.html'); });
         return;
     }
 
@@ -413,7 +413,7 @@ window.addToCart = async function() {
             cancelButtonColor: '#3085d6',
             confirmButtonText: 'Thanh toán',
             cancelButtonText: 'Xem tiếp'
-        }).then((r) => { if (r.isConfirmed) window.location.href = 'cart.html'; });
+        }).then((r) => { if (r.isConfirmed) redirectTo('user/cart.html'); });
 
     } catch (e) { 
         Toast.fire({ icon: 'error', title: 'Lỗi thêm vào giỏ hàng' }); 
@@ -434,7 +434,7 @@ async function addToCart(packageId, quantity = 1) {
             cancelButtonText: 'Đóng'
         }).then((result) => {
             if (result.isConfirmed) {
-                window.location.href = 'login.html';
+                redirectTo('login.html');
             }
         });
         return;
@@ -465,9 +465,5 @@ async function addToCart(packageId, quantity = 1) {
 
 
 function getValidImageUrl(path) {
-    if (!path) return 'https://placehold.co/800x600/f8f9fa/d71920?text=TIS+Broker';
-    if (path.startsWith('http')) return path;
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
-    if (!cleanPath.startsWith('/media')) return DOMAIN + '/media' + cleanPath;
-    return DOMAIN + cleanPath;
+    return mediaUrl(path);
 }

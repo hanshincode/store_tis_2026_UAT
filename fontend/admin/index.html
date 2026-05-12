@@ -12,66 +12,60 @@
 </head>
 <body>
     <div class="main-content">
-        <div class="container-fluid p-4">
-            <h4 class="fw-bold mb-4">Tổng quan hệ thống</h4>
+        <div class="container-fluid admin-dashboard p-4">
+            <div class="dashboard-heading mb-4">
+                <h4 class="fw-bold mb-1">Tổng quan hệ thống</h4>
+                <p class="text-muted mb-0">Theo dõi nhanh hoạt động kinh doanh và hỗ trợ khách hàng.</p>
+            </div>
             
-            <div class="row g-4 mb-4">
-                <div class="col-md-3">
-                    <div class="admin-card stat-border stat-success h-100 p-4 shadow-sm rounded-4 bg-white">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-muted mb-2">Doanh thu</h6>
-                                <h3 class="fw-bold text-success mb-0" id="stat-revenue">0 đ</h3>
-                            </div>
-                            <div class="icon-box bg-success-subtle text-success rounded-circle p-3">
-                                <i class="fas fa-wallet fa-2x"></i>
-                            </div>
+            <div class="dashboard-stats mb-4">
+                <div class="admin-card stat-card stat-border stat-success">
+                    <div class="stat-content">
+                        <div class="stat-text">
+                            <h6>Doanh thu</h6>
+                            <div class="stat-value text-success" id="stat-revenue">0 đ</div>
+                        </div>
+                        <div class="icon-box bg-success-subtle text-success">
+                            <i class="fas fa-wallet"></i>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="admin-card stat-border stat-warning h-100 p-4 shadow-sm rounded-4 bg-white">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-muted mb-2">Đơn chờ duyệt</h6>
-                                <h3 class="fw-bold text-warning mb-0" id="stat-pending">0</h3>
-                            </div>
-                            <div class="icon-box bg-warning-subtle text-warning rounded-circle p-3">
-                                <i class="fas fa-clock fa-2x"></i>
-                            </div>
+                <div class="admin-card stat-card stat-border stat-warning">
+                    <div class="stat-content">
+                        <div class="stat-text">
+                            <h6>Đơn chờ duyệt</h6>
+                            <div class="stat-value text-warning" id="stat-pending">0</div>
+                        </div>
+                        <div class="icon-box bg-warning-subtle text-warning">
+                            <i class="fas fa-clock"></i>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="admin-card stat-border stat-primary h-100 p-4 shadow-sm rounded-4 bg-white">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-muted mb-2">Tổng đơn hàng</h6>
-                                <h3 class="fw-bold text-primary mb-0" id="stat-total">0</h3>
-                            </div>
-                            <div class="icon-box bg-primary-subtle text-primary rounded-circle p-3">
-                                <i class="fas fa-shopping-bag fa-2x"></i>
-                            </div>
+                <div class="admin-card stat-card stat-border stat-primary">
+                    <div class="stat-content">
+                        <div class="stat-text">
+                            <h6>Tổng đơn hàng</h6>
+                            <div class="stat-value text-primary" id="stat-total">0</div>
+                        </div>
+                        <div class="icon-box bg-primary-subtle text-primary">
+                            <i class="fas fa-shopping-bag"></i>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="admin-card stat-border stat-danger h-100 p-4 shadow-sm rounded-4 bg-white cursor-pointer" 
-                         onclick="window.location.href='chat.html'" style="cursor: pointer;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-muted mb-2">Hỗ trợ trực tuyến</h6>
-                                <h3 class="fw-bold text-danger mb-0">Live Chat</h3>
-                            </div>
-                            <div class="icon-box bg-danger-subtle text-danger rounded-circle p-3">
-                                <i class="fab fa-facebook-messenger fa-2x"></i>
-                            </div>
+                <div class="admin-card stat-card stat-border stat-danger cursor-pointer" onclick="window.location.href='chat.html'">
+                    <div class="stat-content">
+                        <div class="stat-text">
+                            <h6>Hỗ trợ trực tuyến</h6>
+                            <div class="stat-value text-danger">Live Chat</div>
+                        </div>
+                        <div class="icon-box bg-danger-subtle text-danger">
+                            <i class="fab fa-facebook-messenger"></i>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="admin-card p-4 shadow-sm rounded-4 bg-white">
+            <div class="admin-card dashboard-table-card">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h5 class="fw-bold m-0"><i class="fas fa-history me-2 text-muted"></i>Đơn hàng mới nhất</h5>
                     <a href="orders.html" class="btn btn-sm btn-outline-primary rounded-pill px-3">Xem tất cả</a>

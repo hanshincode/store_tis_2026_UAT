@@ -70,10 +70,7 @@ function renderProductTable(products) {
     const html = products.map(p => {
         // Xử lý ảnh
         let imgUrl = 'https://placehold.co/50x50?text=No+Img';
-        if (p.images && p.images.length > 0) {
-            const src = p.images[0].image;
-            imgUrl = src.startsWith('http') ? src : `${DOMAIN}${src}`;
-        }
+        if (p.images && p.images.length > 0) imgUrl = mediaUrl(p.images[0].image);
 
         // Xử lý hiển thị giá
         const priceDisplay = p.is_price_hidden 
@@ -149,7 +146,7 @@ window.openEditModal = function(id) {
     previewContainer.innerHTML = '';
     if (product.images && product.images.length > 0) {
         product.images.forEach(img => {
-            const src = img.image.startsWith('http') ? img.image : DOMAIN + img.image;
+            const src = mediaUrl(img.image);
             const div = document.createElement('div');
             div.className = 'position-relative d-inline-block me-2 mb-2';
             div.innerHTML = `

@@ -19,7 +19,7 @@ async function loadProducts() {
             <div class="col-md-4 col-lg-3">
                 <div class="card product-card h-100">
                     <div class="product-img-wrapper">
-                        <img src="${p.images?.[0]?.image ? MEDIA_URL + p.images[0].image : 'https://via.placeholder.com/300'}" alt="${p.name}">
+                        <img src="${p.images?.[0]?.image ? mediaUrl(p.images[0].image) : 'https://via.placeholder.com/300'}" alt="${p.name}">
                     </div>
                     <div class="card-body d-flex flex-column">
                         <span class="badge bg-light text-dark mb-2 align-self-start border">${p.provider_name || 'TIS'}</span>

@@ -3,15 +3,14 @@
 function loginWithGoogle() {
     // Điều hướng trình duyệt đến endpoint của Django Backend
     // Địa chỉ này sẽ kích hoạt luồng OAuth2 mà bạn đã cấu hình trong Admin
-    const backendUrl = "http://hcm-tis-uat.tisbroker.local:8000"; // Hoặc địa chỉ IP server của bạn
-    window.location.href = `${backendUrl}/accounts/google/login/`;
+    window.location.href = `${DOMAIN}/accounts/google/login/`;
 }
 
 
 // Thêm vào login.js
 function loginWithMicrosoft() {
     // Điều hướng tới endpoint của Django để bắt đầu luồng OAuth2
-    window.location.href = `http://hcm-tis-uat.tisbroker.local:8000/accounts/microsoft/login/`;
+    window.location.href = `${DOMAIN}/accounts/microsoft/login/`;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -44,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function handleLogin(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-login');
-    const username = document.getElementById('username').value.trim();
+    const phone = document.getElementById('phone').value.trim();
     const password = document.getElementById('password').value;
 
     try {
@@ -54,7 +53,7 @@ async function handleLogin(e) {
         const response = await fetch(`${API_BASE_URL}/login/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ phone, password })
         });
 
         const data = await response.json();
@@ -75,9 +74,9 @@ async function handleLogin(e) {
                 setTimeout(() => {
                     const adminRoles = ['super_admin', 'admin', 'staff'];
                     if (adminRoles.includes(user.role)) {
-                        window.location.href = 'admin/index.html';
+                        redirectTo('admin/index.html');
                     } else {
-                        window.location.href = 'index.html';
+                        redirectTo('index.html');
                     }
                 }, 500);
             }
@@ -117,10 +116,10 @@ function redirectByUserRole(role) {
     const adminRoles = ['super_admin', 'admin', 'staff'];
     
     if (adminRoles.includes(role)) {
-        window.location.href = 'admin/index.html';
+        redirectTo('admin/index.html');
     } else {
         // Khách hàng hoặc các đối tượng khác về trang chủ FE
-        window.location.href = 'index.html';
+        redirectTo('index.html');
     }
 }
 

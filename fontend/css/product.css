@@ -12,6 +12,19 @@
     border: 1px solid #f0f0f0;
 }
 
+.product-filter-stack {
+    top: 100px;
+    z-index: 10;
+}
+
+.product-filter-stack .filter-section {
+    border-top: 1px solid #f0f0f0;
+}
+
+.product-search-box {
+    max-width: 420px;
+}
+
 .category-header {
     background: linear-gradient(135deg, #D71920, #b01218);
     color: white;
@@ -236,4 +249,23 @@
         min-height: auto;
         font-size: 0.95rem;
     }
+}
+
+.product-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.product-meta span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #edf0f2;
+    font-size: 0.78rem;
+    font-weight: 700;
 }

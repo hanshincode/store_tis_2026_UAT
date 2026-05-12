@@ -10,6 +10,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     try {
         userInfo = await fetchAPI('/users/me/');
+        if (typeof initVideoCall === 'function') {
+            initVideoCall({
+                isStaff: false,
+                getSocket: () => chatSocket,
+                getRoomId: () => activeConsultationId,
+                getCurrentUser: () => userInfo
+            });
+        }
         
         // Thêm chữ await nếu hàm loadConsultations của bạn là hàm async
         await loadConsultations(); 
@@ -45,7 +53,7 @@ async function loadConsultations() {
             const lastMsgTime = item.last_message ? item.last_message.time : '';
 
             ticketList.insertAdjacentHTML('beforeend', `
-                <div class="chat-ticket ${isActive}" onclick="openChat(${item.id}, '${item.status}')">
+                <div class="chat-ticket ${isActive}" id="ticket-${item.id}" onclick="openChat(${item.id}, '${item.status}')">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <strong class="text-danger">#${item.id} - Hỗ trợ</strong>
                         <small class="text-muted" style="font-size: 10px;">${lastMsgTime}</small>
@@ -71,9 +79,11 @@ window.openChat = async function(consultationId, status) {
     document.getElementById('chat-title').innerText = `Phiên tư vấn #${consultationId}`;
     document.getElementById('chat-status').innerText = status === 'new' ? 'Chuyên viên đang chuẩn bị phản hồi...' : 'Chuyên viên đang hỗ trợ';
     document.getElementById('chat-form').style.display = 'flex';
+    const videoBtn = document.getElementById('btn-start-video-call');
+    if (videoBtn) videoBtn.style.display = 'inline-flex';
     
     document.querySelectorAll('.chat-ticket').forEach(el => el.classList.remove('active'));
-    event.currentTarget.classList.add('active');
+    document.getElementById(`ticket-${consultationId}`)?.classList.add('active');
 
     // 1. Tải lịch sử chat cũ bằng API HTTP
     await loadMessagesHistory();
@@ -109,15 +119,14 @@ async function loadMessagesHistory() {
 function connectWebSocket(id) {
     if (chatSocket) chatSocket.close(); // Đóng kết nối cũ nếu đổi phòng chat
 
-    const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-    const host = window.location.hostname || "hcm-tis-uat.tisbroker.local";
-    const port = (host === "hcm-tis-uat.tisbroker.local" || host === "localhost") ? ":8000" : "";
-    
-    chatSocket = new WebSocket(`${protocol}${host}${port}/ws/chat/${id}/`);
+    chatSocket = new WebSocket(websocketUrl(`/ws/chat/${id}/`));
 
-    chatSocket.onmessage = function(e) {
+    chatSocket.onmessage = async function(e) {
         try {
             const data = JSON.parse(e.data);
+            if (typeof handleVideoSignal === 'function' && await handleVideoSignal(data)) {
+                return;
+            }
             
             // Xử lý sự kiện "Đang gõ"
             if (data.type === 'typing') {
@@ -156,6 +165,11 @@ function connectWebSocket(id) {
 // Hàm render UI (Bên User)
 function appendMessageToDOM(msg) {
     const chatBox = document.getElementById('chat-box');
+    const callInfo = parseCallMessage(msg.message);
+    if (callInfo) {
+        appendCallMessageToDOM(chatBox, callInfo, msg.created_at);
+        return;
+    }
     
     // Nhận diện chính xác tin nhắn của ai
     const isStaff = msg.is_staff_reply !== undefined ? msg.is_staff_reply : msg.is_staff;
@@ -184,13 +198,14 @@ function appendMessageToDOM(msg) {
 
     // 2. Xử lý File đính kèm
     if (msg.attachment_url) {
+        const attachmentUrl = mediaUrl(msg.attachment_url);
         const marginClass = msg.message ? 'mt-2' : ''; 
         if (msg.attachment_type === 'image') {
             // Nếu là hình ảnh
             contentHtml += `
                 <div class="${marginClass}">
-                    <a href="${msg.attachment_url}" target="_blank" title="Bấm để xem ảnh lớn">
-                        <img src="${msg.attachment_url}" alt="Image" style="max-width: 220px; max-height: 250px; border-radius: 8px; object-fit: cover; display: block;">
+                    <a href="${attachmentUrl}" target="_blank" title="Bấm để xem ảnh lớn">
+                        <img src="${attachmentUrl}" alt="Image" style="max-width: 220px; max-height: 250px; border-radius: 8px; object-fit: cover; display: block;">
                     </a>
                 </div>`;
         } else {
@@ -200,7 +215,7 @@ function appendMessageToDOM(msg) {
             contentHtml += `
                 <div class="${marginClass} p-2 rounded d-flex align-items-center gap-2" style="${bgStyle}">
                     <i class="fas fa-file-alt fs-4 ${linkColor}"></i>
-                    <a href="${msg.attachment_url}" target="_blank" class="${linkColor} text-decoration-none fw-bold" style="font-size: 0.85rem;">
+                    <a href="${attachmentUrl}" target="_blank" class="${linkColor} text-decoration-none fw-bold" style="font-size: 0.85rem;">
                         Tệp đính kèm
                     </a>
                 </div>`;
@@ -225,6 +240,58 @@ function appendMessageToDOM(msg) {
     
     // Tự động cuộn xuống cuối
     chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function parseCallMessage(message) {
+    if (!message) return null;
+    try {
+        const parsed = JSON.parse(message);
+        return parsed && parsed.kind === 'video_call' ? parsed : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function appendCallMessageToDOM(chatBox, callInfo, createdAt) {
+    const statusMap = {
+        ended: {
+            icon: 'fa-video',
+            text: `Cuộc gọi video đã kết thúc • ${formatCallDuration(callInfo.duration_seconds)}`,
+            color: 'text-success'
+        },
+        rejected: {
+            icon: 'fa-video-slash',
+            text: 'Cuộc gọi video đã bị từ chối',
+            color: 'text-danger'
+        },
+        missed: {
+            icon: 'fa-phone-slash',
+            text: 'Cuộc gọi video nhỡ',
+            color: 'text-warning'
+        }
+    };
+    const info = statusMap[callInfo.status] || statusMap.ended;
+    const time = createdAt || new Date().toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'});
+    chatBox.insertAdjacentHTML('beforeend', `
+        <div class="call-log-message">
+            <i class="fas ${info.icon} ${info.color}"></i>
+            <span>${info.text}</span>
+            <small>${time}</small>
+        </div>
+    `);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function formatCallDuration(totalSeconds = 0) {
+    const seconds = Math.max(0, Math.round(Number(totalSeconds) || 0));
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    if (minutes >= 60) {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return `${hours}:${String(mins).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
+    }
+    return `${minutes}:${String(rest).padStart(2, '0')}`;
 }
 
 // Gửi tin nhắn qua WebSocket thay vì HTTP API
@@ -269,7 +336,7 @@ let typingSent = false;
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Tạo một thẻ input file ẩn và nhét vào body
     document.body.insertAdjacentHTML('beforeend', `
-        <input type="file" id="chat-file-upload" style="display: none;" accept="image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip, .rar">
+        <input type="file" id="chat-file-upload" style="display: none;" accept="image/*, .pdf, .doc, .docx, .xls, .xlsx">
     `);
 
     const fileInput = document.getElementById('chat-file-upload');
@@ -311,15 +378,17 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('file', file);
 
         try {
-            // Gọi API lưu file (LƯU Ý: Sửa lại đường dẫn API domain thực tế của bạn)
-            const BASE_URL = 'http://hcm-tis-uat.tisbroker.local:8000'; 
-            const response = await fetch(`${BASE_URL}/api/chat/upload/`, {
+            const response = await fetch(apiUrl('/chat/upload/'), {
                 method: 'POST',
+                headers: getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {},
                 body: formData
                 // Khuyên dùng: Nếu API của bạn cần Token, hãy thêm headers Authorization vào đây
             });
 
             const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || "Không thể tải file lên hệ thống.");
+            }
 
             if (data.attachment_url) {
                 // Xác định định danh là Admin hay User để gửi WS
@@ -342,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error("Lỗi upload file:", error);
-            alert("Đã xảy ra lỗi khi tải file lên hệ thống.");
+            alert(error.message || "Đã xảy ra lỗi khi tải file lên hệ thống.");
         } finally {
             // Tắt loading
             msgInput.placeholder = oldPlaceholder;

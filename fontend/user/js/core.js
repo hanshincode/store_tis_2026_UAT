@@ -1,6 +1,6 @@
 // user/js/core.js
 document.addEventListener('DOMContentLoaded', async () => {
-    if (!getAccessToken()) { window.location.href = '/login.html'; return; }
+    if (!getAccessToken()) { redirectTo('login.html'); return; }
     
     try {
         const user = await fetchAPI('/users/me/');
@@ -27,7 +27,7 @@ function renderUserLayout(userName) {
                         <i class="fas fa-user-circle me-1"></i> Xin chào, ${userName}
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="my-orders.html"><i class="fas fa-file-invoice-dollar me-2"></i>Đơn hàng của tôi</a></li>
+                        <li><a class="dropdown-item" href="orders.html"><i class="fas fa-file-invoice-dollar me-2"></i>Đơn hàng của tôi</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item text-danger cursor-pointer" id="btn-user-logout"><i class="fas fa-sign-out-alt me-2"></i>Đăng xuất</a></li>
                     </ul>

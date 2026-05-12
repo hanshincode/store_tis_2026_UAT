@@ -1,6 +1,6 @@
 /**
  * TIS System - Chat Widget cho Khách hàng (User)
- * Phiên bản: Đã tắt chức năng gửi file (Guest Upload Disabled)
+ * Phiên bản: Chat realtime + upload file cho khách vãng lai
  */
 
 // =========================================================
@@ -42,15 +42,9 @@ function initChatWidget() {
     if (window.__chatWidgetInitialized) return;
     window.__chatWidgetInitialized = true;
 
-    console.log("Chat Widget đã khởi chạy (Đã tắt Upload File)");
+    console.log("Chat Widget đã khởi chạy");
 
     // Cấu hình kết nối
-    const currentHost = window.location.hostname || "hcm-tis-uat.tisbroker.local";
-    const apiBaseUrl = `http://${currentHost}:8000/api`;
-    const wsBaseUrl = window.location.protocol === "https:" 
-        ? `wss://${currentHost}:8000/ws` 
-        : `ws://${currentHost}:8000/ws`;
-
     // Biến trạng thái
     let chatSocket = null;
     let reconnectTimer = null;
@@ -69,6 +63,7 @@ function initChatWidget() {
     function attachEventListeners() {
         document.addEventListener('click', handleClicks);
         document.addEventListener('submit', handleForms);
+        document.addEventListener('change', handleFileInput);
         
         // BỔ SUNG: LƯU TẠM DỮ LIỆU KHI KHÁCH ĐANG GÕ 
         document.addEventListener('input', (e) => {
@@ -123,7 +118,66 @@ function initChatWidget() {
             return;
         }
 
-        // Đã xóa chức năng nút Đính kèm ở đây
+        const attachBtn = e.target.closest('#chat-widget-attach-btn') || e.target.closest('label[for="chat-file-upload"]');
+        if (attachBtn && !consultationId) {
+            e.preventDefault();
+            alert('Vui lòng bắt đầu chat trước khi gửi file.');
+            return;
+        }
+    }
+
+    async function handleFileInput(e) {
+        if (e.target?.id !== 'chat-file-upload') return;
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+
+        if (!consultationId || !chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
+            alert('Vui lòng kết nối chat trước khi gửi file.');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert('File quá lớn. Vui lòng chọn file dưới 5MB.');
+            return;
+        }
+
+        const inputEl = document.getElementById('chat-widget-input-text');
+        const oldPlaceholder = inputEl?.placeholder || '';
+        if (inputEl) {
+            inputEl.disabled = true;
+            inputEl.placeholder = 'Đang tải file lên...';
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch(apiUrl('/chat/upload/'), {
+                method: 'POST',
+                headers: getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {},
+                body: formData
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Không thể tải file lên hệ thống.');
+
+            chatSocket.send(JSON.stringify({
+                message: '',
+                sender_name: customerName,
+                is_staff: false,
+                attachment_url: data.attachment_url,
+                attachment_type: data.attachment_type
+            }));
+        } catch (error) {
+            console.error('Lỗi upload file widget:', error);
+            alert(error.message || 'Đã xảy ra lỗi khi tải file.');
+        } finally {
+            if (inputEl) {
+                inputEl.disabled = false;
+                inputEl.placeholder = oldPlaceholder;
+                inputEl.focus();
+            }
+        }
     }
 
     async function handleForms(e) {
@@ -150,7 +204,7 @@ function initChatWidget() {
                 status: 'new'
             };
 
-            const res = await fetch(`${apiBaseUrl}/consultations/`, {
+            const res = await fetch(apiUrl('/consultations/'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payloadData)
@@ -210,7 +264,7 @@ function initChatWidget() {
     function connectWebSocket(id) {
         if (chatSocket) chatSocket.close();
         
-        const wsUrl = `${wsBaseUrl}/chat/${id}/`;
+        const wsUrl = websocketUrl(`/ws/chat/${id}/`);
         chatSocket = new WebSocket(wsUrl);
 
         chatSocket.onopen = () => console.log("WebSocket Widget Đã kết nối");
@@ -220,6 +274,7 @@ function initChatWidget() {
             
             // Bỏ qua sự kiện typing
             if (data.type === 'typing' || data.type === 'stop_typing') return;
+            if (String(data.type || '').startsWith('video_')) return;
             
             appendWidgetMessage(data);
 
@@ -243,7 +298,7 @@ function initChatWidget() {
 
     async function fetchChatHistory(id) {
         try {
-            const res = await fetch(`${apiBaseUrl}/consultations/${id}/messages/`);
+            const res = await fetch(apiUrl(`/consultations/${id}/messages/`));
             if (!res.ok) return;
 
             const msgs = await res.json();
@@ -265,7 +320,7 @@ function initChatWidget() {
         const msgBox = document.getElementById('chat-widget-messages');
         if (!msgBox) return;
 
-        const isMe = !data.is_staff_reply;
+        const isMe = !(data.is_staff_reply || data.is_staff);
         let contentHtml = '';
 
         if (data.message) {
@@ -275,9 +330,9 @@ function initChatWidget() {
 
         // Vẫn giữ code hiển thị file đính kèm để khách xem được file Admin gửi
         if (data.attachment_url) {
-            const fileUrl = data.attachment_url.startsWith('http') ? data.attachment_url : `http://${currentHost}:8000${data.attachment_url}`;
+            const fileUrl = mediaUrl(data.attachment_url);
             if (data.attachment_type === 'image') {
-                contentHtml += `<div class="${data.message ? 'mt-2' : ''}"><a href="${fileUrl}" target="_blank"><img src="${fileUrl}" style="max-width: 180px; max-height: 200px; object-fit: cover; border-radius: 8px;"></a></div>`;
+                contentHtml += `<div class="${data.message ? 'mt-2' : ''}"><a href="${fileUrl}" target="_blank"><img src="${fileUrl}" class="widget-attachment-img" alt="Ảnh đính kèm"></a></div>`;
             } else {
                 const textColor = isMe ? '#fff' : '#D71920';
                 contentHtml += `
@@ -292,16 +347,13 @@ function initChatWidget() {
         const bubbleClass = isMe ? 'widget-bubble-me' : 'widget-bubble-staff';
         const timeAlign = isMe ? 'text-end' : 'text-start';
         
-        const avatarHtml = !isMe ? `
-            <div class="widget-avatar me-2 mt-auto mb-1 flex-shrink-0">
-                <img src="/fe/images/logo_tab.png" alt="TIS" width="28" height="28">
-            </div>` : '';
+        const avatarHtml = !isMe ? `<div class="widget-avatar me-2 mt-auto mb-1 flex-shrink-0">CS</div>` : '';
 
         const staffNameHtml = !isMe ? `<small class="text-muted mb-1" style="font-size: 0.7rem; margin-left: 2px;">${data.sender_name || 'TIS Broker'}</small>` : '';
         const timeStr = data.created_at ? (data.created_at.includes('T') ? new Date(data.created_at).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'}) : data.created_at) : new Date().toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'});
 
         const html = `
-            <div class="d-flex w-100 ${alignClass} mb-3 animate-fade-in">
+            <div class="widget-message-row d-flex w-100 ${alignClass} mb-3 animate-fade-in">
                 ${avatarHtml}
                 <div class="d-flex flex-column align-items-${isMe ? 'end' : 'start'}" style="max-width: 85%;">
                     ${staffNameHtml}

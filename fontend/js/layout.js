@@ -16,9 +16,10 @@ async function loadHeader() {
     if (!placeholder) return;
 
     try {
-        const response = await fetch('/components/header.html');
+        const response = await fetch(frontendPath('components/header.html'));
         if (!response.ok) throw new Error("Header not found");
         placeholder.innerHTML = await response.text();
+        normalizeInternalLinks(placeholder);
         
         // Sau khi HTML header xuất hiện, chạy các logic đi kèm:
         checkAuth();           // Kiểm tra đăng nhập
@@ -50,7 +51,7 @@ async function loadMegaMenuCategories() {
 
         const htmlItems = categories.map(c => 
             `<li class="col-6">
-                <a href="products.html?category=${c.id}" class="text-decoration-none hover-danger">
+                <a href="${frontendPath(`products.html?category=${c.id}`)}" class="text-decoration-none hover-danger">
                     <i class="fas fa-caret-right text-muted me-1 small"></i> ${c.name}
                 </a>
             </li>`
@@ -58,7 +59,7 @@ async function loadMegaMenuCategories() {
 
         const viewAllHtml = `
             <li class="col-12 mt-2 pt-2 border-top">
-                <a href="products.html" class="fw-bold text-danger text-decoration-none small">
+                <a href="${frontendPath('products.html')}" class="fw-bold text-danger text-decoration-none small">
                     Xem tất cả gói <i class="fas fa-arrow-right ms-1"></i>
                 </a>
             </li>
@@ -78,13 +79,28 @@ async function loadFooter() {
     const placeholder = document.getElementById('footer-placeholder');
     if (placeholder) {
         try {
-            const response = await fetch('components/footer.html');
+            const response = await fetch(frontendPath('components/footer.html'));
             if (response.ok) {
                 placeholder.innerHTML = await response.text();
+                normalizeInternalLinks(placeholder);
                 ensureChatWidgetScript();
             }
         } catch (e) { console.error("Lỗi tải Footer"); }
     }
+}
+
+function normalizeInternalLinks(container) {
+    container.querySelectorAll('a[href]').forEach(link => {
+        const href = link.getAttribute('href');
+        if (!href || href.startsWith('#') || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) return;
+        link.setAttribute('href', frontendPath(href));
+    });
+
+    container.querySelectorAll('img[src]').forEach(img => {
+        const src = img.getAttribute('src');
+        if (!src || src.startsWith('http') || src.startsWith('data:')) return;
+        img.setAttribute('src', frontendPath(src));
+    });
 }
 
 function ensureChatWidgetScript() {
@@ -99,7 +115,7 @@ function ensureChatWidgetScript() {
 
     chatWidgetScriptPromise = new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.src = 'user/js/chat-widget.js';
+        script.src = frontendPath('user/js/chat-widget.js');
         script.dataset.chatWidgetScript = 'true';
         script.onload = () => resolve();
         script.onerror = () => {
@@ -126,7 +142,7 @@ async function checkAuth() {
             // Menu quyền quản trị
             let roleMenu = '';
             if (['admin', 'super_admin', 'staff'].includes(user.role)) {
-                roleMenu = `<li><a class="dropdown-item text-danger fw-bold" href="admin/index.html"><i class="fas fa-cogs me-2"></i>Trang quản trị</a></li>
+                roleMenu = `<li><a class="dropdown-item text-danger fw-bold" href="${frontendPath('admin/index.html')}"><i class="fas fa-cogs me-2"></i>Trang quản trị</a></li>
                             <li><hr class="dropdown-divider"></li>`;
             }
 
@@ -139,18 +155,18 @@ async function checkAuth() {
                     <li><div class="px-3 py-2 text-muted small">Xin chào, <strong>${user.first_name || user.username}</strong></div></li>
                     <li><hr class="dropdown-divider"></li>
                     ${roleMenu}
-                    <li><a class="dropdown-item" href="profile.html"><i class="fas fa-user-circle me-2"></i>Hồ sơ của tôi</a></li>
-                    <li><a class="dropdown-item" href="user/index.html"><i class="fas fa-history me-2"></i>Đơn hàng đã mua</a></li>
+                    <li><a class="dropdown-item" href="${frontendPath('user/index.html')}"><i class="fas fa-user-circle me-2"></i>Hồ sơ của tôi</a></li>
+                    <li><a class="dropdown-item" href="${frontendPath('user/orders.html')}"><i class="fas fa-history me-2"></i>Đơn hàng đã mua</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item text-danger" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Đăng xuất</a></li>
                 </ul>
             `;
         } catch (e) {
             removeTokens();
-            authSection.innerHTML = `<a href="login.html" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">Đăng nhập</a>`;
+            authSection.innerHTML = `<a href="${frontendPath('login.html')}" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">Đăng nhập</a>`;
         }
     } else {
-        authSection.innerHTML = `<a href="login.html" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">Đăng nhập</a>`;
+        authSection.innerHTML = `<a href="${frontendPath('login.html')}" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">Đăng nhập</a>`;
     }
 }
 
@@ -173,6 +189,8 @@ window.updateCartBadge = async function() {
         let count = 0;
         if (Array.isArray(cartItems)) {
             count = cartItems.length;
+        } else if (cartItems && Number.isFinite(Number(cartItems.total_items))) {
+            count = Number(cartItems.total_items);
         } else if (cartItems && cartItems.results) {
             count = cartItems.results.length;
         }
@@ -192,8 +210,8 @@ window.updateCartBadge = async function() {
 
 // --- 6. HÀM ĐĂNG XUẤT (MỚI THÊM) ---
 window.logout = function() {
-    removeTokens();
-    window.location.href = 'login.html';
+    clearTokens();
+    redirectTo('login.html');
 };
 
 // --- 7. HELPER: Highlight Menu ---
@@ -214,7 +232,7 @@ window.handleGlobalSearch = function(e) {
     e.preventDefault();
     const keyword = document.getElementById('global-search').value.trim();
     if(keyword) {
-        window.location.href = `products.html?search=${encodeURIComponent(keyword)}`;
+        redirectTo(`products.html?search=${encodeURIComponent(keyword)}`);
     }
 }
 document.addEventListener("DOMContentLoaded", function() {

@@ -43,7 +43,7 @@ function renderEmptyCart(container) {
 function renderCartUI(container, cart) {
     // 1. Dựng HTML danh sách sản phẩm
     let itemsHtml = cart.items.map(item => {
-        let imgUrl = item.image ? (item.image.startsWith('http') ? item.image : DOMAIN + item.image) : 'https://placehold.co/100x100/f8f9fa/d71920?text=TIS';
+        let imgUrl = item.image ? mediaUrl(item.image) : 'https://placehold.co/100x100/f8f9fa/d71920?text=TIS';
         let pkgName = item.package_name || 'Gói bảo hiểm';
         let prodName = item.product_name || 'Bảo hiểm TIS';
         let price = item.subtotal || (item.price * item.quantity);
@@ -186,7 +186,7 @@ async function processCheckout() {
                     confirmButtonColor: '#D71920'
                 }).then(() => {
                     // Đặt hàng xong chuyển tới trang quản lý đơn hàng
-                    window.location.href = '../user/orders.html'; 
+                    redirectTo('user/orders.html'); 
                 });
             } catch (error) {
                 Swal.fire('Lỗi', 'Có lỗi xảy ra khi tạo đơn hàng. Vui lòng thử lại.', 'error');

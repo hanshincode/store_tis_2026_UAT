@@ -12,6 +12,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 1. Lấy thông tin Admin đang đăng nhập
     try {
         currentUser = await fetchAPI('/users/me/');
+        if (typeof initVideoCall === 'function') {
+            initVideoCall({
+                isStaff: true,
+                getSocket: () => chatSocket,
+                getRoomId: () => currentConsultationId,
+                getCurrentUser: () => currentUser
+            });
+        }
         if (!['admin', 'super_admin', 'staff'].includes(currentUser.role) && !currentUser.is_superuser) {
             alert("Không có quyền truy cập");
             window.location.href = 'index.html';
@@ -58,6 +66,14 @@ function filterConversations(query) {
     });
 }
 
+function escapeInline(value = '') {
+    return String(value)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\n/g, ' ')
+        .replace(/\r/g, ' ');
+}
+
 // --- 1. QUẢN LÝ DANH SÁCH HỘI THOẠI ---
 async function loadConversations(activeId) {
     const listEl = document.getElementById('conv-list');
@@ -87,7 +103,7 @@ async function loadConversations(activeId) {
             // Thêm data-user-type và data-status vào div để Lọc (Filter)
             return `
             <div class="msgr-item ${isActive}" 
-                 onclick="openChat(${item.id}, '${item.customer_name}', '${item.customer_contact || ''}', '${item.note || ''}')" 
+                 onclick="openChat(${item.id}, '${escapeInline(item.customer_name)}', '${escapeInline(item.customer_contact || '')}', '${escapeInline(item.note || '')}', ${isMember})" 
                  id="conv-item-${item.id}" 
                  data-conversation-id="${item.id}"
                  data-user-type="${userType}"
@@ -108,7 +124,7 @@ async function loadConversations(activeId) {
         // Mở lại đoạn chat đang active (nếu có)
         if (activeId) {
             const activeItem = data.find(i => i.id == activeId);
-            if(activeItem) openChat(activeId, activeItem.customer_name, activeItem.customer_contact, activeItem.note);
+            if(activeItem) openChat(activeId, activeItem.customer_name, activeItem.customer_contact, activeItem.note, activeItem.user !== null && activeItem.user !== undefined);
         }
 
         // Tự động áp dụng bộ lọc hiện tại (mặc định sẽ ẩn các tin đã Lưu trữ)
@@ -165,7 +181,7 @@ function setupFilterListeners() {
 
 
 // --- 2. MỞ CHAT VÀ KẾT NỐI WEBSOCKET ---
-async function openChat(id, name, contact, note) {
+async function openChat(id, name, contact, note, isMember = false) {
     if (currentConsultationId === id) return; 
 
     // Đóng kết nối cũ nếu có
@@ -206,7 +222,9 @@ async function openChat(id, name, contact, note) {
     // HIỂN THỊ CÁC KHU VỰC CHỨC NĂNG
     document.getElementById('input-area').style.display = 'flex'; // Khung gõ chat
     const headerActions = document.getElementById('header-actions');
-    if (headerActions) headerActions.style.display = 'block'; // Hiện icon Lưu trữ
+    if (headerActions) headerActions.style.display = 'flex'; // Hiện icon Lưu trữ
+    const videoBtn = document.getElementById('btn-start-video-call');
+    if (videoBtn) videoBtn.style.display = isMember ? 'inline-flex' : 'none';
 
     updateStatus('connecting'); 
     
@@ -226,12 +244,7 @@ async function openChat(id, name, contact, note) {
 }
 
 function connectWebSocket(id) {
-    const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-    const host = window.location.hostname; // Tự động lấy 127.0.0.1, localhost, hoặc domain
-    
-    // Sửa lỗi tự động gán port 8000 nếu đang chạy ở môi trường local
-    const wsPort = (host === "127.0.0.1" || host === "localhost") ? ":8000" : "";
-    const wsUrl = `${protocol}${host}${wsPort}/ws/chat/${id}/`; 
+    const wsUrl = websocketUrl(`/ws/chat/${id}/`); 
 
     console.log("Đang kết nối WebSocket tới:", wsUrl);
 
@@ -250,9 +263,12 @@ function connectWebSocket(id) {
         }
     };
 
-    chatSocket.onmessage = function(e) {
+    chatSocket.onmessage = async function(e) {
         try {
             const data = JSON.parse(e.data);
+            if (typeof handleVideoSignal === 'function' && await handleVideoSignal(data)) {
+                return;
+            }
             
             switch(data.type) {
                 case 'typing':
@@ -350,6 +366,11 @@ async function fetchHistory(id) {
 function appendMessage(data) {
     const box = document.getElementById('message-box');
     const isMe = data.is_staff_reply !== undefined ? data.is_staff_reply : data.is_staff;
+    const callInfo = parseCallMessage(data.message);
+    if (callInfo) {
+        appendCallMessage(box, callInfo, data.created_at);
+        return;
+    }
     
     const alignClass = isMe ? 'msg-right' : 'msg-left';
     const justifyClass = isMe ? 'justify-content-end' : 'justify-content-start';
@@ -376,13 +397,14 @@ function appendMessage(data) {
     }
 
     if (data.attachment_url) {
+        const attachmentUrl = mediaUrl(data.attachment_url);
         const marginClass = data.message ? 'mt-2' : ''; 
         
         if (data.attachment_type === 'image') {
             contentHtml += `
                 <div class="${marginClass}">
-                    <a href="${data.attachment_url}" target="_blank" title="Bấm để xem ảnh lớn">
-                        <img src="${data.attachment_url}" alt="Image" style="max-width: 220px; max-height: 250px; border-radius: 8px; object-fit: cover;">
+                    <a href="${attachmentUrl}" target="_blank" title="Bấm để xem ảnh lớn">
+                        <img src="${attachmentUrl}" alt="Image" style="max-width: 220px; max-height: 250px; border-radius: 8px; object-fit: cover;">
                     </a>
                 </div>`;
         } else {
@@ -390,7 +412,7 @@ function appendMessage(data) {
             contentHtml += `
                 <div class="${marginClass} p-2 rounded d-flex align-items-center gap-2" style="background: rgba(0,0,0,0.05);">
                     <i class="fas fa-file-alt fs-4 ${linkColor}"></i>
-                    <a href="${data.attachment_url}" target="_blank" class="${linkColor} text-decoration-none fw-bold" style="font-size: 0.85rem;">
+                    <a href="${attachmentUrl}" target="_blank" class="${linkColor} text-decoration-none fw-bold" style="font-size: 0.85rem;">
                         Tệp đính kèm
                     </a>
                 </div>`;
@@ -432,6 +454,58 @@ function appendMessage(data) {
 
     box.insertAdjacentHTML('beforeend', html);
     scrollToBottom();
+}
+
+function parseCallMessage(message) {
+    if (!message) return null;
+    try {
+        const parsed = JSON.parse(message);
+        return parsed && parsed.kind === 'video_call' ? parsed : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function appendCallMessage(box, callInfo, createdAt) {
+    const statusMap = {
+        ended: {
+            icon: 'fa-video',
+            text: `Cuộc gọi video đã kết thúc • ${formatCallDuration(callInfo.duration_seconds)}`,
+            color: 'text-success'
+        },
+        rejected: {
+            icon: 'fa-video-slash',
+            text: 'Cuộc gọi video đã bị từ chối',
+            color: 'text-danger'
+        },
+        missed: {
+            icon: 'fa-phone-slash',
+            text: 'Cuộc gọi video nhỡ',
+            color: 'text-warning'
+        }
+    };
+    const info = statusMap[callInfo.status] || statusMap.ended;
+    const time = createdAt || new Date().toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'});
+    const html = `
+        <div class="call-log-message">
+            <i class="fas ${info.icon} ${info.color}"></i>
+            <span>${info.text}</span>
+            <small>${time}</small>
+        </div>`;
+    box.insertAdjacentHTML('beforeend', html);
+    scrollToBottom();
+}
+
+function formatCallDuration(totalSeconds = 0) {
+    const seconds = Math.max(0, Math.round(Number(totalSeconds) || 0));
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    if (minutes >= 60) {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return `${hours}:${String(mins).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
+    }
+    return `${minutes}:${String(rest).padStart(2, '0')}`;
 }
 
 let typingTimeout = null;
@@ -540,7 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Tạo thẻ input file ẩn nếu chưa có
     if (!document.getElementById('chat-file-upload')) {
         document.body.insertAdjacentHTML('beforeend', `
-            <input type="file" id="chat-file-upload" style="display: none;" accept="image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip, .rar">
+            <input type="file" id="chat-file-upload" style="display: none;" accept="image/*, .pdf, .doc, .docx, .xls, .xlsx">
         `);
     }
 
@@ -580,19 +654,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const formData = new FormData();
         formData.append('file', file);
 
-        // ĐÃ SỬA: Tính toán Base URL linh hoạt cho cả localhost và Production
-        const uploadHost = window.location.hostname;
-        const uploadPort = (uploadHost === "127.0.0.1" || uploadHost === "localhost") ? ":8000" : "";
-        const BASE_URL = window.location.protocol + `//${uploadHost}${uploadPort}`;
-
         try {
             // Gọi API lưu file
-            const response = await fetch(`${BASE_URL}/api/chat/upload/`, {
+            const response = await fetch(apiUrl('/chat/upload/'), {
                 method: 'POST',
+                headers: getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {},
                 body: formData
             });
 
             const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || "Không thể tải file lên hệ thống.");
+            }
 
             if (data.attachment_url) {
                 // Phát sóng URL qua WebSocket (Dùng currentUser và is_staff: true cho Admin)
@@ -608,7 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error("Lỗi upload file:", error);
-            alert("Đã xảy ra lỗi khi tải file lên hệ thống.");
+            alert(error.message || "Đã xảy ra lỗi khi tải file lên hệ thống.");
         } finally {
             // Tắt trạng thái loading
             msgInput.placeholder = oldPlaceholder;
@@ -659,10 +732,7 @@ function setupArchiveListener() {
             if (confirmArchive) {
                 try {
                     // Gọi API cập nhật status thành 'archived'
-                    await fetchAPI(`/consultations/${currentConsultationId}/`, {
-                        method: 'PATCH',
-                        body: JSON.stringify({ status: 'archived' })
-                    });
+                    await fetchAPI(`/consultations/${currentConsultationId}/`, 'PATCH', { status: 'archived' });
 
                     alert("Đã lưu trữ thành công!");
                     // Load lại danh sách và đóng khung chat hiện tại

@@ -82,7 +82,94 @@
 }
 
 /* ========================================================
-   3. CHAT WIDGET - GIAO DIỆN ĐỎ TRẮNG (MODERN)
+   3. USER PROFILE
+   ======================================================== */
+.profile-hero {
+    margin-top: 24px;
+    padding: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #D71920 0%, #8f1116 100%);
+    box-shadow: 0 10px 28px rgba(215,25,32,0.18);
+}
+
+.profile-avatar {
+    width: 78px;
+    height: 78px;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--primary-red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: 800;
+    border: 3px solid rgba(255,255,255,0.45);
+    flex-shrink: 0;
+}
+
+.profile-stat,
+.profile-panel {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+
+.profile-stat {
+    min-height: 108px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.profile-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.profile-panel {
+    padding: 24px;
+}
+
+.profile-info-list {
+    display: grid;
+    gap: 14px;
+}
+
+.profile-info-list > div {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #f0f1f3;
+}
+
+.profile-info-list > div:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.profile-info-list span {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.profile-info-list strong {
+    text-align: right;
+    color: #212529;
+    word-break: break-word;
+}
+
+/* ========================================================
+   4. CHAT WIDGET - GIAO DIỆN ĐỎ TRẮNG (MODERN)
    ======================================================== */
 
 /* Khung cửa sổ chat */

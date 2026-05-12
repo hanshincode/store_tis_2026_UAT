@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 3. Tính toán thống kê
         // Tổng doanh thu (Chỉ tính đơn đã xác nhận/thành công nếu cần, ở đây tính hết)
         const totalRevenue = orders.reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
-        document.getElementById('stat-revenue').innerText = formatMoney(totalRevenue);
+        document.getElementById('stat-revenue').innerText = formatCompactMoney(totalRevenue);
 
         // Số đơn chờ duyệt
         const pendingCount = orders.filter(o => o.status === 'pending').length;
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <tr>
                     <td><span class="fw-bold">#${o.id}</span></td>
                     <td>${customerName}</td>
-                    <td class="text-danger fw-bold">${formatMoney(o.total_amount)}</td>
+                    <td class="text-danger fw-bold text-nowrap">${formatMoney(o.total_amount)}</td>
                     <td><span class="badge ${statusBadge}">${statusText}</span></td>
                     <td>${new Date(o.created_at).toLocaleDateString('vi-VN')}</td>
                 </tr>
@@ -67,3 +67,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('dashboard-orders').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Lỗi kết nối API</td></tr>';
     }
 });
+
+function formatCompactMoney(amount) {
+    const value = Number(amount) || 0;
+    if (value >= 1000000000) {
+        return `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(value / 1000000000)} tỷ`;
+    }
+    if (value >= 1000000) {
+        return `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(value / 1000000)} triệu`;
+    }
+    return formatMoney(value);
+}

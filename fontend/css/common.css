@@ -172,24 +172,124 @@ img {
     transition: transform 0.3s;
 }
 
-.chat-widget {
-    z-index: 999999 !important;
-    /* ... các CSS cũ giữ nguyên ... */
-}
 /* Khung Chat nổi */
 .chat-widget {
     position: fixed;
-    bottom: 100px;
-    right: 30px;
-    width: 350px;
-    height: 450px;
+    bottom: 104px;
+    right: 28px;
+    width: min(390px, calc(100vw - 24px));
+    height: 560px;
     background-color: white;
-    border-radius: 12px;
-    box-shadow: 0 5px 25px rgba(0,0,0,0.2);
-    z-index: 9999;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.22);
+    z-index: 999999 !important;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+}
+
+.chat-widget-header {
+    background: #d71920 !important;
+    min-height: 64px;
+}
+
+#chat-widget-conversation {
+    min-height: 0;
+}
+
+#chat-widget-messages {
+    background: #f8fafc;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.widget-message-row {
+    align-items: flex-end;
+}
+
+.widget-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #fff;
+    color: #d71920;
+    border: 1px solid #fecdd3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.widget-bubble-me,
+.widget-bubble-staff {
+    max-width: 100%;
+    padding: 10px 13px;
+    border-radius: 16px;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    word-break: break-word;
+    box-shadow: none !important;
+}
+
+.widget-bubble-me {
+    background: #d71920;
+    color: #fff;
+    border-bottom-right-radius: 5px;
+}
+
+.widget-bubble-staff {
+    background: #fff;
+    color: #111827;
+    border: 1px solid #e5e7eb;
+    border-bottom-left-radius: 5px;
+}
+
+.widget-attachment-img {
+    display: block;
+    width: min(220px, 100%);
+    max-height: 220px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.chat-widget-input {
+    min-height: 62px;
+    gap: 8px;
+}
+
+.chat-attach-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b !important;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.chat-attach-btn:hover {
+    background: #f1f5f9;
+    color: #d71920 !important;
+}
+
+#chat-widget-input-text {
+    min-width: 0;
+    height: 38px;
+    border: 1px solid #dbe1ea;
+    box-shadow: none;
+}
+
+#chat-widget-send-btn {
+    width: 38px !important;
+    height: 38px !important;
+    background: #d71920;
+    border-color: #d71920;
+    flex-shrink: 0;
 }
 
 /* Bong bóng tin nhắn bên trong widget */

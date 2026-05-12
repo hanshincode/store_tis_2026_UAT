@@ -1,6 +1,6 @@
 // js/register.js
 document.addEventListener('DOMContentLoaded', () => {
-    if (getAccessToken()) window.location.href = '/user/index.html';
+    if (getAccessToken()) redirectTo('user/index.html');
 
     const userTypeSelect = document.getElementById('user_type');
     const entFields = document.getElementById('enterprise-fields');
@@ -84,7 +84,7 @@ async function handleRegister(e) {
             first_name: document.getElementById('first_name').value.trim(), email: "", 
             company_name: document.getElementById('company_name')?.value.trim() || "", tax_code: document.getElementById('tax_code')?.value.trim() || ""
         });
-        Swal.fire({ icon: 'success', title: 'Thành công!', text: 'Vui lòng đăng nhập.', confirmButtonColor: '#D71920' }).then(() => { window.location.href = 'login.html'; });
+        Swal.fire({ icon: 'success', title: 'Thành công!', text: 'Vui lòng đăng nhập.', confirmButtonColor: '#D71920' }).then(() => { redirectTo('login.html'); });
     } catch (error) {
         Toast.fire({ icon: 'error', title: (error.username || error.phone) ? "Số điện thoại đã tồn tại!" : "Lỗi hệ thống!" });
     } finally { btn.innerText = originalText; btn.disabled = false; }

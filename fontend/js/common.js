@@ -5,8 +5,46 @@
  */
 
 // --- 1. CẤU HÌNH HỆ THỐNG ---
-const DOMAIN = "http://hcm-tis-uat.tisbroker.local:8000";
+const DEFAULT_API_DOMAIN = (
+    window.location.protocol === 'file:' ||
+    ['localhost', '127.0.0.1', ''].includes(window.location.hostname)
+)
+    ? 'http://127.0.0.1:8001'
+    : `${window.location.protocol}//${window.location.hostname}:8000`;
+
+const DOMAIN = window.TIS_API_DOMAIN || localStorage.getItem('tis_api_domain') || DEFAULT_API_DOMAIN;
 const API_BASE_URL = `${DOMAIN}/api`;
+
+function frontendPath(path = '') {
+    const cleanPath = String(path).replace(/^\/+/, '');
+    const isNestedPage = /\/(admin|user)\//.test(window.location.pathname.replace(/\\/g, '/'));
+    return `${isNestedPage ? '../' : ''}${cleanPath}`;
+}
+
+function apiUrl(endpoint = '') {
+    if (String(endpoint).startsWith('http')) return endpoint;
+    const cleanEndpoint = String(endpoint).startsWith('/') ? endpoint : `/${endpoint}`;
+    return `${API_BASE_URL}${cleanEndpoint}`;
+}
+
+function mediaUrl(path) {
+    if (!path) return 'https://placehold.co/800x600/f8f9fa/d71920?text=TIS+Broker';
+    if (String(path).startsWith('http')) return path;
+    const cleanPath = String(path).startsWith('/') ? path : `/${path}`;
+    if (cleanPath.startsWith('/media')) return `${DOMAIN}${cleanPath}`;
+    return `${DOMAIN}/media${cleanPath}`;
+}
+
+function websocketUrl(path = '') {
+    const domainUrl = new URL(DOMAIN);
+    const wsProtocol = domainUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    const cleanPath = String(path).startsWith('/') ? path : `/${path}`;
+    return `${wsProtocol}//${domainUrl.host}${cleanPath}`;
+}
+
+function redirectTo(path) {
+    window.location.href = frontendPath(path);
+}
 
 // --- 2. QUẢN LÝ TOKEN ---
 const getAccessToken = () => localStorage.getItem('access_token');
@@ -22,6 +60,33 @@ const clearTokens = () => {
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_info');
 };
+const removeTokens = clearTokens;
+
+function normalizeList(payload) {
+    if (Array.isArray(payload)) return payload;
+    if (payload && Array.isArray(payload.results)) return payload.results;
+    return [];
+}
+
+function getErrorMessage(error, fallback = 'Có lỗi xảy ra. Vui lòng thử lại.') {
+    if (!error) return fallback;
+    if (typeof error === 'string') return error;
+    if (error.detail) return error.detail;
+    const firstKey = Object.keys(error)[0];
+    const firstValue = firstKey ? error[firstKey] : null;
+    if (Array.isArray(firstValue)) return firstValue.join(', ');
+    if (firstValue) return String(firstValue);
+    return fallback;
+}
+
+function escapeHTML(value = '') {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 // --- 3. KHỞI TẠO THÔNG BÁO (SWEETALERT2 SAFE) ---
 let Toast = {
@@ -42,7 +107,7 @@ if (typeof Swal !== 'undefined') {
 
 // --- 4. HÀM FETCH API TRUNG TÂM ---
 async function fetchAPI(endpoint, method = 'GET', body = null) {
-    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+    const url = apiUrl(endpoint);
     
     const getOptions = (token) => {
         const headers = {};
@@ -78,7 +143,10 @@ async function fetchAPI(endpoint, method = 'GET', body = null) {
 
         // Xử lý lỗi phân quyền hoặc lỗi dữ liệu (403, 400...)
         if (!response.ok) {
-            const errorData = await response.json();
+            const contentType = response.headers.get('content-type') || '';
+            const errorData = contentType.includes('application/json')
+                ? await response.json()
+                : { detail: await response.text() || response.statusText };
             throw errorData; 
         }
 
@@ -96,7 +164,7 @@ async function fetchAPI(endpoint, method = 'GET', body = null) {
             const errorMsg = encodeURIComponent(error.message || "Network Error");
             
             if (!window.location.pathname.includes('server-error.html')) {
-                window.location.href = `/server-error.html?error=${errorMsg}`;
+                window.location.href = frontendPath(`server-error.html?error=${errorMsg}`);
             }
         }
 
@@ -143,7 +211,7 @@ async function checkServerHealth() {
             console.error("🔥 Server Backend không phản hồi từ lúc load trang!");
             
             const errorMsg = encodeURIComponent(error.message || "Connection Failed");
-            window.location.href = `/server-error.html?error=${errorMsg}`;
+            window.location.href = frontendPath(`server-error.html?error=${errorMsg}`);
         }
     }
 }
@@ -151,8 +219,7 @@ async function checkServerHealth() {
 // --- 7. HÀM TIỆN ÍCH ---
 window.logout = function() {
     clearTokens();
-    const rootPath = window.location.origin;
-    window.location.replace(`${rootPath}/login.html`);
+    window.location.replace(frontendPath('login.html'));
 };
 
 function formatMoney(amount) {

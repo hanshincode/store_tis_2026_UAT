@@ -1,89 +1,81 @@
 /**
  * js/products.js
- * Chức năng: Tải và hiển thị danh sách sản phẩm, lọc theo danh mục.
+ * Hiển thị danh sách sản phẩm và lọc theo danh mục, đối tượng, từ khóa.
  */
 
-// Biến toàn cục để lưu trữ danh sách sản phẩm (phục vụ cho việc lọc client-side)
 let allProducts = [];
+let allCategories = [];
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadCategories();
-    loadProducts();
+const productFilters = {
+    category: 'all',
+    target: 'all',
+    search: '',
+};
+
+document.addEventListener('DOMContentLoaded', async () => {
+    readFiltersFromUrl();
+    renderTargetFilters();
+    await Promise.all([loadCategories(), loadProducts()]);
+    syncFilterUI();
+    applyProductFilters(false);
 });
 
-// --- 1. TẢI DANH MỤC (CATEGORY FILTER) ---
-// --- 1. TẢI DANH MỤC (CATEGORY FILTER) ---
 async function loadCategories() {
     const containerDesktop = document.getElementById('category-list-container');
     const containerMobile = document.getElementById('category-list-mobile');
 
     try {
-        const categories = await fetchAPI('/categories/');
-        
-        // Tạo mục "Tất cả" mặc định (dùng thẻ <li> theo đúng CSS của sidebar)
+        allCategories = await fetchAPI('/categories/');
         let html = `
-            <li class="active" onclick="filterProducts(this, 'all')">
+            <li data-filter-category="all" onclick="filterProducts(this, 'all')">
                 <i class="fas fa-layer-group me-2"></i> Tất cả sản phẩm
             </li>
         `;
-        
-        // Tạo các mục danh mục từ API
-        if (categories && categories.length > 0) {
-            html += categories.map(c => 
-                `<li onclick="filterProducts(this, ${c.id})">
-                    <i class="fas fa-angle-right me-2 text-danger"></i> ${c.name}
-                </li>`
-            ).join('');
+
+        if (allCategories && allCategories.length > 0) {
+            html += allCategories.map(c => `
+                <li data-filter-category="${c.id}" onclick="filterProducts(this, '${c.id}')">
+                    <i class="fas fa-angle-right me-2 text-danger"></i> ${escapeHTML(c.name)}
+                </li>
+            `).join('');
         }
-        
-        // Gắn HTML vào cả Desktop và Mobile
+
         if (containerDesktop) containerDesktop.innerHTML = html;
         if (containerMobile) containerMobile.innerHTML = html;
-        
     } catch (e) {
-        console.error("Lỗi tải danh mục:", e);
-        const errorHtml = `<li class="active">Tất cả sản phẩm (Lỗi kết nối)</li>`;
+        console.error('Lỗi tải danh mục:', e);
+        const errorHtml = `
+            <li class="active" data-filter-category="all" onclick="filterProducts(this, 'all')">
+                <i class="fas fa-layer-group me-2"></i> Tất cả sản phẩm
+            </li>
+        `;
         if (containerDesktop) containerDesktop.innerHTML = errorHtml;
         if (containerMobile) containerMobile.innerHTML = errorHtml;
     }
 }
 
-// --- 4. CHỨC NĂNG LỌC (FILTER) ---
-window.filterProducts = function(element, categoryId) {
-    // 1. Cập nhật trạng thái Active cho thẻ <li> được chọn
-    // Xóa class 'active' khỏi tất cả các <li> trong danh sách danh mục
-    document.querySelectorAll('.category-list li').forEach(li => li.classList.remove('active'));
-    
-    // Thêm class 'active' vào mục vừa click
-    if (element) {
-        element.classList.add('active');
-    }
+function renderTargetFilters() {
+    const html = `
+        <li data-filter-target="all" onclick="filterTargetProducts(this, 'all')">
+            <i class="fas fa-layer-group me-2"></i> Tất cả
+        </li>
+        <li data-filter-target="ind" onclick="filterTargetProducts(this, 'ind')">
+            <i class="fas fa-user me-2"></i> Cá nhân
+        </li>
+        <li data-filter-target="ent" onclick="filterTargetProducts(this, 'ent')">
+            <i class="fas fa-building me-2"></i> Doanh nghiệp
+        </li>
+    `;
 
-    // 2. Thực hiện lọc trên mảng allProducts
-    if (categoryId === 'all') {
-        renderProducts(allProducts);
-    } else {
-        // Lọc các sản phẩm có category id trùng khớp
-        const filtered = allProducts.filter(p => p.category == categoryId);
-        renderProducts(filtered);
-    }
+    document.querySelectorAll('#target-list-container, #target-list-mobile').forEach(container => {
+        container.innerHTML = html;
+    });
+}
 
-    // 3. Tự động đóng menu trượt (Offcanvas) trên Mobile sau khi khách chọn xong
-    const offcanvasEl = document.getElementById('offcanvasCategory');
-    if (offcanvasEl) {
-        const offcanvasInstance = bootstrap.Offcanvas.getInstance(offcanvasEl);
-        if (offcanvasInstance) {
-            offcanvasInstance.hide();
-        }
-    }
-};
-
-// --- 2. TẢI DANH SÁCH SẢN PHẨM ---
 async function loadProducts() {
     const container = document.getElementById('product-list');
     if (!container) return;
-    
-    // Hiển thị loading spinner
+
     container.innerHTML = `
         <div class="col-12 text-center py-5">
             <div class="spinner-border text-danger" role="status">
@@ -92,13 +84,10 @@ async function loadProducts() {
         </div>`;
 
     try {
-        // Gọi API lấy toàn bộ sản phẩm
         allProducts = await fetchAPI('/products/');
-        
-        // Render ra màn hình
-        renderProducts(allProducts);
+        window.allProducts = allProducts;
     } catch (e) {
-        console.error("Lỗi tải sản phẩm:", e);
+        console.error('Lỗi tải sản phẩm:', e);
         container.innerHTML = `
             <div class="col-12 text-center text-muted py-5">
                 <p>Không thể tải dữ liệu sản phẩm.</p>
@@ -107,76 +96,109 @@ async function loadProducts() {
     }
 }
 
-// --- 3. HIỂN THỊ SẢN PHẨM (RENDER) ---
+window.filterProducts = function(element, categoryId) {
+    productFilters.category = String(categoryId || 'all');
+    syncFilterUI();
+    applyProductFilters();
+    closeFilterOffcanvas();
+};
+
+window.filterTargetProducts = function(element, target) {
+    productFilters.target = target || 'all';
+    syncFilterUI();
+    applyProductFilters();
+    closeFilterOffcanvas();
+};
+
+window.searchProducts = function(keyword) {
+    productFilters.search = (keyword || '').trim().toLowerCase();
+    applyProductFilters();
+};
+
+function applyProductFilters(updateUrl = true) {
+    let products = [...allProducts];
+
+    if (productFilters.category !== 'all') {
+        products = products.filter(p => String(p.category) === String(productFilters.category));
+    }
+
+    if (productFilters.target !== 'all') {
+        products = products.filter(p => p.target_audience === productFilters.target);
+    }
+
+    if (productFilters.search) {
+        products = products.filter(p => {
+            const haystack = [
+                p.name,
+                p.short_description,
+                p.description,
+                p.category_name,
+                getTargetLabel(p.target_audience),
+            ].filter(Boolean).join(' ').toLowerCase();
+            return haystack.includes(productFilters.search);
+        });
+    }
+
+    renderProducts(products);
+    updateFilterTitle(products.length);
+    if (updateUrl) writeFiltersToUrl();
+}
+
 function renderProducts(products) {
     const container = document.getElementById('product-list');
     if (!container) return;
 
-    // Nếu không có sản phẩm nào
     if (!products || products.length === 0) {
-        container.innerHTML = '<div class="col-12 text-center text-muted py-5"><h5>Chưa có sản phẩm nào trong mục này.</h5></div>';
+        container.innerHTML = `
+            <div class="col-12 text-center text-muted py-5">
+                <h5>Không có sản phẩm phù hợp với bộ lọc hiện tại.</h5>
+                <button class="btn btn-outline-danger rounded-pill px-4 mt-3" onclick="resetProductFilters()">Xóa bộ lọc</button>
+            </div>`;
         return;
     }
 
-    // Duyệt qua từng sản phẩm và tạo HTML
-    const html = products.map(p => {
-        // A. XỬ LÝ ẢNH
-        // Cấu trúc mới: p.images là một mảng object [{id: 1, image: 'url'}, ...]
+    container.innerHTML = products.map(p => {
         let imgUrl = 'https://placehold.co/400x300/f8f9fa/d71920?text=TIS+Broker';
-        if (p.images && p.images.length > 0) {
-            let src = p.images[0].image; // Lấy ảnh đầu tiên
-            // Kiểm tra và thêm DOMAIN nếu đường dẫn là tương đối (không có http)
-            if (src && !src.startsWith('http')) {
-                src = DOMAIN + (src.startsWith('/') ? src : '/' + src);
-            }
-            imgUrl = src;
-        }
+        if (p.images && p.images.length > 0) imgUrl = mediaUrl(p.images[0].image);
 
-        // B. XỬ LÝ GIÁ TIỀN
-        // Kiểm tra cờ is_price_hidden
         let priceDisplay = '';
         if (p.is_price_hidden) {
             priceDisplay = '<span class="text-primary fw-bold">Liên hệ</span>';
         } else if (p.base_price) {
-            // formatMoney là hàm tiện ích (thường nằm trong common.js)
             priceDisplay = `<span class="text-danger fw-bold">${formatMoney(p.base_price)}</span>`;
         } else {
             priceDisplay = '<span class="text-muted small">Đang cập nhật</span>';
         }
 
-        // C. XỬ LÝ MÔ TẢ NGẮN
-        // Cắt bớt nếu mô tả quá dài (> 80 ký tự)
-        let shortDesc = p.short_description || '';
-        if (shortDesc.length > 80) {
-            shortDesc = shortDesc.substring(0, 80) + '...';
-        }
+        const shortDesc = trimText(stripHTML(p.short_description || p.description || ''), 95);
+        const targetLabel = getTargetLabel(p.target_audience);
+        const targetIcon = p.target_audience === 'ent' ? 'fa-building' : 'fa-user';
 
-        // D. TẠO HTML CARD
         return `
-            <div class="col-md-6 col-lg-4 mb-4">
+            <div class="col-md-6 col-lg-4 mb-4 product-item-col">
                 <div class="card h-100 border-0 shadow-sm product-card hover-shadow transition-all">
-                    <div class="position-relative overflow-hidden" style="border-radius: 8px 8px 0 0;">
+                    <div class="product-img-wrapper">
                         <a href="product-detail.html?id=${p.id}">
-                            <img src="${imgUrl}" class="card-img-top" alt="${p.name}" 
-                                 style="height: 250px; object-fit: cover; width: 100%;">
+                            <img src="${imgUrl}" class="card-img-top" alt="${escapeHTML(p.name)}">
                         </a>
-                        ${p.category_name ? `<span class="badge bg-danger position-absolute top-0 start-0 m-3 shadow-sm">${p.category_name}</span>` : ''}
+                        ${p.category_name ? `<span class="badge-category">${escapeHTML(p.category_name)}</span>` : ''}
                     </div>
-                    
+
                     <div class="card-body d-flex flex-column">
-                        <h5 class="card-title fw-bold mb-2">
+                        <div class="product-meta mb-2">
+                            <span><i class="fas ${targetIcon} me-1"></i>${targetLabel}</span>
+                        </div>
+                        <h5 class="card-title fw-bold mb-2 product-title">
                             <a href="product-detail.html?id=${p.id}" class="text-decoration-none text-dark stretched-link-custom">
-                                ${p.name}
+                                ${escapeHTML(p.name)}
                             </a>
                         </h5>
-                        <p class="card-text text-muted small mb-4 flex-grow-1">
-                            ${shortDesc}
+                        <p class="card-text text-muted small mb-4 flex-grow-1 product-desc">
+                            ${escapeHTML(shortDesc || 'Thông tin sản phẩm đang được cập nhật.')}
                         </p>
-                        
+
                         <div class="d-flex justify-content-between align-items-center mt-auto border-top pt-3">
-                            <div class="price-tag">
-                                ${priceDisplay}
-                            </div>
+                            <div class="price-tag">${priceDisplay}</div>
                             <a href="product-detail.html?id=${p.id}" class="btn btn-outline-danger btn-sm rounded-pill px-3">
                                 Xem chi tiết <i class="fas fa-arrow-right ms-1"></i>
                             </a>
@@ -186,64 +208,80 @@ function renderProducts(products) {
             </div>
         `;
     }).join('');
-
-    container.innerHTML = html;
 }
 
-// --- 4. CHỨC NĂNG LỌC (FILTER) ---
-window.filterProducts = function(btn, categoryId) {
-    // 1. Cập nhật trạng thái Active cho nút bấm
-    const container = document.getElementById('category-filter');
-    const buttons = container.querySelectorAll('.btn');
-    buttons.forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+window.resetProductFilters = function() {
+    productFilters.category = 'all';
+    productFilters.target = 'all';
+    productFilters.search = '';
 
-    // 2. Thực hiện lọc trên mảng allProducts
-    if (categoryId === 'all') {
-        renderProducts(allProducts);
-    } else {
-        // Lọc các sản phẩm có category id trùng khớp
-        const filtered = allProducts.filter(p => p.category == categoryId);
-        renderProducts(filtered);
-    }
+    const searchInput = document.getElementById('product-search-input');
+    if (searchInput) searchInput.value = '';
+
+    syncFilterUI();
+    applyProductFilters();
 };
 
+function readFiltersFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    productFilters.category = params.get('category') || 'all';
+    productFilters.target = params.get('target') || params.get('target_audience') || 'all';
+    productFilters.search = (params.get('search') || '').trim().toLowerCase();
 
+    const searchInput = document.getElementById('product-search-input');
+    if (searchInput) searchInput.value = productFilters.search;
+}
 
-// --- CHỨC NĂNG TÌM KIẾM SẢN PHẨM ---
-window.searchProducts = function(keyword) {
-    // 1. Nếu chưa có dữ liệu sản phẩm thì thoát
-    if (!window.allProducts || window.allProducts.length === 0) return;
+function writeFiltersToUrl() {
+    const params = new URLSearchParams();
+    if (productFilters.category !== 'all') params.set('category', productFilters.category);
+    if (productFilters.target !== 'all') params.set('target', productFilters.target);
+    if (productFilters.search) params.set('search', productFilters.search);
 
-    // 2. Chuẩn hóa từ khóa (viết thường, bỏ khoảng trắng thừa)
-    const term = keyword.toLowerCase().trim();
+    const query = params.toString();
+    const nextUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+    window.history.replaceState({}, '', nextUrl);
+}
 
-    // 3. Nếu ô tìm kiếm bị xóa trắng, hiển thị lại toàn bộ sản phẩm
-    if (term === '') {
-        renderProducts(window.allProducts);
-        return;
-    }
+function syncFilterUI() {
+    document.querySelectorAll('[data-filter-category]').forEach(item => {
+        item.classList.toggle('active', String(item.dataset.filterCategory) === String(productFilters.category));
+    });
 
-    // 4. Lọc các sản phẩm có tên chứa từ khóa
-    const filteredProducts = window.allProducts.filter(product => 
-        product.name.toLowerCase().includes(term)
-    );
+    document.querySelectorAll('[data-filter-target]').forEach(item => {
+        item.classList.toggle('active', item.dataset.filterTarget === productFilters.target);
+    });
+}
 
-    // 5. Render lại danh sách
-    const container = document.getElementById('product-list');
-    
-    if (filteredProducts.length > 0) {
-        // Nếu có kết quả, gọi hàm render mặc định của bạn
-        renderProducts(filteredProducts);
-    } else {
-        // Nếu không có kết quả, hiển thị thông báo
-        if (container) {
-            container.innerHTML = `
-                <div class="col-12 text-center py-5 text-muted w-100">
-                    <i class="fas fa-search mb-3 fa-3x text-light" style="color: #dee2e6;"></i>
-                    <p class="fs-5">Không tìm thấy sản phẩm nào phù hợp với "<strong>${keyword}</strong>".</p>
-                </div>
-            `;
-        }
-    }
-};
+function updateFilterTitle(count) {
+    const title = document.getElementById('product-filter-title');
+    if (!title) return;
+
+    const categoryName = productFilters.category === 'all'
+        ? 'Tất cả danh mục'
+        : (allCategories.find(c => String(c.id) === String(productFilters.category))?.name || 'Danh mục đã chọn');
+    const targetName = productFilters.target === 'all' ? 'mọi đối tượng' : getTargetLabel(productFilters.target);
+
+    title.textContent = `${categoryName} - ${targetName} (${count})`;
+}
+
+function closeFilterOffcanvas() {
+    const offcanvasEl = document.getElementById('offcanvasCategory');
+    if (!offcanvasEl || typeof bootstrap === 'undefined') return;
+
+    const offcanvasInstance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+    if (offcanvasInstance) offcanvasInstance.hide();
+}
+
+function getTargetLabel(target) {
+    return target === 'ent' ? 'Doanh nghiệp' : 'Cá nhân';
+}
+
+function stripHTML(value) {
+    return String(value || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function trimText(value, maxLength) {
+    const text = String(value || '').trim();
+    return text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
+}
