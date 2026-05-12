@@ -418,3 +418,26 @@ class DashboardSummaryView(APIView):
             "recent_orders": OrderSerializer(recent_orders, many=True).data
         })
 
+
+
+
+# backend/api/views.py
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .models import ConsultationRequest
+from .serializers import ConsultationRequestSerializer
+
+@api_view(['PATCH'])
+def update_consultation_status(request, pk):
+    try:
+        # Tìm cuộc hội thoại theo ID truyền từ URL
+        consultation = ConsultationRequest.objects.get(pk=pk)
+    except ConsultationRequest.DoesNotExist:
+        return Response({'error': 'Không tìm thấy cuộc hội thoại'}, status=404)
+
+    # partial=True cho phép chỉ cập nhật trường 'status' mà không cần gửi lại toàn bộ dữ liệu
+    serializer = ConsultationRequestSerializer(consultation, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=400)

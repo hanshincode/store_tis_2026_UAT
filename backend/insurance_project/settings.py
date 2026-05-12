@@ -132,13 +132,7 @@ REST_FRAMEWORK = {
 
 # CORS_ALLOW_ALL_ORIGINS = True
 
-CORS_ALLOWED_ORIGINS = [
-    "https://tisbroker.com",
-    "https://www.tisbroker.com",
-    "http://localhost:5500", # Cho phép khi test local
-    "http://localhost:8000",
-    "https://9j0qhwdr-5500.asse.devtunnels.ms"
-]
+CORS_ALLOWED_ORIGINS = ['*']
 
 
 

@@ -164,8 +164,19 @@ class ConsultationRequest(models.Model): #
     processor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='processed_consultations')
     updated_at = models.DateTimeField(auto_now=True)
     guest_session_id = models.CharField(max_length=255, null=True, blank=True) # Lưu session ID của khách vãng lai để gắn với chat
+    STATUS_CHOICES = (
+        ('new', 'Mới'),
+        ('processed', 'Đang xử lý'),
+        ('done', 'Hoàn tất'),
+        ('archived', 'Lưu trữ'), # Thêm trạng thái này
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
+
     def __str__(self):
         return f"{self.customer_name} - {self.status}"
+
+
+
 
 
 # backend/api/models.py

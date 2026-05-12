@@ -16,6 +16,9 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
+from django.urls import path
+from . import views
+
 router = DefaultRouter()
 
 # --- ĐĂNG KÝ ROUTER ---
@@ -44,5 +47,5 @@ urlpatterns = [
     path('api/auth/registration/', include('dj_rest_auth.registration.urls')),
     path('api/auth/social/', include('allauth.socialaccount.urls')),
     
-    
+    path('consultations/<int:pk>/', views.update_consultation_status, name='update-consultation'),
 ]
