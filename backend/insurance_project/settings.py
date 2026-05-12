@@ -10,15 +10,30 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_list(name, default=None):
+    value = os.getenv(name)
+    if not value:
+        return default or []
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-(0kzvcq26ea8up&2uh_0f%@e-i+^je)g3c!d#s8re!v4h-6d+g'
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-insecure-change-me")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool("DJANGO_DEBUG", True)
 
 # settings.py (Chỉ bật khi lên Production và có HTTPS)
 
@@ -31,7 +46,10 @@ if not DEBUG:
     X_FRAME_OPTIONS = 'DENY' # Chống bị nhúng vào iframe (Clickjacking)
 
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = env_list(
+    "DJANGO_ALLOWED_HOSTS",
+    ["localhost", "127.0.0.1", "[::1]"] if DEBUG else [],
+)
 
 
 # Application definition
@@ -69,25 +87,20 @@ ASGI_APPLICATION = 'insurance_project.asgi.application'
 
 
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"
-    }
-}
-
-
-# 3. Đảm bảo cấu hình Channel Layers đã có (Dùng cho Chat realtime)
-# TIS Broker - WebSocket / Channels Configuration
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            # Thay đổi thông tin kết nối tại đây
-            # Cú pháp: "redis://:mật_khẩu@IP_CỦA_SERVER_HCM_TIS_DB:6379/0"
-            "hosts": ["redis://:IQ9Dpu76NxwALQTd@192.168.18.207:6379/0"], 
+REDIS_URL = os.getenv("REDIS_URL")
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [REDIS_URL]},
         },
-    },
-}
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
+    }
 
 
 
@@ -105,7 +118,9 @@ MIDDLEWARE = [
 ]
 
 AUTH_USER_MODEL = 'api.User' # Sử dụng model User tùy chỉnh
-CORS_ALLOW_ALL_ORIGINS = True # Dev only
+CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", DEBUG)
+CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", [])
+CORS_ALLOW_CREDENTIALS = True
 
 
 # settings.py
@@ -120,21 +135,14 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle'  # User đã đăng nhập
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100000000000000000000/day',   # Khách chỉ được gọi 100 lần/ngày
-        'user': '1000000000000000000000/day',  # User được gọi 1000 lần/ngày
+        'anon': os.getenv('DRF_ANON_THROTTLE', '1000/day'),
+        'user': os.getenv('DRF_USER_THROTTLE', '10000/day'),
     }
 }
 
 
 
 # settings.py
-
-
-# CORS_ALLOW_ALL_ORIGINS = True
-
-CORS_ALLOWED_ORIGINS = ['*']
-
-
 
 
 ROOT_URLCONF = 'insurance_project.urls'
@@ -160,17 +168,24 @@ WSGI_APPLICATION = 'insurance_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# settings.py
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'tis_db', # Tên DB của bạn
-        'USER': 'tis_user', 
-        'PASSWORD': '6uiQKHpm2cv361eW',
-        'HOST': '192.168.18.207', # Trỏ tới server 192.168.18.207
-        'PORT': '5432',
+if os.getenv("DB_ENGINE") == "postgres" or os.getenv("DB_NAME"):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'tis_db'),
+            'USER': os.getenv('DB_USER', 'tis_user'),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -250,10 +265,6 @@ REST_AUTH = {
     'USE_JWT': True,
     'JWT_AUTH_COOKIE': 'jwt-auth',
 }
-
-# backend/insurance_project/settings.py
-
-import os
 
 # Đường dẫn URL để truy cập ảnh (ví dụ: http://127.0.0.1:8000/media/anh.jpg)
 MEDIA_URL = '/media/'
