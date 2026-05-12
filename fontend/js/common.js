@@ -1,6 +1,7 @@
 /**
  * fontend/js/common.js
- * Chức năng: Cấu hình API, Quản lý JWT (Access/Refresh) và Xử lý thông báo.
+ * Chức năng: Cấu hình API, Quản lý JWT (Access/Refresh), Xử lý thông báo,
+ * và Tự động bắt lỗi mất kết nối Server có đính kèm chi tiết lỗi.
  */
 
 // --- 1. CẤU HÌNH HỆ THỐNG ---
@@ -11,10 +12,6 @@ const API_BASE_URL = `${DOMAIN}/api`;
 const getAccessToken = () => localStorage.getItem('access_token');
 const getRefreshToken = () => localStorage.getItem('refresh_token');
 
-/**
- * Lưu trữ Token vào máy. 
- * Vì Backend bật ROTATE_REFRESH_TOKENS, ta phải cập nhật cả Refresh Token mới.
- */
 const saveTokens = (access, refresh) => {
     if (access) localStorage.setItem('access_token', access);
     if (refresh) localStorage.setItem('refresh_token', refresh);
@@ -27,7 +24,6 @@ const clearTokens = () => {
 };
 
 // --- 3. KHỞI TẠO THÔNG BÁO (SWEETALERT2 SAFE) ---
-// Kiểm tra sự tồn tại của Swal để tránh lỗi "ReferenceError"
 let Toast = {
     fire: (obj) => console.log(`${obj.icon}: ${obj.title}`) 
 };
@@ -44,23 +40,17 @@ if (typeof Swal !== 'undefined') {
     console.warn("SweetAlert2 chưa được tải. Vui lòng kiểm tra script trong HTML.");
 }
 
-// --- 4. HÀM FETCH API TRUNG TÂM (CÓ TỰ ĐỘNG REFRESH) ---
+// --- 4. HÀM FETCH API TRUNG TÂM ---
 async function fetchAPI(endpoint, method = 'GET', body = null) {
     const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
     
-    // Hàm tạo cấu hình yêu cầu
     const getOptions = (token) => {
         const headers = {};
-        if (token) {
-            // Sử dụng Bearer cho JWT theo cấu hình SIMPLE_JWT
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
+        if (token) headers['Authorization'] = `Bearer ${token}`;
         const options = { method, headers };
 
         if (body) {
             if (body instanceof FormData) {
-                // Để trình duyệt tự xử lý Content-Type cho FormData (multipart/form-data)
                 options.body = body;
             } else {
                 headers['Content-Type'] = 'application/json';
@@ -79,7 +69,6 @@ async function fetchAPI(endpoint, method = 'GET', body = null) {
             
             const isRefreshed = await handleRefreshToken();
             if (isRefreshed) {
-                // Thử lại yêu cầu cũ với Access Token mới vừa nhận
                 response = await fetch(url, getOptions(getAccessToken()));
             } else {
                 window.logout();
@@ -93,18 +82,30 @@ async function fetchAPI(endpoint, method = 'GET', body = null) {
             throw errorData; 
         }
 
-        // DELETE thành công thường không trả về JSON (204 No Content)
         if (response.status === 204 || method === 'DELETE') return { success: true };
         
         return await response.json();
 
     } catch (error) {
+        // [THÊM MỚI] XỬ LÝ LỖI MẠNG HOẶC SERVER SẬP & TRUYỀN MÃ LỖI
+        if (error.name === 'TypeError' || 
+            (error.message && (error.message.includes('fetch') || error.message.includes('NetworkError')))) {
+            console.error("🔥 Báo động: Mất kết nối đến Backend Server!", error);
+            
+            // Lấy thông báo lỗi và mã hóa để đưa lên URL
+            const errorMsg = encodeURIComponent(error.message || "Network Error");
+            
+            if (!window.location.pathname.includes('server-error.html')) {
+                window.location.href = `/server-error.html?error=${errorMsg}`;
+            }
+        }
+
         console.error(`Lỗi API (${endpoint}):`, error);
         throw error; 
     }
 }
 
-// --- 5. LOGIC XOAY VÒNG TOKEN (TOKEN ROTATION) ---
+// --- 5. LOGIC XOAY VÒNG TOKEN ---
 async function handleRefreshToken() {
     const refresh = getRefreshToken();
     if (!refresh) return false;
@@ -118,7 +119,6 @@ async function handleRefreshToken() {
 
         if (res.ok) {
             const data = await res.json();
-            // PHẢI lưu cả refresh mới vì ROTATE_REFRESH_TOKENS = True
             saveTokens(data.access, data.refresh);
             return true;
         }
@@ -128,11 +128,29 @@ async function handleRefreshToken() {
     }
 }
 
-// --- 6. HÀM TIỆN ÍCH ---
-// fontend/js/common.js
+// --- 6. HÀM KIỂM TRA SỨC KHỎE SERVER NGAY KHI LOAD TRANG ---
+async function checkServerHealth() {
+    if (window.location.pathname.includes('server-error.html')) return;
+
+    try {
+        await fetch(`${API_BASE_URL}/products/?limit=1`, { 
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        if (error.name === 'TypeError' || 
+            (error.message && (error.message.includes('fetch') || error.message.includes('NetworkError')))) {
+            console.error("🔥 Server Backend không phản hồi từ lúc load trang!");
+            
+            const errorMsg = encodeURIComponent(error.message || "Connection Failed");
+            window.location.href = `/server-error.html?error=${errorMsg}`;
+        }
+    }
+}
+
+// --- 7. HÀM TIỆN ÍCH ---
 window.logout = function() {
     clearTokens();
-    // Sử dụng đường dẫn gốc để không bị ảnh hưởng bởi thư mục hiện tại
     const rootPath = window.location.origin;
     window.location.replace(`${rootPath}/login.html`);
 };
@@ -143,30 +161,25 @@ function formatMoney(amount) {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-    // Tìm tất cả các nút có class là toggle-password
+    // Ping kiểm tra server
+    checkServerHealth();
+
+    // Logic Ẩn/Hiện mật khẩu
     const togglePasswordButtons = document.querySelectorAll('.toggle-password');
 
     togglePasswordButtons.forEach(function(button) {
         button.addEventListener('click', function() {
-            // Tìm ô input nằm cùng trong một div input-group với nút này
             const inputField = this.closest('.input-group').querySelector('input');
-            // Tìm thẻ icon (ví dụ: <i class="fas fa-eye"></i>) để đổi biểu tượng
             const icon = this.querySelector('i');
 
-            // Kiểm tra và đảo ngược trạng thái
             if (inputField.type === 'password') {
-                inputField.type = 'text'; // Hiện mật khẩu
-                
-                // Đổi icon từ mắt mở sang mắt nhắm (Tùy thuộc bạn đang dùng thư viện icon nào)
-                // Ví dụ dưới đây áp dụng cho FontAwesome:
+                inputField.type = 'text'; 
                 if (icon) {
                     icon.classList.remove('fa-eye');
                     icon.classList.add('fa-eye-slash'); 
                 }
             } else {
-                inputField.type = 'password'; // Ẩn mật khẩu
-                
-                // Đổi ngược lại thành mắt mở
+                inputField.type = 'password'; 
                 if (icon) {
                     icon.classList.remove('fa-eye-slash');
                     icon.classList.add('fa-eye');

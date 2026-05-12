@@ -26,11 +26,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
 
-    // 3. Tải danh sách
+// 3. Tải danh sách
     loadConversations(id);
     
     // 4. Bắt sự kiện tìm kiếm trên sidebar
     setupSearchListener();
+    
+    // 5. BẮT SỰ KIỆN FILTER TAB (Thêm dòng này)
+    setupFilterListeners();
 });
 
 // Setup search functionality
@@ -70,14 +73,31 @@ async function loadConversations(activeId) {
             const isActive = item.id == activeId ? 'active' : '';
             const lastMsg = item.last_message ? item.last_message.message : 'Chưa có tin nhắn';
             const relativeTime = getRelativeTime(item.last_message?.created_at || item.created_at);
-            const avatarLetter = item.customer_name.charAt(0).toUpperCase();
+            const avatarLetter = item.customer_name ? item.customer_name.charAt(0).toUpperCase() : 'K';
             
+            // XÁC ĐỊNH LOẠI KHÁCH HÀNG (Thành viên hay Vãng lai)
+            const isMember = item.user !== null && item.user !== undefined;
+            const userType = isMember ? 'user' : 'guest';
+            
+            // TẠO BADGE HTML
+            const badgeHtml = isMember 
+                ? '<span class="badge badge-member ms-1">Thành viên</span>'
+                : '<span class="badge badge-guest ms-1">Vãng lai</span>';
+            
+            // Thêm data-user-type và data-status vào div để Lọc (Filter)
             return `
-            <div class="msgr-item ${isActive}" onclick="openChat(${item.id}, '${item.customer_name}', '${item.customer_contact || ''}', '${item.note || ''}')" id="conv-item-${item.id}" data-conversation-id="${item.id}">
+            <div class="msgr-item ${isActive}" 
+                 onclick="openChat(${item.id}, '${item.customer_name}', '${item.customer_contact || ''}', '${item.note || ''}')" 
+                 id="conv-item-${item.id}" 
+                 data-conversation-id="${item.id}"
+                 data-user-type="${userType}"
+                 data-status="${item.status}">
                 <div class="msgr-avatar">${avatarLetter}</div>
                 <div class="flex-grow-1 overflow-hidden">
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="fw-bold text-dark text-truncate customer-name" style="max-width: 140px;">${item.customer_name}</span>
+                        <span class="fw-bold text-dark text-truncate customer-name" style="max-width: 140px;">
+                            ${item.customer_name} ${badgeHtml}
+                        </span>
                         <small class="text-muted" style="font-size:0.75rem" title="${new Date(item.last_message?.created_at || item.created_at).toLocaleString('vi-VN')}">${relativeTime}</small>
                     </div>
                     <div class="text-muted small text-truncate" id="last-msg-${item.id}">${lastMsg}</div>
@@ -85,9 +105,17 @@ async function loadConversations(activeId) {
             </div>`;
         }).join('');
 
+        // Mở lại đoạn chat đang active (nếu có)
         if (activeId) {
             const activeItem = data.find(i => i.id == activeId);
             if(activeItem) openChat(activeId, activeItem.customer_name, activeItem.customer_contact, activeItem.note);
+        }
+
+        // Tự động áp dụng bộ lọc hiện tại (mặc định sẽ ẩn các tin đã Lưu trữ)
+        const activeFilterBtn = document.querySelector('.msgr-tabs .filter-btn.active');
+        const currentFilter = activeFilterBtn ? activeFilterBtn.getAttribute('data-filter') : 'all';
+        if (typeof filterConversationsByStatus === "function") {
+            filterConversationsByStatus(currentFilter);
         }
 
     } catch (e) { 
@@ -96,10 +124,51 @@ async function loadConversations(activeId) {
     }
 }
 
+
+// Thêm hàm này vào file chat.js
+function setupFilterListeners() {
+    const filterBtns = document.querySelectorAll('.msgr-tabs .filter-btn');
+    
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            // 1. Cập nhật giao diện của các nút tab
+            filterBtns.forEach(b => {
+                b.classList.remove('active', 'btn-primary');
+                b.classList.add('btn-light');
+            });
+            e.target.classList.remove('btn-light');
+            e.target.classList.add('active', 'btn-primary');
+
+            // 2. Lấy giá trị filter đang được chọn (all, guest, user)
+            const filterType = e.target.getAttribute('data-filter');
+            const items = document.querySelectorAll('.msgr-item');
+
+            // 3. Ẩn/Hiện các hội thoại tương ứng
+            items.forEach(item => {
+                // Nếu đang dùng ô tìm kiếm text, cần reset lại ô tìm kiếm
+                const searchInput = document.querySelector('.msgr-search-container input');
+                if (searchInput) searchInput.value = '';
+
+                if (filterType === 'all') {
+                    item.style.display = 'flex';
+                } else {
+                    if (item.getAttribute('data-user-type') === filterType) {
+                        item.style.display = 'flex';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                }
+            });
+        });
+    });
+}
+
+
 // --- 2. MỞ CHAT VÀ KẾT NỐI WEBSOCKET ---
 async function openChat(id, name, contact, note) {
     if (currentConsultationId === id) return; 
 
+    // Đóng kết nối cũ nếu có
     if (chatSocket) {
         chatSocket.close();
         clearInterval(reconnectInterval);
@@ -107,15 +176,23 @@ async function openChat(id, name, contact, note) {
     
     currentConsultationId = id;
 
-    // UI Update Header
-    document.getElementById('header-name').innerText = name;
-    document.getElementById('header-avatar').innerText = name.charAt(0).toUpperCase();
+    // Cập nhật Header UI (Tên, Avatar)
+    document.getElementById('header-name').innerText = name || 'Khách hàng';
+    document.getElementById('header-avatar').innerText = name ? name.charAt(0).toUpperCase() : 'K';
     
-    // In SĐT và Ghi chú ra dưới tên khách hàng
+    // Xử lý thông tin SĐT và Ghi chú để tránh lỗi "null"
     let extraInfo = '';
-    if (contact) extraInfo += `<i class="fas fa-phone-alt ms-3 text-success"></i> ${contact} `;
-    if (note) extraInfo += `<i class="fas fa-sticky-note ms-2 text-warning"></i> <span title="${note}">${note.substring(0, 25)}${note.length > 25 ? '...' : ''}</span>`;
+    const safeContact = contact && contact !== 'null' && contact !== 'undefined' ? contact : '';
+    const safeNote = note && note !== 'null' && note !== 'undefined' ? note : '';
+
+    if (safeContact) {
+        extraInfo += `<i class="fas fa-phone-alt ms-3 text-success"></i> ${safeContact} `;
+    }
+    if (safeNote) {
+        extraInfo += `<i class="fas fa-sticky-note ms-2 text-warning"></i> <span title="${safeNote}">${safeNote.substring(0, 25)}${safeNote.length > 25 ? '...' : ''}</span>`;
+    }
     
+    // Gắn thông tin SĐT / Ghi chú vào Header
     let infoDiv = document.getElementById('header-extra-info');
     if (!infoDiv) {
         infoDiv = document.createElement('div');
@@ -126,8 +203,12 @@ async function openChat(id, name, contact, note) {
     }
     infoDiv.innerHTML = extraInfo;
 
+    // HIỂN THỊ CÁC KHU VỰC CHỨC NĂNG
+    document.getElementById('input-area').style.display = 'flex'; // Khung gõ chat
+    const headerActions = document.getElementById('header-actions');
+    if (headerActions) headerActions.style.display = 'block'; // Hiện icon Lưu trữ
+
     updateStatus('connecting'); 
-    document.getElementById('input-area').style.display = 'flex'; 
     
     // Tải lịch sử và kết nối WebSocket
     fetchHistory(id);
@@ -137,7 +218,12 @@ async function openChat(id, name, contact, note) {
     document.querySelectorAll('.msgr-item').forEach(el => el.classList.remove('active'));
     const activeItem = document.getElementById(`conv-item-${id}`);
     if (activeItem) activeItem.classList.add('active');
-} 
+
+    // Khởi tạo sự kiện cho nút "Lưu trữ" vừa được hiển thị
+    if (typeof setupArchiveListener === "function") {
+        setupArchiveListener();
+    }
+}
 
 function connectWebSocket(id) {
     const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -560,3 +646,56 @@ style.innerHTML = `
     }
 `;
 document.head.appendChild(style);
+
+
+// 1. Thêm sự kiện click cho nút lưu trữ trong DOMContentLoaded hoặc openChat
+function setupArchiveListener() {
+    const archiveBtn = document.getElementById('btn-archive-chat');
+    if (archiveBtn) {
+        archiveBtn.onclick = async () => {
+            if (!currentConsultationId) return;
+
+            const confirmArchive = confirm("Bạn có chắc chắn muốn lưu trữ cuộc hội thoại này không? Tin nhắn sẽ được chuyển vào mục Lưu trữ.");
+            if (confirmArchive) {
+                try {
+                    // Gọi API cập nhật status thành 'archived'
+                    await fetchAPI(`/consultations/${currentConsultationId}/`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ status: 'archived' })
+                    });
+
+                    alert("Đã lưu trữ thành công!");
+                    // Load lại danh sách và đóng khung chat hiện tại
+                    loadConversations();
+                    document.getElementById('input-area').style.display = 'none';
+                    document.getElementById('header-actions').style.display = 'none';
+                    document.getElementById('message-box').innerHTML = `
+                        <div class="msgr-empty">
+                            <p class="text-muted">Cuộc hội thoại đã được chuyển vào mục lưu trữ.</p>
+                        </div>`;
+                } catch (e) {
+                    alert("Lỗi khi lưu trữ cuộc trò chuyện.");
+                }
+            }
+        };
+    }
+}
+
+// 3. Hàm lọc theo trạng thái (chỉnh sửa lại logic filter cũ)
+function filterConversationsByStatus(filterType) {
+    const items = document.querySelectorAll('.msgr-item');
+    items.forEach(item => {
+        const status = item.getAttribute('data-status');
+        
+        if (filterType === 'all') {
+            // "Tất cả" thường sẽ không hiện đồ đã lưu trữ trừ khi bạn muốn hiện hết
+            item.style.display = (status !== 'archived') ? 'flex' : 'none';
+        } else if (filterType === 'archived') {
+            item.style.display = (status === 'archived') ? 'flex' : 'none';
+        } else {
+            // Xử lý guest/user và ẩn archived
+            const type = item.getAttribute('data-user-type');
+            item.style.display = (type === filterType && status !== 'archived') ? 'flex' : 'none';
+        }
+    });
+}

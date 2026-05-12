@@ -251,3 +251,23 @@
         max-width: 90%;
     }
 }
+
+
+/* Hiệu ứng cho icon Lưu trữ */
+#btn-archive-chat {
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.2s;
+    color: #65676b;
+}
+
+/* Hiệu ứng khi hover chuột vào nút Lưu trữ */
+#btn-archive-chat:hover {
+    color: var(--tis-red) !important;
+    transform: scale(1.1);
+}
+
+/* Badge phân biệt khách hàng */
+.badge-member { background-color: #28a745; font-size: 0.65rem; color: white; }
+.badge-guest { background-color: #6c757d; font-size: 0.65rem; color: white; }

@@ -10,12 +10,39 @@
     <link rel="stylesheet" href="css/layout.css">
     <link rel="stylesheet" href="css/chat.css">
     <style>
-        /* CSS Tùy chỉnh màu đỏ cho Admin Chat */
+        /* CSS Tùy chỉnh thương hiệu TIS */
         :root { --tis-red: #D71920; }
         .btn-primary, .bg-primary { background-color: var(--tis-red) !important; border-color: var(--tis-red) !important; }
         .text-danger { color: var(--tis-red) !important; }
         .msgr-tabs .btn.active { background-color: var(--tis-red) !important; color: white !important; border: none; }
         .msgr-item.active { border-left: 4px solid var(--tis-red); background-color: #fff1f1; }
+        
+        /* Hiệu ứng cho icon Lưu trữ */
+        #btn-archive-chat {
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.2s;
+            color: #65676b;
+        }
+        #btn-archive-chat:hover {
+            background-color: #f0f2f5;
+            color: var(--tis-red);
+            transform: scale(1.1);
+        }
+        
+        /* Badge phân biệt khách hàng */
+        .badge-member { background-color: #28a745; font-size: 0.65rem; }
+        .badge-guest { background-color: #6c757d; font-size: 0.65rem; }
+        
+        /* Tối ưu header chat */
+        .msgr-main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            border-bottom: 1px solid #ddd;
+        }
     </style>
 </head>
 <body>
@@ -30,10 +57,11 @@
                     </div>
                 </div>
                 
-                <div class="msgr-tabs d-flex p-2 border-bottom bg-white">
+                <div class="msgr-tabs d-flex p-2 border-bottom bg-white overflow-auto">
                     <button class="flex-fill btn btn-sm btn-primary active rounded-pill mx-1 filter-btn" data-filter="all">Tất cả</button>
                     <button class="flex-fill btn btn-sm btn-light rounded-pill mx-1 filter-btn" data-filter="guest">Vãng lai</button>
                     <button class="flex-fill btn btn-sm btn-light rounded-pill mx-1 filter-btn" data-filter="user">Thành viên</button>
+                    <button class="flex-fill btn btn-sm btn-light rounded-pill mx-1 filter-btn" data-filter="archived">Lưu trữ</button>
                 </div>
                 
                 <div class="msgr-list" id="conv-list">
@@ -50,6 +78,10 @@
                                 <i class="fas fa-circle me-1" style="font-size:0.5rem;color:#65676b"></i>Offline
                             </div>
                         </div>
+                    </div>
+                    
+                    <div id="header-actions" style="display: none;">
+                        <i class="fas fa-archive fs-5" id="btn-archive-chat" title="Lưu trữ hội thoại này"></i>
                     </div>
                 </div>
 
