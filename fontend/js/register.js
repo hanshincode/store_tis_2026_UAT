@@ -70,7 +70,8 @@ function checkPasswordStrength(e) {
 
 async function handleRegister(e) {
     e.preventDefault();
-    const phone = document.getElementById('phone').value.trim();
+    const phone = validateVietnamPhoneInput(document.getElementById('phone'));
+    if (!phone) return;
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
     if (!email) return Toast.fire({ icon: 'warning', title: 'Vui lòng nhập email để xác minh tài khoản!' });

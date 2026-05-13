@@ -314,6 +314,105 @@ a {
     width: 100%;
 }
 
+.home-banner-carousel {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #eef0f3;
+    background: #fff;
+}
+
+.home-banner-carousel-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    min-height: 64px;
+    background: #fff;
+    position: relative;
+    z-index: 4;
+}
+
+.home-banner-carousel-tabs button {
+    border: 0;
+    background: #fff;
+    padding: 10px 16px;
+    color: #596273;
+    text-align: center;
+    border-radius: 0 0 22px 22px;
+}
+
+.home-banner-carousel-tabs button.active {
+    color: var(--primary-color);
+    background: #f7f7f8;
+}
+
+.home-banner-carousel-tabs strong,
+.home-banner-carousel-tabs span {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.home-banner-carousel-tabs strong {
+    font-size: 0.9rem;
+    font-weight: 800;
+}
+
+.home-banner-carousel-tabs span {
+    font-size: 0.82rem;
+}
+
+.home-banner-carousel-track {
+    position: relative;
+    min-height: 520px;
+}
+
+.home-banner-carousel-track .hybrid-banner {
+    position: absolute;
+    inset: 0;
+    min-height: 520px;
+    border: 0;
+    border-radius: 0;
+    opacity: 0;
+    transform: translateX(2%);
+    pointer-events: none;
+    transition: opacity .45s ease, transform .45s ease;
+}
+
+.home-banner-carousel-track .hybrid-banner.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+}
+
+.home-banner-carousel-nav,
+.banner-carousel-nav {
+    width: 46px;
+    height: 60px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(17, 24, 39, 0.45);
+    color: #fff;
+    position: absolute;
+    top: 55%;
+    z-index: 5;
+}
+
+.home-banner-carousel-nav.prev,
+.banner-carousel-nav.prev {
+    left: 12px;
+}
+
+.home-banner-carousel-nav.next,
+.banner-carousel-nav.next {
+    right: 12px;
+}
+
+.banner-template-carousel_slide::before,
+.carousel-preview-slide::before {
+    background: linear-gradient(90deg, rgba(0,0,0,0.08) 0%, rgba(255,255,255,0.18) 48%, rgba(255,255,255,0.05) 100%);
+}
+
 @media (max-width: 768px) {
     .hybrid-banner-section {
         padding-top: 16px;
@@ -321,6 +420,15 @@ a {
 
     .hybrid-banner-list.banner-grid-mode {
         grid-template-columns: 1fr;
+    }
+
+    .home-banner-carousel-tabs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .home-banner-carousel-track,
+    .home-banner-carousel-track .hybrid-banner {
+        min-height: 460px;
     }
 
     .hybrid-banner {

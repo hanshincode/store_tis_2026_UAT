@@ -15,7 +15,7 @@
             <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center mb-4">
                 <div>
                     <h4 class="fw-bold m-0 text-dark">Banner trang chủ</h4>
-                    <p class="text-muted mb-0">Ảnh nền + text/button overlay, tối ưu kiểu e-commerce hiện đại.</p>
+                    <p class="text-muted mb-0">Slider nhiều banner hoạt động như một group: admin tạo khung rồi import từng ảnh con vào group đó.</p>
                 </div>
                 <button class="btn btn-danger rounded-pill px-4" id="btn-add-banner">
                     <i class="fas fa-plus me-2"></i>Thêm banner
@@ -30,57 +30,62 @@
 
                             <label class="form-label fw-bold">Chọn khung banner</label>
                             <div class="banner-template-grid mb-3">
-                                <button type="button" class="banner-template-option active" data-template="single_left">
-                                    <span>1 banner</span><small>Text trái</small>
-                                </button>
-                                <button type="button" class="banner-template-option" data-template="single_center">
-                                    <span>1 banner</span><small>Text giữa</small>
-                                </button>
-                                <button type="button" class="banner-template-option" data-template="triple_grid">
-                                    <span>3 banner</span><small>Grid campaign</small>
-                                </button>
-                                <button type="button" class="banner-template-option" data-template="custom_html">
-                                    <span>Custom</span><small>HTML overlay</small>
-                                </button>
+                                <button type="button" class="banner-template-option active" data-template="single_left"><span>1 banner</span><small>Text trái</small></button>
+                                <button type="button" class="banner-template-option" data-template="single_center"><span>1 banner</span><small>Text giữa</small></button>
+                                <button type="button" class="banner-template-option" data-template="carousel"><span>Slider nhiều banner</span><small>Group nhiều ảnh</small></button>
+                                <button type="button" class="banner-template-option" data-template="triple_grid"><span>3 banner</span><small>Grid campaign</small></button>
+                                <button type="button" class="banner-template-option" data-template="custom_html"><span>Custom</span><small>HTML overlay</small></button>
                             </div>
 
                             <div class="row g-3">
                                 <div class="col-md-8">
-                                    <label class="form-label">Tiêu đề</label>
-                                    <input type="text" id="banner-title" class="form-control" required placeholder="An tâm vững bước">
+                                    <label class="form-label">Tiêu đề khung / banner</label>
+                                    <input type="text" id="banner-title" class="form-control" required placeholder="Tuần lễ thương hiệu">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">Thứ tự</label>
                                     <input type="number" id="banner-sort" class="form-control" value="0">
                                 </div>
-                                <div class="col-12">
+                                <div class="col-12 non-carousel-field">
                                     <label class="form-label">Nhãn nhỏ</label>
                                     <input type="text" id="banner-eyebrow" class="form-control" placeholder="UY TÍN HÀNG ĐẦU">
                                 </div>
-                                <div class="col-12">
+                                <div class="col-12 non-carousel-field">
                                     <label class="form-label">Mô tả</label>
                                     <textarea id="banner-subtitle" class="form-control" rows="3" placeholder="Giải pháp bảo hiểm tối ưu..."></textarea>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-6 non-carousel-field">
                                     <label class="form-label">Nút chính</label>
                                     <input type="text" id="banner-button-text" class="form-control" placeholder="Mua ngay">
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-6 non-carousel-field">
                                     <label class="form-label">Link nút chính</label>
                                     <input type="text" id="banner-button-link" class="form-control" placeholder="#products">
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-6 non-carousel-field">
                                     <label class="form-label">Nút phụ</label>
                                     <input type="text" id="banner-secondary-text" class="form-control" placeholder="Liên hệ">
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-6 non-carousel-field">
                                     <label class="form-label">Link nút phụ</label>
                                     <input type="text" id="banner-secondary-link" class="form-control" placeholder="#about">
                                 </div>
-                                <div class="col-12">
+                                <div class="col-12 non-carousel-field">
                                     <label class="form-label">Ảnh nền</label>
                                     <input type="file" id="banner-image" class="form-control" accept="image/*">
                                     <div class="form-text">Nên dùng ảnh ngang 1600x720 hoặc 1920x800.</div>
+                                </div>
+                                <div class="col-12 non-carousel-field" id="banner-crop-wrap" style="display:none;">
+                                    <label class="form-label fw-bold">Crop ảnh trước khi lưu</label>
+                                    <div class="banner-crop-stage">
+                                        <img id="banner-crop-image" alt="Crop preview">
+                                        <div class="banner-crop-frame"></div>
+                                    </div>
+                                    <div class="row g-2 mt-2">
+                                        <div class="col-md-4"><label class="form-label small">Zoom</label><input type="range" class="form-range" id="banner-crop-zoom" min="1" max="2.5" step="0.05" value="1"></div>
+                                        <div class="col-md-4"><label class="form-label small">Ngang</label><input type="range" class="form-range" id="banner-crop-x" min="0" max="100" step="1" value="50"></div>
+                                        <div class="col-md-4"><label class="form-label small">Dọc</label><input type="range" class="form-range" id="banner-crop-y" min="0" max="100" step="1" value="50"></div>
+                                    </div>
                                 </div>
                                 <div class="col-12" id="custom-html-wrap" style="display:none;">
                                     <label class="form-label">Custom HTML overlay</label>
@@ -96,19 +101,51 @@
 
                             <div class="d-flex justify-content-end gap-2 mt-4">
                                 <button type="button" class="btn btn-outline-secondary rounded-pill px-4" id="btn-reset-banner">Làm mới</button>
-                                <button type="submit" class="btn btn-danger rounded-pill px-4" id="btn-save-banner">
-                                    <i class="fas fa-save me-2"></i>Lưu banner
-                                </button>
+                                <button type="submit" class="btn btn-danger rounded-pill px-4" id="btn-save-banner"><i class="fas fa-save me-2"></i>Lưu khung</button>
                             </div>
                         </form>
+
+                        <div class="banner-slide-manager mt-4" id="slide-manager" style="display:none;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="fw-bold mb-0">Ảnh trong group slider</h6>
+                                <span class="badge bg-light text-dark border" id="slide-count">0 ảnh</span>
+                            </div>
+                            <form id="slide-form" class="border rounded-3 p-3 bg-light">
+                                <input type="hidden" id="slide-banner-id">
+                                <div class="mb-2">
+                                    <label class="form-label small fw-bold">Tiêu đề ảnh</label>
+                                    <input type="text" id="slide-title" class="form-control" placeholder="Tuần lễ thương hiệu Lenovo" required>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small fw-bold">Mô tả ngắn</label>
+                                    <input type="text" id="slide-subtitle" class="form-control" placeholder="Đỉnh hiệu năng - Deal chạm nóc">
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-md-6"><input type="text" id="slide-button-text" class="form-control" placeholder="Mua ngay"></div>
+                                    <div class="col-md-6"><input type="text" id="slide-button-link" class="form-control" placeholder="#products"></div>
+                                </div>
+                                <div class="mt-2">
+                                    <input type="file" id="slide-image" class="form-control" accept="image/*" required>
+                                </div>
+                                <div class="d-flex gap-2 mt-3">
+                                    <button type="button" class="btn btn-outline-secondary flex-fill" id="btn-cancel-slide-edit" style="display:none;">Hủy sửa</button>
+                                    <button type="submit" class="btn btn-danger flex-fill" id="btn-save-slide"><i class="fas fa-plus me-2"></i>Thêm ảnh vào group</button>
+                                </div>
+                            </form>
+                            <div id="slide-list-admin" class="mt-3"></div>
+                        </div>
                     </div>
 
                     <div class="col-lg-7">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="fw-bold mb-0">Xem trước</h6>
+                            <h6 class="fw-bold mb-0">Xem trước desktop</h6>
                             <span class="badge bg-light text-dark border">Hybrid banner</span>
                         </div>
                         <div id="banner-preview" class="banner-admin-preview"></div>
+                        <div class="mt-3">
+                            <div class="small fw-bold mb-2">Preview trên điện thoại</div>
+                            <div id="banner-mobile-preview" class="banner-mobile-device"></div>
+                        </div>
                     </div>
                 </div>
             </div>

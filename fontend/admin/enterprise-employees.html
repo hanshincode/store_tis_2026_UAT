@@ -1,0 +1,132 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Bảo hiểm doanh nghiệp - TIS Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+    <div class="main-content">
+        <div class="content-body">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+                <div>
+                    <h4 class="fw-bold m-0">Bảo hiểm doanh nghiệp</h4>
+                    <p class="text-muted mb-0">Thêm nhân viên theo SĐT và gắn gói bảo hiểm doanh nghiệp đã mua.</p>
+                </div>
+                <button class="btn btn-danger rounded-pill px-4" id="btn-open-employee">
+                    <i class="fas fa-user-plus me-2"></i>Thêm nhân viên
+                </button>
+            </div>
+
+            <div class="admin-card mb-4">
+                <div class="row g-3 align-items-end">
+                    <div class="col-lg-6">
+                        <label class="form-label fw-bold">Doanh nghiệp</label>
+                        <select id="enterprise-filter" class="form-select"></select>
+                    </div>
+                    <div class="col-lg-3">
+                        <button class="btn btn-outline-danger rounded-pill px-4" id="btn-reload-employees">
+                            <i class="fas fa-sync-alt me-2"></i>Tải danh sách
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-card">
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nhân viên</th>
+                                <th>SĐT đăng nhập</th>
+                                <th>Doanh nghiệp</th>
+                                <th>Bảo hiểm đang có</th>
+                                <th class="text-end">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="enterprise-employee-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="employeeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <form class="modal-content" id="employee-form">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Thêm nhân viên doanh nghiệp</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Doanh nghiệp</label>
+                        <select id="employee-enterprise" class="form-select" required></select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Họ tên nhân viên</label>
+                        <input type="text" id="employee-name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Số điện thoại đăng nhập</label>
+                        <input type="tel" id="employee-phone" class="form-control" inputmode="tel" autocomplete="tel" pattern="^(\+84|84|0)(3|5|7|8|9)[0-9]{8}$" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" id="employee-email" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mật khẩu tạm</label>
+                        <input type="text" id="employee-password" class="form-control" placeholder="Để trống sẽ dùng 6 số cuối SĐT">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger">Lưu nhân viên</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="coverageModal" tabindex="-1">
+        <div class="modal-dialog">
+            <form class="modal-content" id="coverage-form">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Gắn bảo hiểm cho nhân viên</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="coverage-employee-id">
+                    <div class="mb-3">
+                        <label class="form-label">Sản phẩm trong đơn của doanh nghiệp</label>
+                        <select id="coverage-order-item" class="form-select" required></select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ngày bắt đầu</label>
+                        <input type="date" id="coverage-start-date" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ghi chú</label>
+                        <textarea id="coverage-note" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger">Gắn bảo hiểm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="../js/common.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/enterprise-employees.js"></script>
+</body>
+</html>
+

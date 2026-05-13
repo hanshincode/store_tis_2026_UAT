@@ -33,7 +33,7 @@ async function loadProductDetail(id) {
 
         // 3. Render Chi tiết quyền lợi (CKEditor Content)
         if(descContainer) {
-            descContainer.innerHTML = currentProduct.description || 
+            descContainer.innerHTML = sanitizeProductDetailHtml(currentProduct.description) ||
                 '<div class="text-center text-muted p-5 fst-italic">Chi tiết quyền lợi đang được cập nhật.</div>';
         }
 
@@ -46,6 +46,19 @@ async function loadProductDetail(id) {
                 <a href="products.html" class="btn btn-outline-danger rounded-pill mt-3">Xem gói khác</a>
             </div>`;
     }
+}
+
+function sanitizeProductDetailHtml(html = '') {
+    if (!html) return '';
+    const template = document.createElement('template');
+    template.innerHTML = String(html);
+    template.content.querySelectorAll('script, style, iframe[src^="javascript:"]').forEach(el => el.remove());
+    template.content.querySelectorAll('*').forEach(el => {
+        el.removeAttribute('onerror');
+        el.removeAttribute('onclick');
+        el.removeAttribute('onload');
+    });
+    return template.innerHTML;
 }
 
 function renderInsuranceUI() {
@@ -330,6 +343,11 @@ window.requestConsultation = async function(prefillNote = '') {
 
     newForm.onsubmit = async (e) => {
         e.preventDefault();
+        const customerContact = validateVietnamPhoneInput(
+            document.getElementById('consult-contact'),
+            'Vui lòng nhập số điện thoại Việt Nam hợp lệ để chuyên viên liên hệ.'
+        );
+        if (!customerContact) return;
         
         // UI Loading button
         const btn = newForm.querySelector('button[type="submit"]');
@@ -341,7 +359,7 @@ window.requestConsultation = async function(prefillNote = '') {
             const payload = {
                 product: currentProduct ? currentProduct.id : null,
                 customer_name: document.getElementById('consult-name').value,
-                customer_contact: document.getElementById('consult-contact').value,
+                customer_contact: customerContact,
                 note: document.getElementById('consult-note').value
             };
             

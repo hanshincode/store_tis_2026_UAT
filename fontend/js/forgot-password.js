@@ -4,8 +4,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function handleForgotPassword(event) {
     event.preventDefault();
-    const account = document.getElementById('email_or_phone').value.trim();
+    const accountInput = document.getElementById('email_or_phone');
+    let account = accountInput.value.trim();
     if (!account) return Toast.fire({ icon: 'warning', title: 'Vui lòng nhập số điện thoại hoặc email.' });
+    if (!account.includes('@')) {
+        account = validateVietnamPhoneInput(accountInput);
+        if (!account) return;
+    }
 
     const btn = document.getElementById('btn-forgot');
     const originalText = btn.innerText;

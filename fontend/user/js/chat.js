@@ -49,7 +49,7 @@ async function loadConsultations() {
             const statusText = item.status === 'new' ? 'Đang chờ' : (item.status === 'in_progress' ? 'Đang hỗ trợ' : 'Đang hỗ trợ');
             
             // Lấy nội dung tin nhắn mới nhất
-            const lastMsgText = item.last_message ? item.last_message.message : 'Bắt đầu cuộc trò chuyện';
+            const lastMsgText = item.last_message ? formatChatPreviewMessage(item.last_message.message, item.last_message.attachment_url) : 'Bắt đầu cuộc trò chuyện';
             const lastMsgTime = item.last_message ? item.last_message.time : '';
 
             ticketList.insertAdjacentHTML('beforeend', `
@@ -147,7 +147,7 @@ function connectWebSocket(id) {
             
             // ---> ĐOẠN CODE MỚI THÊM: Bật thông báo nếu tin nhắn NÀY LÀ CỦA ADMIN GỬI
             if (data.is_staff || data.is_staff_reply) {
-                showNewMessageNotification(data.sender_name || 'TIS Broker', data.message);
+                showNewMessageNotification(data.sender_name || 'TIS Broker', formatChatPreviewMessage(data.message, data.attachment_url));
             }
             
         } catch (err) {
@@ -192,8 +192,7 @@ function appendMessageToDOM(msg) {
     
     // 1. Xử lý text
     if (msg.message) {
-        const safeText = msg.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        contentHtml += `<div>${safeText.replace(/\n/g, '<br>')}</div>`;
+        contentHtml += `<div>${formatMessageText(msg.message)}</div>`;
     }
 
     // 2. Xử lý File đính kèm
@@ -242,14 +241,15 @@ function appendMessageToDOM(msg) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
+function formatMessageText(text) {
+    const safeText = String(text || '').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return safeText
+        .replace(/(https?:\/\/[^\s<]+|\/user\/[^\s<]+)/g, '<a href="$1" class="fw-bold text-decoration-underline" target="_blank">$1</a>')
+        .replace(/\n/g, '<br>');
+}
+
 function parseCallMessage(message) {
-    if (!message) return null;
-    try {
-        const parsed = JSON.parse(message);
-        return parsed && parsed.kind === 'video_call' ? parsed : null;
-    } catch (e) {
-        return null;
-    }
+    return parseVideoCallMessage(message);
 }
 
 function appendCallMessageToDOM(chatBox, callInfo, createdAt) {

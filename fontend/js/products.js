@@ -27,16 +27,18 @@ async function loadCategories() {
     try {
         allCategories = await fetchAPI('/categories/');
         let html = `
-            <li data-filter-category="all" onclick="filterProducts(this, 'all')">
-                <i class="fas fa-layer-group me-2"></i> Tất cả sản phẩm
-            </li>
+            <button type="button" class="filter-chip" data-filter-category="all" onclick="filterProducts(this, 'all')">
+                <i class="fas fa-layer-group"></i>
+                <span>Tất cả sản phẩm</span>
+            </button>
         `;
 
         if (allCategories && allCategories.length > 0) {
             html += allCategories.map(c => `
-                <li data-filter-category="${c.id}" onclick="filterProducts(this, '${c.id}')">
-                    <i class="fas fa-angle-right me-2 text-danger"></i> ${escapeHTML(c.name)}
-                </li>
+                <button type="button" class="filter-chip" data-filter-category="${c.id}" onclick="filterProducts(this, '${c.id}')">
+                    <i class="fas fa-shield-halved"></i>
+                    <span>${escapeHTML(c.name)}</span>
+                </button>
             `).join('');
         }
 
@@ -45,9 +47,10 @@ async function loadCategories() {
     } catch (e) {
         console.error('Lỗi tải danh mục:', e);
         const errorHtml = `
-            <li class="active" data-filter-category="all" onclick="filterProducts(this, 'all')">
-                <i class="fas fa-layer-group me-2"></i> Tất cả sản phẩm
-            </li>
+            <button type="button" class="filter-chip active" data-filter-category="all" onclick="filterProducts(this, 'all')">
+                <i class="fas fa-layer-group"></i>
+                <span>Tất cả sản phẩm</span>
+            </button>
         `;
         if (containerDesktop) containerDesktop.innerHTML = errorHtml;
         if (containerMobile) containerMobile.innerHTML = errorHtml;
@@ -56,15 +59,18 @@ async function loadCategories() {
 
 function renderTargetFilters() {
     const html = `
-        <li data-filter-target="all" onclick="filterTargetProducts(this, 'all')">
-            <i class="fas fa-layer-group me-2"></i> Tất cả
-        </li>
-        <li data-filter-target="ind" onclick="filterTargetProducts(this, 'ind')">
-            <i class="fas fa-user me-2"></i> Cá nhân
-        </li>
-        <li data-filter-target="ent" onclick="filterTargetProducts(this, 'ent')">
-            <i class="fas fa-building me-2"></i> Doanh nghiệp
-        </li>
+        <button type="button" data-filter-target="all" onclick="filterTargetProducts(this, 'all')">
+            <i class="fas fa-layer-group"></i>
+            <span>Tất cả</span>
+        </button>
+        <button type="button" data-filter-target="ind" onclick="filterTargetProducts(this, 'ind')">
+            <i class="fas fa-user"></i>
+            <span>Cá nhân</span>
+        </button>
+        <button type="button" data-filter-target="ent" onclick="filterTargetProducts(this, 'ent')">
+            <i class="fas fa-building"></i>
+            <span>Doanh nghiệp</span>
+        </button>
     `;
 
     document.querySelectorAll('#target-list-container, #target-list-mobile').forEach(container => {
@@ -262,7 +268,7 @@ function updateFilterTitle(count) {
         : (allCategories.find(c => String(c.id) === String(productFilters.category))?.name || 'Danh mục đã chọn');
     const targetName = productFilters.target === 'all' ? 'mọi đối tượng' : getTargetLabel(productFilters.target);
 
-    title.textContent = `${categoryName} - ${targetName} (${count})`;
+    title.textContent = `${categoryName} · ${targetName} (${count})`;
 }
 
 function closeFilterOffcanvas() {

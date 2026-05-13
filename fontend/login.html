@@ -38,7 +38,7 @@
                     <label class="fw-bold small mb-1">Số điện thoại</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-user text-muted"></i></span>
-                        <input type="tel" id="phone" class="form-control border-start-0 ps-0" placeholder="Nhập số điện thoại" required>
+                        <input type="tel" id="phone" class="form-control border-start-0 ps-0" placeholder="Nhập số điện thoại" inputmode="tel" autocomplete="tel" pattern="^(\+84|84|0)(3|5|7|8|9)[0-9]{8}$" required>
                     </div>
                 </div>
 
@@ -87,4 +87,5 @@
     <script src="js/login.js"></script>
 </body>
 </html>
+
 

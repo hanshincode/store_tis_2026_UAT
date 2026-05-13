@@ -7,6 +7,8 @@ let currentConsultationId = null;
 let chatSocket = null;
 let currentUser = null;
 let reconnectInterval = null;
+let currentConversationFilter = 'all';
+let currentConversationSearch = '';
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Lấy thông tin Admin đang đăng nhập
@@ -49,21 +51,15 @@ function setupSearchListener() {
     const searchInput = document.querySelector('.msgr-search-container input');
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
-            filterConversations(e.target.value.toLowerCase());
+            currentConversationSearch = e.target.value.toLowerCase().trim();
+            applyConversationFilters();
         });
     }
 }
 
 function filterConversations(query) {
-    const items = document.querySelectorAll('.msgr-item');
-    items.forEach(item => {
-        const name = item.querySelector('.customer-name');
-        if (name && name.textContent.toLowerCase().includes(query)) {
-            item.style.display = 'flex';
-        } else {
-            item.style.display = 'none';
-        }
-    });
+    currentConversationSearch = (query || '').toLowerCase().trim();
+    applyConversationFilters();
 }
 
 function escapeInline(value = '') {
@@ -87,7 +83,7 @@ async function loadConversations(activeId) {
 
         listEl.innerHTML = data.map(item => {
             const isActive = item.id == activeId ? 'active' : '';
-            const lastMsg = item.last_message ? item.last_message.message : 'Chưa có tin nhắn';
+            const lastMsg = item.last_message ? formatChatPreviewMessage(item.last_message.message, item.last_message.attachment_url) : 'Chưa có tin nhắn';
             const relativeTime = getRelativeTime(item.last_message?.created_at || item.created_at);
             const avatarLetter = item.customer_name ? item.customer_name.charAt(0).toUpperCase() : 'K';
             
@@ -107,7 +103,8 @@ async function loadConversations(activeId) {
                  id="conv-item-${item.id}" 
                  data-conversation-id="${item.id}"
                  data-user-type="${userType}"
-                 data-status="${item.status}">
+                 data-status="${item.status}"
+                 data-customer-contact="${escapeHTML(item.customer_contact || '').toLowerCase()}">
                 <div class="msgr-avatar">${avatarLetter}</div>
                 <div class="flex-grow-1 overflow-hidden">
                     <div class="d-flex justify-content-between align-items-center">
@@ -127,12 +124,7 @@ async function loadConversations(activeId) {
             if(activeItem) openChat(activeId, activeItem.customer_name, activeItem.customer_contact, activeItem.note, activeItem.user !== null && activeItem.user !== undefined);
         }
 
-        // Tự động áp dụng bộ lọc hiện tại (mặc định sẽ ẩn các tin đã Lưu trữ)
-        const activeFilterBtn = document.querySelector('.msgr-tabs .filter-btn.active');
-        const currentFilter = activeFilterBtn ? activeFilterBtn.getAttribute('data-filter') : 'all';
-        if (typeof filterConversationsByStatus === "function") {
-            filterConversationsByStatus(currentFilter);
-        }
+        applyConversationFilters();
 
     } catch (e) { 
         console.error("Lỗi tải hội thoại", e);
@@ -147,34 +139,17 @@ function setupFilterListeners() {
     
     filterBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
+            const clickedBtn = e.currentTarget;
             // 1. Cập nhật giao diện của các nút tab
             filterBtns.forEach(b => {
                 b.classList.remove('active', 'btn-primary');
                 b.classList.add('btn-light');
             });
-            e.target.classList.remove('btn-light');
-            e.target.classList.add('active', 'btn-primary');
+            clickedBtn.classList.remove('btn-light');
+            clickedBtn.classList.add('active', 'btn-primary');
 
-            // 2. Lấy giá trị filter đang được chọn (all, guest, user)
-            const filterType = e.target.getAttribute('data-filter');
-            const items = document.querySelectorAll('.msgr-item');
-
-            // 3. Ẩn/Hiện các hội thoại tương ứng
-            items.forEach(item => {
-                // Nếu đang dùng ô tìm kiếm text, cần reset lại ô tìm kiếm
-                const searchInput = document.querySelector('.msgr-search-container input');
-                if (searchInput) searchInput.value = '';
-
-                if (filterType === 'all') {
-                    item.style.display = 'flex';
-                } else {
-                    if (item.getAttribute('data-user-type') === filterType) {
-                        item.style.display = 'flex';
-                    } else {
-                        item.style.display = 'none';
-                    }
-                }
-            });
+            currentConversationFilter = clickedBtn.getAttribute('data-filter') || 'all';
+            applyConversationFilters();
         });
     });
 }
@@ -283,7 +258,7 @@ function connectWebSocket(id) {
                     
                     const lastMsgEl = document.getElementById(`last-msg-${id}`);
                     if (lastMsgEl) {
-                        lastMsgEl.innerText = data.message || '[Tệp đính kèm]';
+                        lastMsgEl.innerText = formatChatPreviewMessage(data.message, data.attachment_url);
                     }
 
                     // Bật thông báo nếu tin nhắn NÀY LÀ CỦA KHÁCH GỬI
@@ -457,13 +432,7 @@ function appendMessage(data) {
 }
 
 function parseCallMessage(message) {
-    if (!message) return null;
-    try {
-        const parsed = JSON.parse(message);
-        return parsed && parsed.kind === 'video_call' ? parsed : null;
-    } catch (e) {
-        return null;
-    }
+    return parseVideoCallMessage(message);
 }
 
 function appendCallMessage(box, callInfo, createdAt) {
@@ -751,21 +720,66 @@ function setupArchiveListener() {
     }
 }
 
-// 3. Hàm lọc theo trạng thái (chỉnh sửa lại logic filter cũ)
-function filterConversationsByStatus(filterType) {
+// 3. Lọc hội thoại theo tab + ô tìm kiếm
+function applyConversationFilters() {
     const items = document.querySelectorAll('.msgr-item');
+    let visibleCount = 0;
+
     items.forEach(item => {
         const status = item.getAttribute('data-status');
-        
-        if (filterType === 'all') {
-            // "Tất cả" thường sẽ không hiện đồ đã lưu trữ trừ khi bạn muốn hiện hết
-            item.style.display = (status !== 'archived') ? 'flex' : 'none';
-        } else if (filterType === 'archived') {
-            item.style.display = (status === 'archived') ? 'flex' : 'none';
+        const type = item.getAttribute('data-user-type');
+        const name = item.querySelector('.customer-name')?.textContent.toLowerCase() || '';
+        const contact = item.dataset.customerContact || '';
+        const lastMessage = item.querySelector('[id^="last-msg-"]')?.textContent.toLowerCase() || '';
+        const matchesSearch = !currentConversationSearch
+            || name.includes(currentConversationSearch)
+            || contact.includes(currentConversationSearch)
+            || lastMessage.includes(currentConversationSearch);
+
+        let matchesTab = false;
+        if (currentConversationFilter === 'all') {
+            matchesTab = status !== 'archived';
+        } else if (currentConversationFilter === 'archived') {
+            matchesTab = status === 'archived';
         } else {
-            // Xử lý guest/user và ẩn archived
-            const type = item.getAttribute('data-user-type');
-            item.style.display = (type === filterType && status !== 'archived') ? 'flex' : 'none';
+            matchesTab = type === currentConversationFilter && status !== 'archived';
         }
+
+        const isVisible = matchesTab && matchesSearch;
+        item.style.display = isVisible ? 'flex' : 'none';
+        if (isVisible) visibleCount += 1;
     });
+
+    renderConversationEmptyState(visibleCount);
+}
+
+function filterConversationsByStatus(filterType) {
+    currentConversationFilter = filterType || 'all';
+    applyConversationFilters();
+}
+
+function renderConversationEmptyState(visibleCount) {
+    const listEl = document.getElementById('conv-list');
+    if (!listEl) return;
+    let empty = document.getElementById('conv-filter-empty');
+    if (visibleCount > 0) {
+        empty?.remove();
+        return;
+    }
+
+    const labelMap = {
+        all: 'Không có hội thoại đang hoạt động.',
+        guest: 'Không có hội thoại vãng lai.',
+        user: 'Không có hội thoại thành viên.',
+        archived: 'Không có hội thoại lưu trữ.',
+    };
+    if (!empty) {
+        empty = document.createElement('div');
+        empty.id = 'conv-filter-empty';
+        empty.className = 'text-center text-muted mt-4 px-3 small';
+        listEl.appendChild(empty);
+    }
+    empty.textContent = currentConversationSearch
+        ? 'Không tìm thấy hội thoại phù hợp.'
+        : (labelMap[currentConversationFilter] || 'Không có hội thoại phù hợp.');
 }

@@ -69,6 +69,97 @@ img {
     height: auto;
 }
 
+/* Header dùng chung cho các trang có nạp components/header.html */
+.navbar {
+    background: #fff;
+    min-height: 80px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    z-index: 1040;
+}
+
+.navbar-brand img {
+    height: 60px;
+    width: auto;
+}
+
+.nav-link {
+    color: #444;
+    font-weight: 600;
+    position: relative;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    color: var(--primary-color) !important;
+}
+
+.has-megamenu {
+    position: static !important;
+}
+
+.megamenu {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 100% !important;
+    width: 100vw !important;
+    min-width: 100vw !important;
+    margin: 0 !important;
+    padding: 24px 0;
+    transform: none !important;
+    border-radius: 0 0 8px 8px;
+    border-top: 3px solid var(--primary-color) !important;
+    background: #fff;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+}
+
+.megamenu .container {
+    max-width: 1120px;
+}
+
+.hover-danger {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #555;
+    padding: 6px 0;
+    word-break: break-word;
+}
+
+.hover-danger:hover {
+    color: var(--primary-color) !important;
+    transform: translateX(4px);
+}
+
+@media (min-width: 992px) {
+    .nav-item.dropdown:hover > .megamenu {
+        display: block;
+    }
+}
+
+@media (max-width: 991px) {
+    .navbar-collapse {
+        background: #fff;
+        padding: 16px;
+        border-top: 1px solid #eee;
+        max-height: calc(100vh - 80px);
+        overflow-y: auto;
+    }
+
+    .has-megamenu {
+        position: relative !important;
+    }
+
+    .megamenu {
+        position: static !important;
+        width: 100% !important;
+        min-width: 100% !important;
+        box-shadow: none;
+        border-top: 0 !important;
+        padding: 8px 0 8px 12px;
+    }
+}
+
 /* 3. UTILITY CLASSES (Các lớp tiện ích) */
 .cursor-pointer { cursor: pointer; }
 

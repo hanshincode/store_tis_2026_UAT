@@ -109,6 +109,7 @@ function renderAdminLayout(user) {
                 <li class="menu-label text-muted small fw-bold mt-3 mb-2">NỘI DUNG & HỆ THỐNG</li>
                 <li><a href="banners.html" id="menu-banners" class="nav-link"><i class="fas fa-images"></i> Banner</a></li>
                 <li><a href="news.html" id="menu-news" class="nav-link"><i class="fas fa-newspaper"></i> Tin tức</a></li>
+                <li><a href="enterprise-employees.html" id="menu-enterprise-employees" class="nav-link"><i class="fas fa-id-card"></i> Bảo hiểm DN</a></li>
                 <li><a href="staff.html" id="menu-staff" class="nav-link"><i class="fas fa-users-cog"></i> Nhân sự</a></li>
                 
                 </ul>
@@ -236,7 +237,7 @@ function toggleSidebarPulse(menuId, enabled) {
 function detectSupportChanges(newConsultations, customerMessageItems) {
     const consultationIds = newConsultations.map(item => item.id).sort((a, b) => a - b);
     const chatKeys = customerMessageItems
-        .map(item => `${item.id}:${item.last_message?.time || ''}:${item.last_message?.message || ''}`)
+        .map(item => `${item.id}:${item.last_message?.time || ''}:${formatChatPreviewMessage(item.last_message?.message || '', item.last_message?.attachment_url || '')}`)
         .sort();
 
     const previousConsultationIds = JSON.parse(sessionStorage.getItem('admin_new_consultation_ids') || '[]');
@@ -264,7 +265,7 @@ function detectSupportChanges(newConsultations, customerMessageItems) {
         const latestChat = customerMessageItems[0];
         showAdminSupportToast({
             title: 'Tin nhắn khách hàng mới',
-            message: latestChat?.last_message?.message || '[Tệp đính kèm]',
+            message: formatChatPreviewMessage(latestChat?.last_message?.message || '', latestChat?.last_message?.attachment_url || ''),
             href: 'chat.html',
             notificationTitle: 'TIS Admin: Tin nhắn mới',
         });

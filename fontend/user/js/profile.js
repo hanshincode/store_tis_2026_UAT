@@ -15,8 +15,39 @@ async function loadProfilePage() {
         renderProfile(user);
         fillProfileForm(user);
         loadProfileStats();
+        loadCompanyCoverages();
     } catch (error) {
         Toast.fire({ icon: 'error', title: 'Không thể tải hồ sơ' });
+    }
+}
+
+async function loadCompanyCoverages() {
+    const container = document.getElementById('company-coverages');
+    if (!container) return;
+    container.innerHTML = '<div class="col-12 text-center py-3"><div class="spinner-border text-danger"></div></div>';
+    try {
+        const coverages = normalizeList(await fetchAPI('/employees/my-coverages/'));
+        document.getElementById('coverage-count').textContent = `${coverages.length} quyền lợi`;
+        if (!coverages.length) {
+            container.innerHTML = '<div class="col-12 text-muted">Chưa có bảo hiểm nào được doanh nghiệp cấp cho tài khoản này.</div>';
+            return;
+        }
+        container.innerHTML = coverages.map(item => `
+            <div class="col-md-6 col-xl-4">
+                <div class="border rounded-3 p-3 h-100 bg-white">
+                    <div class="small text-muted mb-1">${escapeHTML(item.enterprise_name || 'Doanh nghiệp')}</div>
+                    <h6 class="fw-bold mb-2">${escapeHTML(item.product_name || 'Gói bảo hiểm')}</h6>
+                    <div class="small text-muted mb-2">${escapeHTML(item.category_name || '')} · ${escapeHTML(item.package_name || '')}</div>
+                    <div class="d-flex justify-content-between small">
+                        <span>Hiệu lực</span>
+                        <strong>${formatCoverageDate(item.start_date)} - ${formatCoverageDate(item.end_date)}</strong>
+                    </div>
+                    <span class="badge bg-success-subtle text-success mt-3">${escapeHTML(getCoverageStatus(item.status))}</span>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        container.innerHTML = '<div class="col-12 text-danger">Không thể tải danh sách bảo hiểm doanh nghiệp cấp.</div>';
     }
 }
 
@@ -40,6 +71,19 @@ function renderProfile(user) {
     } else {
         companyRow.classList.add('d-none');
     }
+}
+
+function formatCoverageDate(value) {
+    if (!value) return '--';
+    return new Date(value).toLocaleDateString('vi-VN');
+}
+
+function getCoverageStatus(status) {
+    return {
+        active: 'Đang hiệu lực',
+        expired: 'Hết hạn',
+        cancelled: 'Đã hủy'
+    }[status] || status || '--';
 }
 
 function fillProfileForm(user) {

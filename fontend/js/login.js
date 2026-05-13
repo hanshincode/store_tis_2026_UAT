@@ -43,7 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
 async function handleLogin(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-login');
-    const phone = document.getElementById('phone').value.trim();
+    const phone = validateVietnamPhoneInput(document.getElementById('phone'));
+    if (!phone) return;
     const password = document.getElementById('password').value;
 
     try {

@@ -5,12 +5,14 @@
  */
 
 // --- 1. CẤU HÌNH HỆ THỐNG ---
-const DEFAULT_API_DOMAIN = (
-    window.location.protocol === 'file:' ||
-    ['localhost', '127.0.0.1', ''].includes(window.location.hostname)
-)
-    ? 'http://127.0.0.1:8001'
-    : `${window.location.protocol}//${window.location.hostname}:8000`;
+const DEFAULT_API_DOMAIN = `${window.location.protocol}//${window.location.hostname}:8000`;
+
+// const DEFAULT_API_DOMAIN = (
+//     window.location.protocol === 'file:' ||
+//     ['localhost', '127.0.0.1', ''].includes(window.location.hostname)
+// )
+//     ? 'http://127.0.0.1:8001'
+//     : `${window.location.protocol}//${window.location.hostname}:8000`;
 
 const DOMAIN = window.TIS_API_DOMAIN || localStorage.getItem('tis_api_domain') || DEFAULT_API_DOMAIN;
 const API_BASE_URL = `${DOMAIN}/api`;
@@ -86,6 +88,73 @@ function escapeHTML(value = '') {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+function normalizeVietnamPhone(value = '') {
+    let phone = String(value).trim().replace(/[\s().-]/g, '');
+    if (phone.startsWith('+84')) phone = `0${phone.slice(3)}`;
+    if (phone.startsWith('84')) phone = `0${phone.slice(2)}`;
+    return phone;
+}
+
+function isValidVietnamPhone(value = '') {
+    return /^0(3|5|7|8|9)\d{8}$/.test(normalizeVietnamPhone(value));
+}
+
+function validateVietnamPhoneInput(inputOrValue, message = 'Số điện thoại không đúng định dạng Việt Nam. Vui lòng nhập 10 số, ví dụ 0912345678.') {
+    const input = typeof inputOrValue === 'string' ? null : inputOrValue;
+    const value = input ? input.value : inputOrValue;
+    const normalized = normalizeVietnamPhone(value);
+    if (input) input.value = normalized;
+    if (isValidVietnamPhone(normalized)) return normalized;
+    Toast.fire({ icon: 'warning', title: message });
+    input?.focus();
+    return null;
+}
+
+function parseVideoCallMessage(message) {
+    if (!message || typeof message !== 'string') return null;
+    let value = message.trim();
+    for (let i = 0; i < 2; i += 1) {
+        try {
+            const parsed = JSON.parse(value);
+            if (parsed && typeof parsed === 'object' && parsed.kind === 'video_call') return parsed;
+            if (typeof parsed === 'string') {
+                value = parsed;
+                continue;
+            }
+        } catch (e) {}
+        break;
+    }
+    return null;
+}
+
+function formatCallDurationText(totalSeconds = 0) {
+    const seconds = Math.max(0, Math.round(Number(totalSeconds) || 0));
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    if (minutes >= 60) {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return `${hours} giờ ${mins} phút`;
+    }
+    if (minutes > 0) return `${minutes} phút ${rest} giây`;
+    return `${rest} giây`;
+}
+
+function formatChatPreviewMessage(message, attachmentUrl = '') {
+    const callInfo = parseVideoCallMessage(message);
+    if (callInfo) {
+        if (callInfo.status === 'ended') return `Cuộc gọi video đã kết thúc · ${formatCallDurationText(callInfo.duration_seconds)}`;
+        if (callInfo.status === 'rejected') return 'Cuộc gọi video đã bị từ chối';
+        if (callInfo.status === 'missed') return 'Cuộc gọi video nhỡ';
+        return 'Cuộc gọi video';
+    }
+
+    if ((!message || !String(message).trim()) && attachmentUrl) return '[Tệp đính kèm]';
+    return String(message || '')
+        .replace('[Tá»‡p Ä‘Ã­nh kÃ¨m]', '[Tệp đính kèm]')
+        .replace('Tá»‡p Ä‘Ã­nh kÃ¨m', 'Tệp đính kèm');
 }
 
 // --- 3. KHỞI TẠO THÔNG BÁO (SWEETALERT2 SAFE) ---

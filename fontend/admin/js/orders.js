@@ -4,8 +4,177 @@
  */
 
 let currentStatusFilter = 'all';
+let orderCustomers = [];
+let orderProducts = [];
+let orderPackageOptions = [];
 
-document.addEventListener('DOMContentLoaded', () => loadOrders('all'));
+document.addEventListener('DOMContentLoaded', () => {
+    loadOrders('all');
+    initCreateOrderForm();
+});
+
+async function initCreateOrderForm() {
+    const form = document.getElementById('create-order-form');
+    if (!form) return;
+
+    document.getElementById('btn-add-order-line')?.addEventListener('click', () => addOrderLine());
+    form.addEventListener('submit', createOrderForCustomer);
+
+    await Promise.all([loadOrderCustomers(), loadOrderProducts()]);
+    addOrderLine();
+}
+
+async function loadOrderCustomers() {
+    const select = document.getElementById('create-order-customer');
+    if (!select) return;
+    try {
+        orderCustomers = normalizeList(await fetchAPI('/users/'))
+            .filter(user => user.role === 'customer')
+            .sort((a, b) => getCustomerOptionLabel(a).localeCompare(getCustomerOptionLabel(b), 'vi'));
+        select.innerHTML = orderCustomers.length
+            ? '<option value="">Chọn khách hàng...</option>' + orderCustomers.map(user => `
+                <option value="${user.id}">${escapeHTML(getCustomerOptionLabel(user))}</option>
+            `).join('')
+            : '<option value="">Chưa có khách hàng</option>';
+    } catch (error) {
+        select.innerHTML = '<option value="">Không tải được khách hàng</option>';
+    }
+}
+
+async function loadOrderProducts() {
+    try {
+        orderProducts = normalizeList(await fetchAPI('/products/'));
+        orderPackageOptions = orderProducts.flatMap(product => (product.packages || []).map(pkg => ({
+            id: pkg.id,
+            label: `${product.name} · ${pkg.duration_label}`,
+            price: Number(pkg.price || 0),
+        })));
+        renderExistingOrderLineOptions();
+    } catch (error) {
+        orderPackageOptions = [];
+    }
+}
+
+function addOrderLine(value = {}) {
+    const container = document.getElementById('create-order-lines');
+    if (!container) return;
+    const lineId = `order-line-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    container.insertAdjacentHTML('beforeend', `
+        <div class="create-order-line border rounded-3 p-2" id="${lineId}">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-7">
+                    <select class="form-select order-package-select" required>
+                        ${renderPackageOptions(value.package_id)}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="number" class="form-control order-quantity-input" min="1" value="${value.quantity || 1}" required>
+                </div>
+                <div class="col-md-2 text-md-end fw-bold text-danger order-line-total">0 đ</div>
+                <div class="col-md-1 text-end">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="removeOrderLine('${lineId}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `);
+    bindOrderLineEvents(container.lastElementChild);
+    updateCreateOrderTotal();
+}
+
+function renderExistingOrderLineOptions() {
+    document.querySelectorAll('.order-package-select').forEach(select => {
+        const selected = select.value;
+        select.innerHTML = renderPackageOptions(selected);
+    });
+    updateCreateOrderTotal();
+}
+
+function renderPackageOptions(selectedId = '') {
+    if (!orderPackageOptions.length) {
+        return '<option value="">Đang tải sản phẩm...</option>';
+    }
+    return '<option value="">Chọn gói bảo hiểm...</option>' + orderPackageOptions.map(pkg => `
+        <option value="${pkg.id}" data-price="${pkg.price}" ${String(selectedId) === String(pkg.id) ? 'selected' : ''}>
+            ${escapeHTML(pkg.label)} · ${formatMoney(pkg.price)}
+        </option>
+    `).join('');
+}
+
+function bindOrderLineEvents(line) {
+    line.querySelector('.order-package-select')?.addEventListener('change', updateCreateOrderTotal);
+    line.querySelector('.order-quantity-input')?.addEventListener('input', updateCreateOrderTotal);
+}
+
+window.removeOrderLine = function(lineId) {
+    const lines = document.querySelectorAll('.create-order-line');
+    if (lines.length <= 1) {
+        Toast.fire({ icon: 'warning', title: 'Đơn cần ít nhất một sản phẩm' });
+        return;
+    }
+    document.getElementById(lineId)?.remove();
+    updateCreateOrderTotal();
+};
+
+function updateCreateOrderTotal() {
+    let total = 0;
+    document.querySelectorAll('.create-order-line').forEach(line => {
+        const select = line.querySelector('.order-package-select');
+        const quantity = Math.max(Number(line.querySelector('.order-quantity-input')?.value || 1), 1);
+        const price = Number(select?.selectedOptions?.[0]?.dataset.price || 0);
+        const subtotal = price * quantity;
+        total += subtotal;
+        const totalEl = line.querySelector('.order-line-total');
+        if (totalEl) totalEl.textContent = formatMoney(subtotal);
+    });
+    const totalEl = document.getElementById('create-order-total');
+    if (totalEl) totalEl.textContent = formatMoney(total);
+}
+
+async function createOrderForCustomer(event) {
+    event.preventDefault();
+    const customerId = document.getElementById('create-order-customer')?.value;
+    const items = Array.from(document.querySelectorAll('.create-order-line')).map(line => ({
+        package_id: line.querySelector('.order-package-select')?.value,
+        quantity: Number(line.querySelector('.order-quantity-input')?.value || 1),
+    })).filter(item => item.package_id);
+
+    if (!customerId) return Toast.fire({ icon: 'warning', title: 'Vui lòng chọn khách hàng' });
+    if (!items.length) return Toast.fire({ icon: 'warning', title: 'Vui lòng chọn sản phẩm' });
+
+    const btn = document.getElementById('btn-create-order');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang tạo';
+
+    try {
+        const order = await fetchAPI('/orders/create-for-customer/', 'POST', {
+            customer_id: customerId,
+            items,
+            add_to_cart: document.getElementById('create-order-add-cart')?.checked,
+            send_chat: document.getElementById('create-order-send-chat')?.checked,
+            beneficiary_note: document.getElementById('create-order-note')?.value || '',
+        });
+        Toast.fire({ icon: 'success', title: `Đã tạo đơn ${order.code}` });
+        bootstrap.Modal.getInstance(document.getElementById('create-order-modal'))?.hide();
+        resetCreateOrderForm();
+        loadOrders(currentStatusFilter);
+    } catch (error) {
+        Toast.fire({ icon: 'error', title: getErrorMessage(error, 'Không thể tạo đơn cho khách') });
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
+}
+
+function resetCreateOrderForm() {
+    document.getElementById('create-order-form')?.reset();
+    const lines = document.getElementById('create-order-lines');
+    if (lines) lines.innerHTML = '';
+    addOrderLine();
+    updateCreateOrderTotal();
+}
 
 window.loadOrders = async function(statusFilter = currentStatusFilter) {
     currentStatusFilter = statusFilter || 'all';
@@ -191,6 +360,14 @@ function getCustomerInfo(order) {
         meta: `${typeLabel} · ${contact}`,
         company: order.company_name || '',
     };
+}
+
+function getCustomerOptionLabel(user) {
+    const fullName = `${user.last_name || ''} ${user.first_name || ''}`.trim();
+    const name = user.company_name || fullName || user.username || user.phone || `Khách hàng #${user.id}`;
+    const type = user.user_type === 'enterprise' ? 'Doanh nghiệp' : 'Cá nhân';
+    const contact = user.phone || user.email || 'chưa có liên hệ';
+    return `${name} · ${type} · ${contact}`;
 }
 
 function formatDate(value) {

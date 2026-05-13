@@ -3,13 +3,13 @@
    MÔ TẢ: CSS riêng cho trang Danh sách sản phẩm & Chi tiết sản phẩm
    ========================================= */
 
-/* --- 1. GIAO DIỆN DANH MỤC SẢN PHẨM (SIDEBAR) --- */
-.category-sidebar {
-    background-color: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    overflow: hidden;
-    border: 1px solid #f0f0f0;
+/* --- 1. BỘ LỌC SẢN PHẨM --- */
+.product-filter-panel {
+    background: #fff;
+    border: 1px solid #e8eaef;
+    border-radius: 8px;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+    padding: 18px;
 }
 
 .product-filter-stack {
@@ -17,80 +17,139 @@
     z-index: 10;
 }
 
-.product-filter-stack .filter-section {
-    border-top: 1px solid #f0f0f0;
-}
-
 .product-search-box {
     max-width: 420px;
 }
 
-.category-header {
-    background: linear-gradient(135deg, #D71920, #b01218);
-    color: white;
-    padding: 16px 20px;
-    font-weight: 700;
-    font-size: 1.1rem;
+.filter-panel-head {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #eef0f3;
+    margin-bottom: 18px;
+}
+
+.filter-eyebrow {
+    color: #d71920;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .04em;
 }
 
-.category-list {
-    list-style: none;
-    padding: 0;
+.filter-panel-head h5 {
     margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #1f2937;
 }
 
-.category-list li {
-    padding: 14px 20px;
-    cursor: pointer;
-    border-bottom: 1px solid #f5f6fa;
+.btn-reset-filter {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: #6b7280;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-reset-filter:hover {
+    color: #d71920;
+    border-color: #fecdd3;
+    background: #fff5f5;
+}
+
+.filter-block + .filter-block {
+    margin-top: 22px;
+}
+
+.filter-block-title {
     display: flex;
     align-items: center;
-    color: #495057;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    border-left: 4px solid transparent;
+    gap: 8px;
+    color: #374151;
+    font-size: .86rem;
+    font-weight: 800;
+    margin-bottom: 10px;
 }
 
-.category-list li:last-child {
-    border-bottom: none;
+.filter-block-title i {
+    color: #d71920;
 }
 
-.category-list li i {
-    width: 24px;
-    text-align: center;
-    margin-right: 12px;
-    color: #adb5bd;
-    font-size: 1.1rem;
-    transition: color 0.3s ease;
+.filter-chip-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-/* Hiệu ứng khi di chuột (Hover) & Đang chọn (Active) */
-.category-list li:hover {
-    background-color: #fff5f5;
-    color: #D71920;
-    padding-left: 24px; /* Hiệu ứng đẩy text nhẹ sang phải */
-}
-
-.category-list li:hover i {
-    color: #D71920;
-}
-
-.category-list li.active {
-    background-color: #fff5f5;
-    color: #D71920;
-    border-left: 4px solid #D71920; /* Vạch đỏ bên trái */
+.filter-chip,
+.filter-segment button {
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: #4b5563;
+    min-height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
     font-weight: 700;
+    text-align: left;
+    transition: background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
 
-.category-list li.active i {
-    color: #D71920;
+.filter-chip {
+    width: 100%;
+    padding: 9px 11px;
 }
 
+.filter-chip i,
+.filter-segment button i {
+    width: 18px;
+    color: #9ca3af;
+    text-align: center;
+}
+
+.filter-chip:hover,
+.filter-segment button:hover {
+    background: #fff7f7;
+    border-color: #fecdd3;
+    color: #d71920;
+}
+
+.filter-chip.active,
+.filter-segment button.active {
+    background: #fff1f2;
+    border-color: #d71920;
+    color: #d71920;
+    box-shadow: inset 3px 0 0 #d71920;
+}
+
+.filter-chip.active i,
+.filter-segment button.active i {
+    color: #d71920;
+}
+
+.filter-chip.muted {
+    color: #6b7280;
+    justify-content: center;
+}
+
+.filter-segment {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.product-filter-offcanvas-head {
+    background: #d71920;
+    color: #fff;
+}
 
 /* --- 2. THẺ SẢN PHẨM (CARD GRID) --- */
 .product-item-col {
@@ -237,8 +296,8 @@
 
 /* --- 3. RESPONSIVE MOBILE --- */
 @media (max-width: 768px) {
-    .category-sidebar {
-        display: none; /* Ẩn sidebar trên mobile (hoặc chuyển thành offcanvas nếu muốn) */
+    .product-filter-panel {
+        display: none;
     }
     
     .product-img-wrapper {
@@ -248,6 +307,31 @@
     .product-title {
         min-height: auto;
         font-size: 0.95rem;
+    }
+}
+
+@media (max-width: 991px) {
+    .filter-chip-list {
+        max-height: 45vh;
+        overflow-y: auto;
+        padding-right: 2px;
+    }
+
+    .filter-segment {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .filter-segment button {
+        justify-content: center;
+        text-align: center;
+        flex-direction: column;
+        gap: 4px;
+        padding: 9px 6px;
+        font-size: .82rem;
+    }
+
+    .filter-segment button.active {
+        box-shadow: inset 0 -3px 0 #d71920;
     }
 }
 

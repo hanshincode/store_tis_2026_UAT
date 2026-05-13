@@ -19,12 +19,81 @@ async function loadHomeBanners() {
     try {
         const banners = normalizeList(await fetchAPI('/banners/')).filter(b => b.is_active);
         if (!banners.length) return;
-        const gridBannerCount = banners.filter(b => b.template === 'triple_grid').length;
+        const carouselBanners = banners.filter(b => b.template === 'carousel');
+        const normalBanners = banners.filter(b => b.template !== 'carousel');
+        const gridBannerCount = normalBanners.filter(b => b.template === 'triple_grid').length;
         container.classList.toggle('banner-grid-mode', gridBannerCount >= 2);
-        container.innerHTML = banners.map(renderHybridBanner).join('');
+        container.innerHTML = [
+            carouselBanners.length ? renderBannerCarousel(carouselBanners) : '',
+            normalBanners.map(renderHybridBanner).join('')
+        ].join('');
+        startHomeBannerCarousel(container);
     } catch (error) {
         console.error('Lỗi tải banner:', error);
     }
+}
+
+function renderBannerCarousel(banners) {
+    const slidesData = banners.flatMap(banner => {
+        if (banner.slides?.length) {
+            return banner.slides
+                .filter(slide => slide.is_active !== false)
+                .map(slide => ({
+                    title: slide.title,
+                    subtitle: slide.subtitle,
+                    button_text: slide.button_text,
+                    button_link: slide.button_link,
+                    background_image: slide.image,
+                    template: 'carousel_slide',
+                }));
+        }
+        return [{ ...banner, template: 'carousel_slide' }];
+    });
+
+    const slides = slidesData.map((banner, index) => {
+        const slide = renderHybridBanner(banner);
+        return slide.replace('class="hybrid-banner ', `class="hybrid-banner ${index === 0 ? 'active' : ''} `);
+    }).join('');
+
+    const tabs = slidesData.map((banner, index) => `
+        <button type="button" class="${index === 0 ? 'active' : ''}" data-carousel-tab="${index}">
+            <strong>${escapeHTML(banner.title || `Banner ${index + 1}`)}</strong>
+            <span>${escapeHTML(banner.subtitle || banner.button_text || '')}</span>
+        </button>
+    `).join('');
+
+    return `
+        <div class="home-banner-carousel" data-home-carousel>
+            <div class="home-banner-carousel-tabs">${tabs}</div>
+            <div class="home-banner-carousel-track">${slides}</div>
+            <button type="button" class="home-banner-carousel-nav prev" data-carousel-prev aria-label="Banner trước">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <button type="button" class="home-banner-carousel-nav next" data-carousel-next aria-label="Banner sau">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    `;
+}
+
+function startHomeBannerCarousel(scope = document) {
+    scope.querySelectorAll('[data-home-carousel]').forEach(carousel => {
+        const slides = Array.from(carousel.querySelectorAll('.hybrid-banner'));
+        const tabs = Array.from(carousel.querySelectorAll('[data-carousel-tab]'));
+        if (slides.length <= 1) return;
+
+        let index = 0;
+        const show = nextIndex => {
+            index = (nextIndex + slides.length) % slides.length;
+            slides.forEach((slide, slideIndex) => slide.classList.toggle('active', slideIndex === index));
+            tabs.forEach((tab, tabIndex) => tab.classList.toggle('active', tabIndex === index));
+        };
+
+        carousel.querySelector('[data-carousel-prev]')?.addEventListener('click', () => show(index - 1));
+        carousel.querySelector('[data-carousel-next]')?.addEventListener('click', () => show(index + 1));
+        tabs.forEach((tab, tabIndex) => tab.addEventListener('click', () => show(tabIndex)));
+        setInterval(() => show(index + 1), 5000);
+    });
 }
 
 function renderHybridBanner(banner) {

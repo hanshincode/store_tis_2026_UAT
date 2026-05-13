@@ -187,7 +187,7 @@ function initChatWidget() {
         e.preventDefault();
 
         const name = document.getElementById('chat-customer-name')?.value.trim();
-        const phone = document.getElementById('chat-customer-phone')?.value.trim();
+        const phone = validateVietnamPhoneInput(document.getElementById('chat-customer-phone'), 'Vui lòng nhập số điện thoại Việt Nam hợp lệ để bắt đầu chat.');
         const note = document.getElementById('chat-customer-note')?.value.trim() || '';
         const submitBtn = startForm.querySelector('button[type="submit"]');
 
@@ -324,8 +324,7 @@ function initChatWidget() {
         let contentHtml = '';
 
         if (data.message) {
-            const safeText = data.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            contentHtml += `<div style="line-height: 1.4;">${safeText.replace(/\n/g, '<br>')}</div>`;
+            contentHtml += `<div style="line-height: 1.4;">${formatWidgetMessageText(data.message)}</div>`;
         }
 
         // Vẫn giữ code hiển thị file đính kèm để khách xem được file Admin gửi
@@ -367,6 +366,13 @@ function initChatWidget() {
 
         msgBox.insertAdjacentHTML('beforeend', html);
         msgBox.scrollTo({ top: msgBox.scrollHeight, behavior: 'smooth' });
+    }
+
+    function formatWidgetMessageText(text) {
+        const safeText = String(text || '').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return safeText
+            .replace(/(https?:\/\/[^\s<]+|\/user\/[^\s<]+)/g, '<a href="$1" target="_blank" style="font-weight:700;color:inherit;text-decoration:underline;">$1</a>')
+            .replace(/\n/g, '<br>');
     }
 
     // =========================================================

@@ -8,6 +8,7 @@ body {
 .product-container {
     margin-top: 40px;
     margin-bottom: 80px;
+    overflow-x: clip;
 }
 
 /* --- 2. CỘT TRÁI: ẢNH SẢN PHẨM (Sticky) --- */
@@ -89,6 +90,8 @@ body {
     font-weight: 700;
     color: #1d1d1f;
     letter-spacing: -0.5px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .product-price {
@@ -149,6 +152,52 @@ body {
     border-radius: 16px;
     padding: 24px;
     border: 1px solid #e5e5e5;
+}
+
+.product-info-wrapper,
+.selection-card,
+.selection-card .card-content,
+#product-long-desc,
+#product-long-desc * {
+    min-width: 0;
+}
+
+.product-info-wrapper,
+.product-info-wrapper p,
+.selection-card,
+.selection-card h6,
+.selection-card small,
+.selection-card .card-price,
+#breadcrumb-name,
+#product-long-desc {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+#product-long-desc {
+    max-width: 100%;
+    overflow-x: auto;
+    line-height: 1.75;
+}
+
+#product-long-desc p,
+#product-long-desc div,
+#product-long-desc li,
+#product-long-desc span {
+    max-width: 100%;
+}
+
+#product-long-desc img,
+#product-long-desc video,
+#product-long-desc iframe {
+    max-width: 100%;
+    height: auto;
+}
+
+#product-long-desc table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
 }
 
 /* --- 5. RESPONSIVE (MOBILE) --- */
