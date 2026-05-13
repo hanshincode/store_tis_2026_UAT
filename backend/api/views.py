@@ -2,8 +2,13 @@
 
 import time
 import uuid
+import random
+import secrets
+from datetime import timedelta
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.auth.password_validation import validate_password
+from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
@@ -17,7 +22,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import (
     Product, ProductImage, ProductPackage, Category,
     Order, OrderItem, News, User, EnterpriseEmployee, 
-    ConsultationRequest, Cart, CartItem
+    ConsultationRequest, Cart, CartItem, Banner
 )
 
 # Import Serializers
@@ -26,7 +31,7 @@ from .serializers import (
     EnterpriseEmployeeSerializer, RegisterSerializer, 
     CartItemSerializer, OrderItemSerializer,
     ProductPackageSerializer, ConsultationRequestSerializer, NewsSerializer,
-    UserSerializer, PhoneTokenObtainPairSerializer
+    UserSerializer, PhoneTokenObtainPairSerializer, BannerSerializer
 )
 
 # --- PHÂN QUYỀN TÙY CHỈNH (INTERNAL) ---
@@ -42,6 +47,77 @@ class IsTISAdminOrStaff(permissions.BasePermission):
 
 def make_order_code():
     return f"ORD-{int(time.time())}-{uuid.uuid4().hex[:4].upper()}"
+
+
+def make_otp():
+    return f"{random.randint(100000, 999999)}"
+
+
+def get_frontend_base_url(request):
+    origin = request.headers.get('Origin') or request.headers.get('Referer')
+    if origin:
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(origin)
+            return f"{parsed.scheme}://{parsed.netloc}"
+        except Exception:
+            pass
+    return getattr(settings, 'FRONTEND_BASE_URL', 'http://127.0.0.1:5500')
+
+
+def issue_email_verification(user, request):
+    user.email_verification_otp = make_otp()
+    user.email_verification_token = secrets.token_urlsafe(32)
+    user.email_verification_expires_at = timezone.now() + timedelta(minutes=20)
+    user.save(update_fields=['email_verification_otp', 'email_verification_token', 'email_verification_expires_at'])
+
+    verify_link = f"{get_frontend_base_url(request)}/verify-email.html?token={user.email_verification_token}&email={user.email}"
+    send_mail(
+        subject="Xác minh tài khoản TIS Broker",
+        message=(
+            f"Xin chào {user.get_full_name() or user.username},\n\n"
+            f"Mã OTP xác minh tài khoản của bạn là: {user.email_verification_otp}\n"
+            f"Hoặc bấm link xác minh: {verify_link}\n\n"
+            "Mã/link có hiệu lực trong 20 phút."
+        ),
+        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@tisbroker.local'),
+        recipient_list=[user.email],
+        fail_silently=False,
+    )
+
+
+def issue_password_reset(user, request):
+    user.password_reset_otp = make_otp()
+    user.password_reset_token = secrets.token_urlsafe(32)
+    user.password_reset_expires_at = timezone.now() + timedelta(minutes=20)
+    user.save(update_fields=['password_reset_otp', 'password_reset_token', 'password_reset_expires_at'])
+
+    reset_link = f"{get_frontend_base_url(request)}/reset-password.html?token={user.password_reset_token}&email={user.email}"
+    send_mail(
+        subject="Khôi phục mật khẩu TIS Broker",
+        message=(
+            f"Xin chào {user.get_full_name() or user.username},\n\n"
+            f"Mã OTP đặt lại mật khẩu của bạn là: {user.password_reset_otp}\n"
+            f"Hoặc bấm link đặt lại mật khẩu: {reset_link}\n\n"
+            "Mã/link có hiệu lực trong 20 phút."
+        ),
+        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@tisbroker.local'),
+        recipient_list=[user.email],
+        fail_silently=False,
+    )
+
+
+def build_payment_reference(order_code):
+    return f"PAY-{order_code.replace('ORD-', '')}"
+
+
+def expire_unpaid_orders(queryset=None):
+    base_queryset = queryset if queryset is not None else Order.objects.all()
+    return base_queryset.filter(
+        status='awaiting_payment',
+        payment_status='unpaid',
+        payment_expires_at__lt=timezone.now(),
+    ).update(status='payment_expired', payment_status='expired')
 
 
 def parse_positive_int(value, default=1, field_name="quantity"):
@@ -70,7 +146,8 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = RegisterSerializer
 
     def get_permissions(self):
-        if self.action == 'create' or (self.action == 'messages' and self.request.method == 'GET'):
+        public_actions = ['create', 'verify_email', 'resend_verification', 'forgot_password', 'reset_password']
+        if self.action in public_actions or (self.action == 'messages' and self.request.method == 'GET'):
             return [permissions.AllowAny()]
         if self.action in ['me', 'set_password']:
             return [permissions.IsAuthenticated()]
@@ -86,11 +163,119 @@ class UserViewSet(viewsets.ModelViewSet):
             return RegisterSerializer
         return UserSerializer # Serializer đầy đủ thông tin
 
+    def create(self, request, *args, **kwargs):
+        serializer = RegisterSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        issue_email_verification(user, request)
+        return Response({
+            "detail": "Tạo tài khoản thành công. Vui lòng kiểm tra email để xác minh tài khoản.",
+            "email": user.email,
+            "requires_email_verification": True,
+        }, status=status.HTTP_201_CREATED)
+
     @action(detail=False, methods=['get'])
     def me(self, request):
         # Đảm bảo dùng UserSerializer ở đây
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='verify-email')
+    def verify_email(self, request):
+        email = (request.data.get('email') or '').strip().lower()
+        otp = (request.data.get('otp') or '').strip()
+        token = (request.data.get('token') or '').strip()
+
+        user = None
+        if token:
+            user = User.objects.filter(email_verification_token=token).first()
+        if not user and email:
+            user = User.objects.filter(email__iexact=email).first()
+        if not user:
+            return Response({"detail": "Không tìm thấy tài khoản cần xác minh."}, status=status.HTTP_400_BAD_REQUEST)
+        if user.email_verified:
+            return Response({"detail": "Tài khoản đã được xác minh."})
+        if not user.email_verification_expires_at or user.email_verification_expires_at < timezone.now():
+            return Response({"detail": "Mã xác minh đã hết hạn. Vui lòng yêu cầu gửi lại mã mới."}, status=status.HTTP_400_BAD_REQUEST)
+        if token:
+            is_valid = secrets.compare_digest(token, user.email_verification_token or '')
+        else:
+            is_valid = otp and secrets.compare_digest(otp, user.email_verification_otp or '')
+        if not is_valid:
+            return Response({"detail": "Mã OTP hoặc link xác minh không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.email_verified = True
+        user.is_active = True
+        user.email_verification_otp = ''
+        user.email_verification_token = ''
+        user.email_verification_expires_at = None
+        user.save(update_fields=[
+            'email_verified', 'is_active', 'email_verification_otp',
+            'email_verification_token', 'email_verification_expires_at'
+        ])
+        return Response({"detail": "Xác minh email thành công. Bạn có thể đăng nhập ngay."})
+
+    @action(detail=False, methods=['post'], url_path='resend-verification')
+    def resend_verification(self, request):
+        account = (request.data.get('email_or_phone') or request.data.get('email') or request.data.get('phone') or '').strip()
+        user = User.objects.filter(email__iexact=account).first() or User.objects.filter(phone=account).first()
+        if not user:
+            return Response({"detail": "Không tìm thấy tài khoản."}, status=status.HTTP_400_BAD_REQUEST)
+        if user.email_verified:
+            return Response({"detail": "Tài khoản đã được xác minh."})
+        issue_email_verification(user, request)
+        return Response({"detail": "Đã gửi lại mã xác minh. Vui lòng kiểm tra email.", "email": user.email})
+
+    @action(detail=False, methods=['post'], url_path='forgot-password')
+    def forgot_password(self, request):
+        account = (request.data.get('email_or_phone') or request.data.get('email') or request.data.get('phone') or '').strip()
+        user = User.objects.filter(email__iexact=account).first() or User.objects.filter(phone=account).first()
+        if user and user.email:
+            issue_password_reset(user, request)
+        return Response({
+            "detail": "Nếu tài khoản tồn tại, hệ thống đã gửi email khôi phục mật khẩu.",
+        })
+
+    @action(detail=False, methods=['post'], url_path='reset-password')
+    def reset_password(self, request):
+        email = (request.data.get('email') or '').strip().lower()
+        otp = (request.data.get('otp') or '').strip()
+        token = (request.data.get('token') or '').strip()
+        new_password = request.data.get('new_password') or ''
+
+        user = None
+        if token:
+            user = User.objects.filter(password_reset_token=token).first()
+        if not user and email:
+            user = User.objects.filter(email__iexact=email).first()
+        if not user:
+            return Response({"detail": "Không tìm thấy yêu cầu khôi phục mật khẩu."}, status=status.HTTP_400_BAD_REQUEST)
+        if not user.password_reset_expires_at or user.password_reset_expires_at < timezone.now():
+            return Response({"detail": "Mã khôi phục đã hết hạn. Vui lòng yêu cầu gửi lại mã mới."}, status=status.HTTP_400_BAD_REQUEST)
+        if token:
+            is_valid = secrets.compare_digest(token, user.password_reset_token or '')
+        else:
+            is_valid = otp and secrets.compare_digest(otp, user.password_reset_otp or '')
+        if not is_valid:
+            return Response({"detail": "Mã OTP hoặc link khôi phục không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            validate_password(new_password, user)
+        except DjangoValidationError as exc:
+            return Response({"new_password": exc.messages}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.password_reset_otp = ''
+        user.password_reset_token = ''
+        user.password_reset_expires_at = None
+        if not user.email_verified:
+            user.email_verified = True
+            user.is_active = True
+        user.save(update_fields=[
+            'password', 'password_reset_otp', 'password_reset_token',
+            'password_reset_expires_at', 'email_verified', 'is_active'
+        ])
+        return Response({"detail": "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới."})
 
     @action(detail=False, methods=['get'], url_path='staff-list')
     def staff_list(self, request):
@@ -127,6 +312,8 @@ class UserViewSet(viewsets.ModelViewSet):
                 last_name=last_name,
                 role=role,
                 is_staff=True,
+                is_active=True,
+                email_verified=True,
             )
         except DjangoValidationError as exc:
             return Response({"detail": "; ".join(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
@@ -239,10 +426,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         if getattr(self, 'swagger_fake_view', False):
             return Order.objects.none() # Trả về list rỗng cho Swagger
     
+        expire_unpaid_orders()
         user = self.request.user
-        if user.role in ['admin', 'super_admin']:
-            return Order.objects.all()
-        return Order.objects.filter(user=user)
+        queryset = Order.objects.select_related('user').prefetch_related('items__package__product__category', 'items__package__product__images')
+        if user.role in ['admin', 'super_admin', 'staff']:
+            return queryset.order_by('-created_at')
+        return queryset.filter(user=user).order_by('-created_at')
 
     @action(detail=False, methods=['post'])
     def buy_now(self, request):
@@ -257,8 +446,11 @@ class OrderViewSet(viewsets.ModelViewSet):
             order = Order.objects.create(
                 user=request.user,
                 total_amount=total,
-                status='pending',
-                code=order_code
+                status='awaiting_payment',
+                payment_status='unpaid',
+                payment_expires_at=timezone.now() + timedelta(minutes=20),
+                code=order_code,
+                payment_reference=build_payment_reference(order_code),
             )
             OrderItem.objects.create(order=order, package=package, quantity=quantity)
             return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
@@ -281,8 +473,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order = Order.objects.create(
                     user=request.user,
                     total_amount=total_amount,
-                    status='pending',
-                    code=order_code
+                    status='awaiting_payment',
+                    payment_status='unpaid',
+                    payment_expires_at=timezone.now() + timedelta(minutes=20),
+                    code=order_code,
+                    payment_reference=build_payment_reference(order_code),
                 )
                 
                 # Chuyển CartItem thành OrderItem
@@ -301,6 +496,28 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({"error": "Không tìm thấy giỏ hàng"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'])
+    def confirm_payment(self, request, pk=None):
+        order = self.get_object()
+
+        if order.user != request.user and request.user.role not in ['admin', 'super_admin', 'staff']:
+            return Response({"detail": "Bạn không có quyền cập nhật thanh toán đơn này."}, status=status.HTTP_403_FORBIDDEN)
+
+        if order.payment_status == 'paid':
+            return Response(OrderSerializer(order, context={'request': request}).data)
+
+        if order.is_payment_expired:
+            order.status = 'payment_expired'
+            order.payment_status = 'expired'
+            order.save(update_fields=['status', 'payment_status'])
+            return Response({"detail": "QR thanh toán đã hết hạn. Vui lòng tạo đơn mới."}, status=status.HTTP_400_BAD_REQUEST)
+
+        order.payment_status = 'paid'
+        order.payment_paid_at = timezone.now()
+        order.status = 'pending'
+        order.save(update_fields=['payment_status', 'payment_paid_at', 'status'])
+        return Response(OrderSerializer(order, context={'request': request}).data)
 
 
 
@@ -401,6 +618,25 @@ class NewsViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'update', 'destroy']:
             return [IsTISAdminOrStaff()]
         return [permissions.AllowAny()]
+
+
+class BannerViewSet(viewsets.ModelViewSet):
+    queryset = Banner.objects.all().order_by('sort_order', '-created_at')
+    serializer_class = BannerSerializer
+
+    def get_queryset(self):
+        queryset = Banner.objects.all().order_by('sort_order', '-created_at')
+        if self.action in ['list', 'retrieve'] and not (
+            self.request.user.is_authenticated
+            and self.request.user.role in ['admin', 'super_admin', 'staff']
+        ):
+            queryset = queryset.filter(is_active=True)
+        return queryset
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [IsTISAdminOrStaff()]
 
 class CartViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]

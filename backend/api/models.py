@@ -40,6 +40,13 @@ class User(AbstractUser):
     # Info Staff
     specialization = models.CharField(max_length=20, choices=STAFF_SPECIALIZATION, null=True, blank=True)
     user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES, null=True, blank=True)
+    email_verified = models.BooleanField(default=False)
+    email_verification_otp = models.CharField(max_length=6, blank=True)
+    email_verification_token = models.CharField(max_length=64, blank=True)
+    email_verification_expires_at = models.DateTimeField(null=True, blank=True)
+    password_reset_otp = models.CharField(max_length=6, blank=True)
+    password_reset_token = models.CharField(max_length=64, blank=True)
+    password_reset_expires_at = models.DateTimeField(null=True, blank=True)
 
     def save(self, *args, **kwargs):
             # Logic: Internal user dùng email cty
@@ -105,17 +112,57 @@ class News(models.Model): #
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
+class Banner(models.Model):
+    TEMPLATE_CHOICES = (
+        ('single_left', '1 banner - chữ bên trái'),
+        ('single_center', '1 banner - chữ giữa'),
+        ('triple_grid', '3 banner - lưới chiến dịch'),
+        ('custom_html', 'Custom HTML/CSS overlay'),
+    )
+
+    title = models.CharField(max_length=255)
+    subtitle = models.TextField(blank=True)
+    eyebrow = models.CharField(max_length=100, blank=True)
+    button_text = models.CharField(max_length=80, blank=True)
+    button_link = models.CharField(max_length=255, blank=True)
+    secondary_button_text = models.CharField(max_length=80, blank=True)
+    secondary_button_link = models.CharField(max_length=255, blank=True)
+    background_image = models.ImageField(upload_to='banners/')
+    template = models.CharField(max_length=30, choices=TEMPLATE_CHOICES, default='single_left')
+    custom_html = models.TextField(blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', '-created_at']
+
+    def __str__(self):
+        return self.title
+
 # --- 3. ORDER & CART ---
 class Order(models.Model):
     STATUS_CHOICES = (
+        ('awaiting_payment', 'Chờ thanh toán'),
         ('pending', 'Chờ xác nhận'), # 
         ('confirmed', 'Đã xác nhận'), # Đang làm thủ tục
         ('active', 'Đang hiệu lực'), 
         ('cancelled', 'Hủy đơn'),
+        ('payment_expired', 'Hết hạn thanh toán'),
+    )
+    PAYMENT_STATUS_CHOICES = (
+        ('unpaid', 'Chưa thanh toán'),
+        ('paid', 'Đã thanh toán'),
+        ('expired', 'Hết hạn'),
     )
     code = models.CharField(max_length=20, unique=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='awaiting_payment')
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='unpaid')
+    payment_expires_at = models.DateTimeField(null=True, blank=True)
+    payment_paid_at = models.DateTimeField(null=True, blank=True)
+    payment_reference = models.CharField(max_length=50, blank=True)
     total_amount = models.DecimalField(max_digits=15, decimal_places=0)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -124,6 +171,14 @@ class Order(models.Model):
     
     # Nếu là DN mua cho nhân viên 
     beneficiary_note = models.TextField(blank=True, help_text="Danh sách người thụ hưởng")
+
+    @property
+    def is_payment_expired(self):
+        return (
+            self.payment_status == 'unpaid'
+            and self.payment_expires_at
+            and timezone.now() > self.payment_expires_at
+        )
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
