@@ -5,7 +5,13 @@
  */
 
 // --- 1. CẤU HÌNH HỆ THỐNG ---
-const DEFAULT_API_DOMAIN = `${window.location.protocol}//${window.location.hostname}:8000`;
+const isTailscale = window.location.hostname === '100.96.50.61';
+
+const DEFAULT_API_DOMAIN = isTailscale 
+  ? 'http://100.96.50.61:8000' 
+  : 'http://hcm-tis-uat.tisbroker.local:8000';
+
+// const DEFAULT_API_DOMAIN = 'http://hcm-tis-uat.tisbroker.local:8000';
 
 // const DEFAULT_API_DOMAIN = (
 //     window.location.protocol === 'file:' ||
