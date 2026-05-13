@@ -1,19 +1,24 @@
 document.addEventListener('DOMContentLoaded', loadMyOrders);
 
-function orderStatusBadge(status) {
+function orderStatusBadge(status, paymentStatus) {
     const labels = {
-        pending: 'Chờ xác nhận',
+        awaiting_payment: 'Chờ thanh toán',
+        payment_expired: 'Hết hạn thanh toán',
+        pending: 'Chờ admin duyệt',
         confirmed: 'Đã xác nhận',
         active: 'Đang hiệu lực',
-        cancelled: 'Đã hủy'
+        cancelled: 'Đã hủy',
     };
     const classes = {
-        pending: 'bg-warning-subtle text-warning border-warning',
-        confirmed: 'bg-info-subtle text-info border-info',
+        awaiting_payment: 'bg-warning-subtle text-warning border-warning',
+        payment_expired: 'bg-secondary-subtle text-secondary border-secondary',
+        pending: 'bg-info-subtle text-info border-info',
+        confirmed: 'bg-primary-subtle text-primary border-primary',
         active: 'bg-success-subtle text-success border-success',
-        cancelled: 'bg-danger-subtle text-danger border-danger'
+        cancelled: 'bg-danger-subtle text-danger border-danger',
     };
-    return `<span class="badge border ${classes[status] || 'bg-light text-muted'}">${labels[status] || status}</span>`;
+    const suffix = paymentStatus === 'paid' && status === 'pending' ? ' · đã thanh toán' : '';
+    return `<span class="badge border ${classes[status] || 'bg-light text-muted'}">${labels[status] || status}${suffix}</span>`;
 }
 
 async function loadMyOrders() {
@@ -43,21 +48,30 @@ async function loadMyOrders() {
                             <div class="fw-semibold">${escapeHTML(item.product_name || 'Gói bảo hiểm')}</div>
                             <small class="text-muted">${escapeHTML(item.duration || '')} x ${item.quantity || 1}</small>
                         </div>
-                        <div class="text-end fw-semibold">${formatMoney(item.price || 0)}</div>
+                        <div class="text-end fw-semibold">${formatMoney(item.subtotal || item.price || 0)}</div>
                     </div>`).join('')
                 : '<div class="text-muted small py-2 border-top">Chưa có chi tiết sản phẩm.</div>';
+
+            const canPay = order.status === 'awaiting_payment' && order.payment_status === 'unpaid' && (order.payment_remaining_seconds || 0) > 0;
+            const payButton = canPay
+                ? `<a href="payment.html?order=${order.id}" class="btn btn-danger btn-sm rounded-pill px-3">
+                    <i class="fas fa-qrcode me-1"></i>Thanh toán tiếp
+                   </a>`
+                : '';
 
             return `
                 <article class="bg-white rounded-3 shadow-sm border mb-3 overflow-hidden">
                     <div class="p-4">
                         <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
                             <div>
-                                <div class="text-muted small">Mã đơn hàng</div>
+                                <div class="text-muted small">Mã bill</div>
                                 <h5 class="fw-bold mb-0">${escapeHTML(order.code || `#${order.id}`)}</h5>
+                                ${order.status === 'awaiting_payment' ? `<div class="small text-warning fw-semibold mt-2">Hạn QR: ${escapeHTML(order.payment_expires_at_formatted || '--')}</div>` : ''}
                             </div>
                             <div class="text-md-end">
-                                ${orderStatusBadge(order.status)}
+                                ${orderStatusBadge(order.status, order.payment_status)}
                                 <div class="text-muted small mt-2">${order.created_at ? new Date(order.created_at).toLocaleString('vi-VN') : ''}</div>
+                                <div class="mt-2">${payButton}</div>
                             </div>
                         </div>
                         ${itemHtml}

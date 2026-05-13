@@ -203,6 +203,140 @@ a {
     color: #fff;
 }
 
+/* --- HYBRID HERO BANNER: background image + HTML/CSS overlay --- */
+.hybrid-banner-section {
+    padding: 28px 0 42px;
+    background: #fff;
+}
+
+.hybrid-banner-list {
+    display: grid;
+    gap: 20px;
+}
+
+.hybrid-banner-list.banner-grid-mode {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.hybrid-banner {
+    min-height: min(640px, calc(100vh - var(--header-height) - 40px));
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid #eef0f3;
+}
+
+.hybrid-banner::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.86) 42%, rgba(255,255,255,0.2) 100%);
+}
+
+.hybrid-banner-overlay {
+    position: relative;
+    z-index: 1;
+    max-width: 680px;
+    padding: clamp(56px, 8vw, 130px) clamp(24px, 6vw, 88px);
+}
+
+.hybrid-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 7px 18px;
+    border-radius: 999px;
+    background: var(--primary-color);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    margin-bottom: 22px;
+}
+
+.hybrid-banner h1 {
+    font-size: clamp(2.35rem, 4.8vw, 4.6rem);
+    line-height: 1.08;
+    letter-spacing: 0;
+    font-weight: 900;
+    color: #1f2329;
+    margin-bottom: 24px;
+}
+
+.hybrid-banner h1 span {
+    color: var(--primary-color);
+}
+
+.hybrid-banner p {
+    max-width: 580px;
+    color: #6b7280;
+    font-size: clamp(1rem, 1.3vw, 1.28rem);
+    line-height: 1.65;
+    margin-bottom: 28px;
+}
+
+.hybrid-banner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.banner-template-single_center::before {
+    background: rgba(255,255,255,0.78);
+}
+
+.banner-template-single_center .hybrid-banner-overlay {
+    max-width: 760px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.banner-template-single_center .hybrid-banner-actions {
+    justify-content: center;
+}
+
+.banner-template-triple_grid {
+    min-height: 300px;
+}
+
+.banner-template-triple_grid .hybrid-banner-overlay {
+    padding: 34px;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.banner-template-custom_html .hybrid-banner-overlay {
+    max-width: none;
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .hybrid-banner-section {
+        padding-top: 16px;
+    }
+
+    .hybrid-banner-list.banner-grid-mode {
+        grid-template-columns: 1fr;
+    }
+
+    .hybrid-banner {
+        min-height: 560px;
+        background-position: center right;
+    }
+
+    .hybrid-banner::before {
+        background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.84) 62%, rgba(255,255,255,0.35) 100%);
+    }
+
+    .hybrid-banner-overlay {
+        padding: 42px 22px;
+    }
+}
+
 /* --- 6. FOOTER --- */
 footer {
     background-color: #1a1a1a;

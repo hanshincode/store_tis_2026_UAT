@@ -11,11 +11,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // fontend/admin/js/consultations.js
 
-async function loadConsultations() {
+window.loadConsultations = async function(options = {}) {
     const tbody = document.getElementById('consultation-list');
+    if (!tbody) return;
+    if (!options.silent) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Đang tải yêu cầu tư vấn...</td></tr>';
+    }
     // ... (Loading code) ...
     try {
         const data = await fetchAPI('/consultations/');
+        if (!data.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Chưa có yêu cầu tư vấn nào.</td></tr>';
+            return;
+        }
         tbody.innerHTML = data.map(item => {
             // Xử lý hiển thị Processor
             let processorHtml = '<span class="text-muted small fst-italic">Chưa có</span>';
@@ -47,7 +55,7 @@ async function loadConsultations() {
             </tr>
         `}).join('');
     } catch (e) { console.error(e); }
-}
+};
 
 // Hàm tiếp nhận và chuyển trang
 async function acceptAndChat(id) {

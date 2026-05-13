@@ -179,15 +179,7 @@ async function processCheckout() {
             
             try {
                 const response = await fetchAPI('/orders/checkout_cart/', 'POST', {});
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Đặt hàng thành công!',
-                    text: `Mã đơn hàng: ${response.code || 'Đã ghi nhận'}`,
-                    confirmButtonColor: '#D71920'
-                }).then(() => {
-                    // Đặt hàng xong chuyển tới trang quản lý đơn hàng
-                    redirectTo('user/orders.html'); 
-                });
+                window.location.href = `payment.html?order=${response.id}`;
             } catch (error) {
                 Swal.fire('Lỗi', 'Có lỗi xảy ra khi tạo đơn hàng. Vui lòng thử lại.', 'error');
             }

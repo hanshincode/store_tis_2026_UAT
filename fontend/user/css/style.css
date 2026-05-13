@@ -9,6 +9,10 @@
     --border-color: #e4e6eb;
 }
 
+.user-page-main {
+    padding-top: 96px;
+}
+
 /* ========================================================
    1. LAYOUT & NAVBAR FIXES
    ======================================================== */
@@ -169,7 +173,115 @@
 }
 
 /* ========================================================
-   4. CHAT WIDGET - GIAO DIỆN ĐỎ TRẮNG (MODERN)
+   4. PAYMENT
+   ======================================================== */
+.payment-panel {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+    padding: 24px;
+}
+
+.payment-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-weight: 800;
+    border: 1px solid;
+}
+
+.payment-status.waiting {
+    color: #b45309;
+    background: #fff7ed;
+    border-color: #fdba74;
+}
+
+.payment-status.paid {
+    color: #047857;
+    background: #ecfdf5;
+    border-color: #6ee7b7;
+}
+
+.payment-status.expired {
+    color: #6b7280;
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.qr-box {
+    width: 286px;
+    max-width: 100%;
+    aspect-ratio: 1;
+    margin: 0 auto;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.qr-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.qr-box-muted {
+    opacity: 0.4;
+    filter: grayscale(1);
+}
+
+.payment-ref {
+    margin-top: 4px;
+    font-weight: 800;
+    color: var(--primary-red);
+    word-break: break-word;
+}
+
+.countdown-box {
+    padding: 14px;
+    border: 1px dashed #f59e0b;
+    border-radius: 8px;
+    background: #fffbeb;
+}
+
+.countdown-time {
+    font-size: 2rem;
+    line-height: 1.1;
+    font-weight: 900;
+    color: #b45309;
+}
+
+.bill-box,
+.payment-items {
+    border: 1px solid #eef0f3;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.bill-row,
+.payment-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 13px 15px;
+    border-bottom: 1px solid #eef0f3;
+}
+
+.bill-row:last-child,
+.payment-item:last-child {
+    border-bottom: 0;
+}
+
+.bill-row span {
+    color: #6b7280;
+}
+
+/* ========================================================
+   5. CHAT WIDGET - GIAO DIỆN ĐỎ TRẮNG (MODERN)
    ======================================================== */
 
 /* Khung cửa sổ chat */

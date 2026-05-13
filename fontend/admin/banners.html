@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý Banner - TIS Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+    <div class="main-content">
+        <div class="content-body">
+            <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center mb-4">
+                <div>
+                    <h4 class="fw-bold m-0 text-dark">Banner trang chủ</h4>
+                    <p class="text-muted mb-0">Ảnh nền + text/button overlay, tối ưu kiểu e-commerce hiện đại.</p>
+                </div>
+                <button class="btn btn-danger rounded-pill px-4" id="btn-add-banner">
+                    <i class="fas fa-plus me-2"></i>Thêm banner
+                </button>
+            </div>
+
+            <div class="admin-card banner-builder-card">
+                <div class="row g-4">
+                    <div class="col-lg-5">
+                        <form id="banner-form" class="banner-form">
+                            <input type="hidden" id="banner-id">
+
+                            <label class="form-label fw-bold">Chọn khung banner</label>
+                            <div class="banner-template-grid mb-3">
+                                <button type="button" class="banner-template-option active" data-template="single_left">
+                                    <span>1 banner</span><small>Text trái</small>
+                                </button>
+                                <button type="button" class="banner-template-option" data-template="single_center">
+                                    <span>1 banner</span><small>Text giữa</small>
+                                </button>
+                                <button type="button" class="banner-template-option" data-template="triple_grid">
+                                    <span>3 banner</span><small>Grid campaign</small>
+                                </button>
+                                <button type="button" class="banner-template-option" data-template="custom_html">
+                                    <span>Custom</span><small>HTML overlay</small>
+                                </button>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-md-8">
+                                    <label class="form-label">Tiêu đề</label>
+                                    <input type="text" id="banner-title" class="form-control" required placeholder="An tâm vững bước">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Thứ tự</label>
+                                    <input type="number" id="banner-sort" class="form-control" value="0">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Nhãn nhỏ</label>
+                                    <input type="text" id="banner-eyebrow" class="form-control" placeholder="UY TÍN HÀNG ĐẦU">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Mô tả</label>
+                                    <textarea id="banner-subtitle" class="form-control" rows="3" placeholder="Giải pháp bảo hiểm tối ưu..."></textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Nút chính</label>
+                                    <input type="text" id="banner-button-text" class="form-control" placeholder="Mua ngay">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Link nút chính</label>
+                                    <input type="text" id="banner-button-link" class="form-control" placeholder="#products">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Nút phụ</label>
+                                    <input type="text" id="banner-secondary-text" class="form-control" placeholder="Liên hệ">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Link nút phụ</label>
+                                    <input type="text" id="banner-secondary-link" class="form-control" placeholder="#about">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Ảnh nền</label>
+                                    <input type="file" id="banner-image" class="form-control" accept="image/*">
+                                    <div class="form-text">Nên dùng ảnh ngang 1600x720 hoặc 1920x800.</div>
+                                </div>
+                                <div class="col-12" id="custom-html-wrap" style="display:none;">
+                                    <label class="form-label">Custom HTML overlay</label>
+                                    <textarea id="banner-custom-html" class="form-control font-monospace" rows="5" placeholder="<span class='hybrid-eyebrow'>...</span>"></textarea>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="banner-active" checked>
+                                        <label class="form-check-label" for="banner-active">Hiển thị ngoài trang chủ</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-end gap-2 mt-4">
+                                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" id="btn-reset-banner">Làm mới</button>
+                                <button type="submit" class="btn btn-danger rounded-pill px-4" id="btn-save-banner">
+                                    <i class="fas fa-save me-2"></i>Lưu banner
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="col-lg-7">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold mb-0">Xem trước</h6>
+                            <span class="badge bg-light text-dark border">Hybrid banner</span>
+                        </div>
+                        <div id="banner-preview" class="banner-admin-preview"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-card">
+                <h5 class="fw-bold mb-3">Danh sách banner</h5>
+                <div id="banner-list-admin" class="row g-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="../js/common.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/banners.js"></script>
+</body>
+</html>

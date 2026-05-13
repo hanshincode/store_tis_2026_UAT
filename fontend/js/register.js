@@ -1,4 +1,4 @@
-// js/register.js
+﻿// js/register.js
 document.addEventListener('DOMContentLoaded', () => {
     if (getAccessToken()) redirectTo('user/index.html');
 
@@ -71,21 +71,39 @@ function checkPasswordStrength(e) {
 async function handleRegister(e) {
     e.preventDefault();
     const phone = document.getElementById('phone').value.trim();
+    const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
-    if (password !== document.getElementById('confirm_password').value) return Toast.fire({ icon: 'warning', title: "Mật khẩu không khớp!" });
-    if (password.length < 6) return Toast.fire({ icon: 'warning', title: "Mật khẩu phải từ 6 ký tự!" });
+    if (!email) return Toast.fire({ icon: 'warning', title: 'Vui lòng nhập email để xác minh tài khoản!' });
+    if (password !== document.getElementById('confirm_password').value) return Toast.fire({ icon: 'warning', title: 'Mật khẩu không khớp!' });
+    if (password.length < 6) return Toast.fire({ icon: 'warning', title: 'Mật khẩu phải từ 6 ký tự!' });
 
-    const btn = document.getElementById('btn-register'); const originalText = btn.innerText;
-    btn.innerText = 'Đang xử lý...'; btn.disabled = true;
+    const btn = document.getElementById('btn-register');
+    const originalText = btn.innerText;
+    btn.innerText = 'Đang xử lý...';
+    btn.disabled = true;
 
     try {
         await fetchAPI('/register/', 'POST', {
-            username: phone, phone: phone, password: password, role: 'customer', user_type: document.getElementById('user_type').value,
-            first_name: document.getElementById('first_name').value.trim(), email: "", 
-            company_name: document.getElementById('company_name')?.value.trim() || "", tax_code: document.getElementById('tax_code')?.value.trim() || ""
+            username: phone,
+            phone: phone,
+            password: password,
+            role: 'customer',
+            user_type: document.getElementById('user_type').value,
+            first_name: document.getElementById('first_name').value.trim(),
+            email: email,
+            company_name: document.getElementById('company_name')?.value.trim() || '',
+            tax_code: document.getElementById('tax_code')?.value.trim() || ''
         });
-        Swal.fire({ icon: 'success', title: 'Thành công!', text: 'Vui lòng đăng nhập.', confirmButtonColor: '#D71920' }).then(() => { redirectTo('login.html'); });
+        Swal.fire({
+            icon: 'success',
+            title: 'Đã tạo tài khoản!',
+            text: 'Vui lòng kiểm tra email để nhập OTP hoặc bấm link xác minh.',
+            confirmButtonColor: '#D71920'
+        }).then(() => { redirectTo(`verify-email.html?email=${encodeURIComponent(email)}`); });
     } catch (error) {
-        Toast.fire({ icon: 'error', title: (error.username || error.phone) ? "Số điện thoại đã tồn tại!" : "Lỗi hệ thống!" });
-    } finally { btn.innerText = originalText; btn.disabled = false; }
+        Toast.fire({ icon: 'error', title: getErrorMessage(error, 'Không thể tạo tài khoản!') });
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
 }

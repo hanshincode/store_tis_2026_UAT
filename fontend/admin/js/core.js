@@ -1,4 +1,4 @@
-/**
+﻿/**
  * admin/js/core.js
  * Chức năng: Core Admin - Layout, Auth, Navigation & Realtime Updates
  */
@@ -58,9 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // --- 3. CẬP NHẬT SỐ LƯỢNG THÔNG BÁO ---
         updateBadgeCount();
-        
-        // TẠM TẮT DÒNG NÀY ĐỂ TRÁNH GIẬT TRÌNH DUYỆT NHƯ ĐÃ PHÂN TÍCH
-        // setInterval(updateBadgeCount, 10000); 
+        startAdminSupportWatcher();
 
     } catch (error) {
         console.error("Lỗi xác thực Admin:", error);
@@ -109,6 +107,7 @@ function renderAdminLayout(user) {
                 </li>
                 
                 <li class="menu-label text-muted small fw-bold mt-3 mb-2">NỘI DUNG & HỆ THỐNG</li>
+                <li><a href="banners.html" id="menu-banners" class="nav-link"><i class="fas fa-images"></i> Banner</a></li>
                 <li><a href="news.html" id="menu-news" class="nav-link"><i class="fas fa-newspaper"></i> Tin tức</a></li>
                 <li><a href="staff.html" id="menu-staff" class="nav-link"><i class="fas fa-users-cog"></i> Nhân sự</a></li>
                 
@@ -191,27 +190,115 @@ window.handleLogout = function() {
     }
 }
 
+let adminSupportPollTimer = null;
+let adminSupportSnapshotReady = false;
+
+function startAdminSupportWatcher() {
+    if (adminSupportPollTimer) return;
+    adminSupportPollTimer = setInterval(updateBadgeCount, 8000);
+}
+
 async function updateBadgeCount() {
     try {
-        const data = await fetchAPI('/consultations/');
+        const payload = await fetchAPI('/consultations/');
+        const data = Array.isArray(payload) ? payload : (payload.results || []);
         if (Array.isArray(data)) {
-            const newCount = data.filter(item => item.status === 'new').length;
-            const consultBadge = document.getElementById('sidebar-consult-badge');
-            const chatBadge = document.getElementById('sidebar-chat-badge');
-            
-            if (consultBadge) {
-                consultBadge.innerText = newCount;
-                consultBadge.style.display = newCount > 0 ? 'inline-block' : 'none';
-            }
-            if (chatBadge) {
-                chatBadge.innerText = newCount;
-                chatBadge.style.display = newCount > 0 ? 'inline-block' : 'none';
+            const activeItems = data.filter(item => item.status !== 'archived');
+            const newConsultations = activeItems.filter(item => item.status === 'new');
+            const customerMessageItems = activeItems.filter(item => item.last_message && item.last_message.is_staff === false);
+
+            updateSidebarBadge('sidebar-consult-badge', newConsultations.length);
+            updateSidebarBadge('sidebar-chat-badge', customerMessageItems.length);
+            toggleSidebarPulse('menu-consultations', newConsultations.length > 0);
+            toggleSidebarPulse('menu-chat', customerMessageItems.length > 0);
+            detectSupportChanges(newConsultations, customerMessageItems);
+
+            if (typeof window.loadConsultations === 'function' && document.getElementById('consultation-list')) {
+                window.loadConsultations({ silent: true });
             }
         }
     } catch (e) {}
 }
 
+function updateSidebarBadge(id, count) {
+    const badge = document.getElementById(id);
+    if (!badge) return;
+    badge.innerText = count;
+    badge.style.display = count > 0 ? 'inline-block' : 'none';
+    badge.classList.toggle('support-badge-pulse', count > 0);
+}
 
+function toggleSidebarPulse(menuId, enabled) {
+    const link = document.getElementById(menuId);
+    if (link) link.classList.toggle('support-link-alert', enabled);
+}
+
+function detectSupportChanges(newConsultations, customerMessageItems) {
+    const consultationIds = newConsultations.map(item => item.id).sort((a, b) => a - b);
+    const chatKeys = customerMessageItems
+        .map(item => `${item.id}:${item.last_message?.time || ''}:${item.last_message?.message || ''}`)
+        .sort();
+
+    const previousConsultationIds = JSON.parse(sessionStorage.getItem('admin_new_consultation_ids') || '[]');
+    const previousChatKeys = JSON.parse(sessionStorage.getItem('admin_customer_chat_keys') || '[]');
+    const newIds = consultationIds.filter(id => !previousConsultationIds.includes(id));
+    const newChatKeys = chatKeys.filter(key => !previousChatKeys.includes(key));
+
+    sessionStorage.setItem('admin_new_consultation_ids', JSON.stringify(consultationIds));
+    sessionStorage.setItem('admin_customer_chat_keys', JSON.stringify(chatKeys));
+
+    if (!adminSupportSnapshotReady) {
+        adminSupportSnapshotReady = true;
+        return;
+    }
+
+    if (newIds.length > 0) {
+        const latest = newConsultations.find(item => item.id === newIds[newIds.length - 1]) || newConsultations[0];
+        showAdminSupportToast({
+            title: 'Yêu cầu tư vấn mới',
+            message: `${latest.customer_name || 'Khách hàng'} cần tư vấn${latest.product_name ? ` về ${latest.product_name}` : ''}.`,
+            href: 'consultations.html',
+            notificationTitle: 'TIS Admin: Tư vấn mới',
+        });
+    } else if (newChatKeys.length > 0) {
+        const latestChat = customerMessageItems[0];
+        showAdminSupportToast({
+            title: 'Tin nhắn khách hàng mới',
+            message: latestChat?.last_message?.message || '[Tệp đính kèm]',
+            href: 'chat.html',
+            notificationTitle: 'TIS Admin: Tin nhắn mới',
+        });
+    }
+}
+
+function showAdminSupportToast({ title, message, href, notificationTitle }) {
+    const toast = document.createElement('div');
+    toast.className = 'admin-live-toast';
+    toast.innerHTML = `
+        <button type="button" class="admin-live-toast-close" aria-label="Đóng">&times;</button>
+        <div class="admin-live-toast-icon"><i class="fas fa-bell"></i></div>
+        <div class="min-width-0">
+            <div class="fw-bold">${escapeHTML(title)}</div>
+            <div class="small text-muted">${escapeHTML(message)}</div>
+            <a href="${href}" class="small fw-bold text-danger text-decoration-none">Xem ngay</a>
+        </div>
+    `;
+    document.body.appendChild(toast);
+    toast.querySelector('.admin-live-toast-close')?.addEventListener('click', () => toast.remove());
+    setTimeout(() => toast.remove(), 9000);
+
+    if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+        const notif = new Notification(notificationTitle, {
+            body: message,
+            icon: '../images/logo.png',
+        });
+        notif.onclick = function() {
+            window.focus();
+            window.location.href = href;
+            this.close();
+        };
+    }
+}
 // Gắn vào fe/admin/js/core.js (hoặc layout.js)
 document.addEventListener('DOMContentLoaded', () => {
     if ("Notification" in window && Notification.permission !== "granted") {
@@ -237,3 +324,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 });
+

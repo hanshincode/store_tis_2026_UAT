@@ -2,71 +2,56 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // 1. Gọi API lấy đơn hàng
         const response = await fetchAPI('/orders/');
-        
-        // 2. Xử lý dữ liệu (Fix lỗi Phân trang của Django)
-        // Nếu API trả về dạng { count:..., results: [...] } thì lấy .results, ngược lại lấy chính nó
         const orders = Array.isArray(response) ? response : (response.results || []);
 
-        // 3. Tính toán thống kê
-        // Tổng doanh thu (Chỉ tính đơn đã xác nhận/thành công nếu cần, ở đây tính hết)
-        const totalRevenue = orders.reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
+        const totalRevenue = orders
+            .filter(o => ['pending', 'confirmed', 'active'].includes(o.status) && o.payment_status === 'paid')
+            .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
         document.getElementById('stat-revenue').innerText = formatCompactMoney(totalRevenue);
 
-        // Số đơn chờ duyệt
         const pendingCount = orders.filter(o => o.status === 'pending').length;
         document.getElementById('stat-pending').innerText = pendingCount;
-
-        // Tổng số đơn
         document.getElementById('stat-total').innerText = response.count || orders.length;
 
-        // 4. Hiển thị bảng (Top 5 đơn mới nhất)
         const tableBody = document.getElementById('dashboard-orders');
         if (orders.length === 0) {
             tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Chưa có đơn hàng nào</td></tr>';
         } else {
             tableBody.innerHTML = orders.slice(0, 5).map(o => {
-                // Dịch trạng thái sang tiếng Việt
-                let statusBadge = '';
-                let statusText = '';
-                
-                switch(o.status) {
-                    case 'pending': 
-                        statusBadge = 'bg-warning text-dark'; statusText = 'Chờ duyệt'; break;
-                    case 'confirmed': 
-                        statusBadge = 'bg-primary'; statusText = 'Đã xác nhận'; break;
-                    case 'completed': 
-                        statusBadge = 'bg-success'; statusText = 'Hoàn thành'; break;
-                    case 'cancelled': 
-                        statusBadge = 'bg-danger'; statusText = 'Đã hủy'; break;
-                    default: 
-                        statusBadge = 'bg-secondary'; statusText = o.status;
-                }
-
-                // Lấy tên khách hàng (xử lý trường hợp user là null hoặc object)
-                let customerName = 'Khách lẻ';
-                if (o.full_name) customerName = o.full_name;
-                else if (o.user && o.user.first_name) customerName = `${o.user.first_name} ${o.user.last_name}`;
+                const status = getOrderStatusInfo(o.status);
+                const customerName = o.user_name || 'Khách hàng';
 
                 return `
                 <tr>
-                    <td><span class="fw-bold">#${o.id}</span></td>
-                    <td>${customerName}</td>
+                    <td><span class="fw-bold">${escapeHTML(o.code || `#${o.id}`)}</span></td>
+                    <td>${escapeHTML(customerName)}</td>
                     <td class="text-danger fw-bold text-nowrap">${formatMoney(o.total_amount)}</td>
-                    <td><span class="badge ${statusBadge}">${statusText}</span></td>
+                    <td><span class="badge ${status.badge}">${status.text}</span></td>
                     <td>${new Date(o.created_at).toLocaleDateString('vi-VN')}</td>
                 </tr>
                 `;
             }).join('');
         }
 
-    } catch (e) { 
-        console.error("Lỗi tải Dashboard:", e);
-        // Hiển thị lỗi ra bảng nếu cần
+    } catch (e) {
+        console.error('Lỗi tải Dashboard:', e);
         document.getElementById('dashboard-orders').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Lỗi kết nối API</td></tr>';
     }
 });
+
+function getOrderStatusInfo(status) {
+    const map = {
+        awaiting_payment: { badge: 'bg-warning text-dark', text: 'Chờ thanh toán' },
+        payment_expired: { badge: 'bg-secondary', text: 'Hết hạn thanh toán' },
+        pending: { badge: 'bg-info text-dark', text: 'Chờ admin duyệt' },
+        confirmed: { badge: 'bg-primary', text: 'Đã xác nhận' },
+        active: { badge: 'bg-success', text: 'Hiệu lực' },
+        completed: { badge: 'bg-success', text: 'Hiệu lực' },
+        cancelled: { badge: 'bg-danger', text: 'Đã hủy' },
+    };
+    return map[status] || { badge: 'bg-secondary', text: status || 'Không rõ' };
+}
 
 function formatCompactMoney(amount) {
     const value = Number(amount) || 0;

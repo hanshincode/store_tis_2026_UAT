@@ -7,9 +7,53 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof AOS !== 'undefined') {
         AOS.init({ duration: 800, once: true });
     }
+    loadHomeBanners();
     loadFeaturedProducts();
     loadLatestNews();
 });
+
+async function loadHomeBanners() {
+    const container = document.getElementById('banner-list');
+    if (!container) return;
+
+    try {
+        const banners = normalizeList(await fetchAPI('/banners/')).filter(b => b.is_active);
+        if (!banners.length) return;
+        const gridBannerCount = banners.filter(b => b.template === 'triple_grid').length;
+        container.classList.toggle('banner-grid-mode', gridBannerCount >= 2);
+        container.innerHTML = banners.map(renderHybridBanner).join('');
+    } catch (error) {
+        console.error('Lỗi tải banner:', error);
+    }
+}
+
+function renderHybridBanner(banner) {
+    const template = banner.template || 'single_left';
+    const imageUrl = banner.background_image ? mediaUrl(banner.background_image) : 'https://placehold.co/1600x720/f8f9fa/d71920?text=TIS+Banner';
+    const primaryBtn = banner.button_text
+        ? `<a href="${escapeHTML(banner.button_link || '#products')}" class="btn btn-danger btn-lg rounded-pill px-5 fw-bold shadow">${escapeHTML(banner.button_text)}</a>`
+        : '';
+    const secondaryBtn = banner.secondary_button_text
+        ? `<a href="${escapeHTML(banner.secondary_button_link || '#about')}" class="btn btn-outline-dark btn-lg rounded-pill px-4">${escapeHTML(banner.secondary_button_text)}</a>`
+        : '';
+
+    const overlay = template === 'custom_html' && banner.custom_html
+        ? banner.custom_html
+        : `
+            ${banner.eyebrow ? `<span class="hybrid-eyebrow">${escapeHTML(banner.eyebrow)}</span>` : ''}
+            <h1>${escapeHTML(banner.title || 'TIS Broker')}</h1>
+            ${banner.subtitle ? `<p>${escapeHTML(banner.subtitle)}</p>` : ''}
+            ${(primaryBtn || secondaryBtn) ? `<div class="hybrid-banner-actions">${primaryBtn}${secondaryBtn}</div>` : ''}
+        `;
+
+    return `
+        <div class="hybrid-banner banner-template-${escapeHTML(template)}" style="background-image: url('${imageUrl}');">
+            <div class="hybrid-banner-overlay">
+                ${overlay}
+            </div>
+        </div>
+    `;
+}
 
 window.handleQuickBuy = async function(packageId, productId) {
     if (!getAccessToken()) {
