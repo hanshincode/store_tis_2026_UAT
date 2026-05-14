@@ -3,7 +3,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Kiểm tra token admin trước khi load
     if (!getAccessToken()) {
-        window.location.href = 'login.html';
+        window.location.href = '../admin-login.html';
         return;
     }
     loadConsultations();

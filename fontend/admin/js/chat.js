@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
     } catch (e) {
-        window.location.href = '../login.html';
+        window.location.href = '../admin-login.html';
         return;
     }
 
@@ -367,8 +367,10 @@ function appendMessage(data) {
     let contentHtml = '';
     
     if (data.message) {
-        const safeText = data.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        contentHtml += `<div class="msg-text">${safeText.replace(/\n/g, '<br>')}</div>`;
+        const safeText = typeof formatRichChatMessageText === 'function'
+            ? formatRichChatMessageText(data.message, { paymentClass: 'btn btn-outline-danger btn-sm rounded-pill px-3 mt-2 fw-bold' })
+            : data.message.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>');
+        contentHtml += `<div class="msg-text">${safeText}</div>`;
     }
 
     if (data.attachment_url) {

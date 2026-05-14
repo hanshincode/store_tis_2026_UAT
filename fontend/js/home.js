@@ -2,6 +2,8 @@
 
 let homeProducts = [];
 let currentHomeTarget = 'all';
+let currentHomeProductGroup = 0;
+let homeProductCarouselTimer = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof AOS !== 'undefined') {
@@ -145,6 +147,7 @@ window.handleQuickBuy = async function(packageId, productId) {
 
 window.filterHomeProducts = function(target, button) {
     currentHomeTarget = target || 'all';
+    currentHomeProductGroup = 0;
 
     document.querySelectorAll('[data-home-target]').forEach(btn => {
         const isActive = btn.dataset.homeTarget === currentHomeTarget;
@@ -161,7 +164,7 @@ async function loadFeaturedProducts() {
     if (!container) return;
 
     try {
-        homeProducts = await fetchAPI('/products/');
+        homeProducts = normalizeList(await fetchAPI('/products/'));
 
         if (!homeProducts || homeProducts.length === 0) {
             container.innerHTML = '<div class="col-12 text-center py-5 text-muted">Chưa có sản phẩm nào.</div>';
@@ -191,60 +194,144 @@ function renderHomeProducts() {
         return;
     }
 
-    container.innerHTML = products.slice(0, 6).map((p, idx) => {
-        let imageUrl = 'https://placehold.co/400x250?text=TIS+Broker';
-        if (p.images?.length > 0) imageUrl = mediaUrl(p.images[0].image);
+    const groupSize = currentHomeTarget === 'all' ? 9 : 3;
+    const groups = chunkArray(products, groupSize);
+    if (!groups.length) {
+        container.innerHTML = '<div class="col-12 text-center py-5 text-muted">Chưa có sản phẩm nào.</div>';
+        return;
+    }
+    currentHomeProductGroup = Math.min(currentHomeProductGroup, groups.length - 1);
 
-        const cleanDesc = stripHTML(p.short_description || p.description || 'An tâm bảo vệ tài chính cùng TIS.');
-        const targetLabel = p.target_audience === 'ent' ? 'Doanh nghiệp' : 'Cá nhân';
-        const targetIcon = p.target_audience === 'ent' ? 'fa-building' : 'fa-user';
-
-        let priceDisplayHTML = '';
-        let actionButtonHTML = '';
-        const defaultPackageId = p.packages?.[0]?.id || null;
-
-        if (p.is_price_hidden) {
-            priceDisplayHTML = `<span class="text-danger fw-bold h5">Liên hệ</span>`;
-            actionButtonHTML = `
-                <button onclick="window.location.href='product-detail.html?id=${p.id}'"
-                        class="btn btn-outline-danger btn-sm rounded-pill px-3">
-                    Xem chi tiết
-                </button>`;
-        } else {
-            priceDisplayHTML = `
-                <small class="text-muted d-block">Phí từ</small>
-                <span class="text-danger fw-bold h5">${formatMoney(p.base_price)}</span>`;
-
-            actionButtonHTML = `
-                <button onclick="event.stopPropagation(); handleQuickBuy(${defaultPackageId}, ${p.id})"
-                        class="btn btn-danger btn-sm rounded-pill px-3">
-                    Mua ngay
-                </button>`;
-        }
-
-        return `
-            <div class="col-lg-4 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="${idx * 100}">
-                <div class="card h-100 shadow-sm border-0 home-product-card" onclick="window.location.href='product-detail.html?id=${p.id}'">
-                    <div class="position-relative">
-                        <span class="badge bg-danger position-absolute top-0 start-0 m-3 shadow-sm">${escapeHTML(p.category_name || 'TIS')}</span>
-                        <span class="badge bg-light text-dark border position-absolute top-0 end-0 m-3 shadow-sm">
-                            <i class="fas ${targetIcon} me-1"></i>${targetLabel}
-                        </span>
-                        <img src="${imageUrl}" class="card-img-top" style="height: 200px; object-fit: cover;" alt="${escapeHTML(p.name)}">
-                    </div>
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="fw-bold text-truncate" title="${escapeHTML(p.name)}">${escapeHTML(p.name)}</h5>
-                        <p class="text-muted small flex-grow-1">${escapeHTML(trimText(cleanDesc, 100))}</p>
-                        <div class="d-flex justify-content-between align-items-end mt-3 pt-3 border-top">
-                            <div>${priceDisplayHTML}</div>
-                            ${actionButtonHTML}
+    container.innerHTML = `
+        <div class="col-12">
+            <div class="home-product-carousel" data-home-product-carousel>
+                <div class="home-product-carousel-window">
+                    ${groups.map((group, groupIndex) => `
+                        <div class="home-product-group ${groupIndex === currentHomeProductGroup ? 'active' : ''}" data-home-product-group="${groupIndex}">
+                            <div class="row g-4">
+                                ${group.map((p, idx) => renderHomeProductCard(p, idx)).join('')}
+                            </div>
                         </div>
-                    </div>
+                    `).join('')}
                 </div>
-            </div>`;
-    }).join('');
+                ${groups.length > 1 ? renderHomeProductCarouselControls(groups.length) : ''}
+            </div>
+        </div>
+    `;
+
+    bindHomeProductCarousel(groups.length);
 
     if (typeof AOS !== 'undefined') AOS.refresh();
+}
+
+function renderHomeProductCard(p, idx) {
+    let imageUrl = 'https://placehold.co/400x250?text=TIS+Broker';
+    if (p.images?.length > 0) imageUrl = mediaUrl(p.images[0].image);
+
+    const cleanDesc = stripHTML(p.short_description || p.description || 'An tâm bảo vệ tài chính cùng TIS.');
+    const targetLabel = p.target_audience === 'ent' ? 'Doanh nghiệp' : 'Cá nhân';
+    const targetIcon = p.target_audience === 'ent' ? 'fa-building' : 'fa-user';
+
+    let priceDisplayHTML = '';
+    let actionButtonHTML = '';
+    const defaultPackageId = p.packages?.[0]?.id || null;
+
+    if (p.is_price_hidden) {
+        priceDisplayHTML = `<span class="text-danger fw-bold h5">Liên hệ</span>`;
+        actionButtonHTML = `
+            <button onclick="window.location.href='product-detail.html?id=${p.id}'"
+                    class="btn btn-outline-danger btn-sm rounded-pill px-3">
+                Xem chi tiết
+            </button>`;
+    } else {
+        priceDisplayHTML = `
+            <small class="text-muted d-block">Phí từ</small>
+            <span class="text-danger fw-bold h5">${formatMoney(p.base_price)}</span>`;
+
+        actionButtonHTML = `
+            <button onclick="event.stopPropagation(); handleQuickBuy(${defaultPackageId}, ${p.id})"
+                    class="btn btn-danger btn-sm rounded-pill px-3">
+                Mua ngay
+            </button>`;
+    }
+
+    return `
+        <div class="col-lg-4 col-md-6">
+            <div class="card h-100 shadow-sm border-0 home-product-card" onclick="window.location.href='product-detail.html?id=${p.id}'">
+                <div class="position-relative">
+                    <span class="badge bg-danger position-absolute top-0 start-0 m-3 shadow-sm">${escapeHTML(p.category_name || 'TIS')}</span>
+                    <span class="badge bg-light text-dark border position-absolute top-0 end-0 m-3 shadow-sm">
+                        <i class="fas ${targetIcon} me-1"></i>${targetLabel}
+                    </span>
+                    <img src="${imageUrl}" class="card-img-top" style="height: 200px; object-fit: cover;" alt="${escapeHTML(p.name)}">
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <h5 class="fw-bold text-truncate" title="${escapeHTML(p.name)}">${escapeHTML(p.name)}</h5>
+                    <p class="text-muted small flex-grow-1">${escapeHTML(trimText(cleanDesc, 100))}</p>
+                    <div class="d-flex justify-content-between align-items-end mt-3 pt-3 border-top">
+                        <div>${priceDisplayHTML}</div>
+                        ${actionButtonHTML}
+                    </div>
+                </div>
+            </div>
+        </div>`;
+}
+
+function renderHomeProductCarouselControls(groupCount) {
+    const dots = Array.from({ length: groupCount }, (_, index) => `
+        <button type="button" class="${index === currentHomeProductGroup ? 'active' : ''}" data-home-product-dot="${index}" aria-label="Nhóm sản phẩm ${index + 1}"></button>
+    `).join('');
+
+    return `
+        <div class="home-product-carousel-controls">
+            <button type="button" class="home-product-nav" data-home-product-prev aria-label="Nhóm trước">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="home-product-dots">${dots}</div>
+            <button type="button" class="home-product-nav" data-home-product-next aria-label="Nhóm sau">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    `;
+}
+
+function bindHomeProductCarousel(groupCount) {
+    clearInterval(homeProductCarouselTimer);
+    if (groupCount <= 1) return;
+
+    const carousel = document.querySelector('[data-home-product-carousel]');
+    if (!carousel) return;
+
+    const showGroup = nextIndex => {
+        currentHomeProductGroup = (nextIndex + groupCount) % groupCount;
+        carousel.querySelectorAll('[data-home-product-group]').forEach(group => {
+            group.classList.toggle('active', Number(group.dataset.homeProductGroup) === currentHomeProductGroup);
+        });
+        carousel.querySelectorAll('[data-home-product-dot]').forEach(dot => {
+            dot.classList.toggle('active', Number(dot.dataset.homeProductDot) === currentHomeProductGroup);
+        });
+    };
+
+    carousel.querySelector('[data-home-product-prev]')?.addEventListener('click', () => showGroup(currentHomeProductGroup - 1));
+    carousel.querySelector('[data-home-product-next]')?.addEventListener('click', () => showGroup(currentHomeProductGroup + 1));
+    carousel.querySelectorAll('[data-home-product-dot]').forEach(dot => {
+        dot.addEventListener('click', () => showGroup(Number(dot.dataset.homeProductDot)));
+    });
+
+    homeProductCarouselTimer = setInterval(() => showGroup(currentHomeProductGroup + 1), 6000);
+    carousel.addEventListener('mouseenter', () => clearInterval(homeProductCarouselTimer));
+    carousel.addEventListener('mouseleave', () => {
+        clearInterval(homeProductCarouselTimer);
+        homeProductCarouselTimer = setInterval(() => showGroup(currentHomeProductGroup + 1), 6000);
+    });
+}
+
+function chunkArray(items, size) {
+    const chunks = [];
+    for (let index = 0; index < items.length; index += size) {
+        chunks.push(items.slice(index, index + size));
+    }
+    return chunks;
 }
 
 async function loadLatestNews() {
@@ -252,7 +339,7 @@ async function loadLatestNews() {
     if (!container) return;
 
     try {
-        const news = await fetchAPI('/news/');
+        const news = normalizeList(await fetchAPI('/news/'));
 
         if (!news || news.length === 0) {
             container.innerHTML = '<div class="col-12 text-center py-4 text-muted">Đang cập nhật bài viết mới...</div>';

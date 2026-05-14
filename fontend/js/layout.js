@@ -20,10 +20,12 @@ async function loadHeader() {
         if (!response.ok) throw new Error("Header not found");
         placeholder.innerHTML = await response.text();
         normalizeInternalLinks(placeholder);
+        renderLanguageSwitcher();
+        applyTranslations(placeholder);
         
         // Sau khi HTML header xuất hiện, chạy các logic đi kèm:
         checkAuth();           // Kiểm tra đăng nhập
-        updateCartBadge();     // <--- ĐÃ CÓ HÀM XỬ LÝ Ở DƯỚI
+        updateCartBadge();     // Đã có hàm xử lý ở dưới
         highlightActiveMenu(); // Active menu hiện tại
         loadMegaMenuCategories(); // Tải danh mục vào Menu
         
@@ -43,7 +45,7 @@ async function loadMegaMenuCategories() {
         const categories = await fetchAPI('/categories/');
         
         if (!categories || categories.length === 0) {
-            const emptyMsg = '<li class="text-muted small">Đang cập nhật...</li>';
+            const emptyMsg = `<li class="text-muted small">${t('mega.updating')}</li>`;
             listInd.innerHTML = emptyMsg;
             listEnt.innerHTML = emptyMsg;
             return;
@@ -52,7 +54,7 @@ async function loadMegaMenuCategories() {
         const htmlItems = categories.map(c => 
             `<li class="col-6">
                 <a href="${frontendPath(`products.html?category=${c.id}`)}" class="text-decoration-none hover-danger">
-                    <i class="fas fa-caret-right text-muted me-1 small"></i> ${c.name}
+                    <i class="fas fa-caret-right text-muted me-1 small"></i> ${escapeHTML(c.name)}
                 </a>
             </li>`
         ).join('');
@@ -60,7 +62,7 @@ async function loadMegaMenuCategories() {
         const viewAllHtml = `
             <li class="col-12 mt-2 pt-2 border-top">
                 <a href="${frontendPath('products.html')}" class="fw-bold text-danger text-decoration-none small">
-                    Xem tất cả gói <i class="fas fa-arrow-right ms-1"></i>
+                    ${t('mega.view_all')} <i class="fas fa-arrow-right ms-1"></i>
                 </a>
             </li>
         `;
@@ -83,6 +85,7 @@ async function loadFooter() {
             if (response.ok) {
                 placeholder.innerHTML = await response.text();
                 normalizeInternalLinks(placeholder);
+                applyTranslations(placeholder);
                 ensureChatWidgetScript();
             }
         } catch (e) { console.error("Lỗi tải Footer"); }
@@ -138,38 +141,64 @@ async function checkAuth() {
     if (token) {
         try {
             const user = await fetchAPI('/users/me/');
+            if (user.preferred_language && user.preferred_language !== getPreferredLanguage()) {
+                localStorage.setItem('tis_language', user.preferred_language);
+                applyTranslations();
+                renderLanguageSwitcher();
+            }
             
             // Menu quyền quản trị
             let roleMenu = '';
             if (['admin', 'super_admin', 'staff'].includes(user.role)) {
-                roleMenu = `<li><a class="dropdown-item text-danger fw-bold" href="${frontendPath('admin/index.html')}"><i class="fas fa-cogs me-2"></i>Trang quản trị</a></li>
+                roleMenu = `<li><a class="dropdown-item text-danger fw-bold" href="${frontendPath('admin/index.html')}"><i class="fas fa-cogs me-2"></i>${t('nav.admin')}</a></li>
                             <li><hr class="dropdown-divider"></li>`;
             }
 
+            const displayName = user.user_type === 'enterprise'
+                ? (user.company_name || `${user.last_name || ''} ${user.first_name || ''}`.trim() || user.phone || user.username)
+                : (`${user.last_name || ''} ${user.first_name || ''}`.trim() || user.phone || user.username);
+            const avatarUrl = user.avatar
+                ? mediaUrl(user.avatar)
+                : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName || 'TIS')}`;
+
             authSection.innerHTML = `
-                <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown">
-                    <img src="${user.avatar || 'https://ui-avatars.com/api/?name=' + user.username}" class="rounded-circle border" width="35" height="35">
-                    <span class="d-none d-lg-block fw-bold small">${user.last_name || user.username}</span>
+                <a class="nav-link dropdown-toggle header-user-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown" title="${escapeHTML(displayName)}">
+                    <img src="${avatarUrl}" class="header-user-avatar rounded-circle border" alt="${escapeHTML(displayName)}">
+                    <span class="header-user-name fw-bold small">${escapeHTML(displayName)}</span>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 animate__animated animate__fadeIn">
-                    <li><div class="px-3 py-2 text-muted small">Xin chào, <strong>${user.first_name || user.username}</strong></div></li>
+                    <li><div class="px-3 py-2 text-muted small">${t('nav.hello')}, <strong>${escapeHTML(displayName)}</strong></div></li>
                     <li><hr class="dropdown-divider"></li>
                     ${roleMenu}
-                    <li><a class="dropdown-item" href="${frontendPath('user/index.html')}"><i class="fas fa-user-circle me-2"></i>Hồ sơ của tôi</a></li>
-                    <li><a class="dropdown-item" href="${frontendPath('user/orders.html')}"><i class="fas fa-history me-2"></i>Đơn hàng đã mua</a></li>
+                    <li><a class="dropdown-item" href="${frontendPath('user/index.html')}"><i class="fas fa-user-circle me-2"></i>${t('nav.profile')}</a></li>
+                    <li><a class="dropdown-item" href="${frontendPath('user/orders.html')}"><i class="fas fa-history me-2"></i>${t('nav.orders')}</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item text-danger" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Đăng xuất</a></li>
+                    <li><a class="dropdown-item text-danger" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>${t('nav.logout')}</a></li>
                 </ul>
             `;
         } catch (e) {
             removeTokens();
-            authSection.innerHTML = `<a href="${frontendPath('login.html')}" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">Đăng nhập</a>`;
+            authSection.innerHTML = `<a href="${frontendPath('login.html')}" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">${t('nav.login')}</a>`;
         }
     } else {
-        authSection.innerHTML = `<a href="${frontendPath('login.html')}" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">Đăng nhập</a>`;
+        authSection.innerHTML = `<a href="${frontendPath('login.html')}" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">${t('nav.login')}</a>`;
     }
 }
 
+function renderLanguageSwitcher() {
+    const container = document.getElementById('language-section');
+    if (!container) return;
+    const lang = getPreferredLanguage();
+    container.innerHTML = `
+        <a class="nav-link dropdown-toggle d-flex align-items-center gap-1" href="#" role="button" data-bs-toggle="dropdown" title="${t('common.language')}">
+            <i class="fas fa-globe"></i><span class="small fw-bold" data-language-label>${lang.toUpperCase()}</span>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+            <li><button class="dropdown-item ${lang === 'vi' ? 'active' : ''}" type="button" onclick="setPreferredLanguage('vi')">${t('common.vietnamese')}</button></li>
+            <li><button class="dropdown-item ${lang === 'en' ? 'active' : ''}" type="button" onclick="setPreferredLanguage('en')">${t('common.english')}</button></li>
+        </ul>
+    `;
+}
 // --- 5. HÀM CẬP NHẬT GIỎ HÀNG (MỚI THÊM) ---
 window.updateCartBadge = async function() {
     const badge = document.getElementById('cart-count-badge');
@@ -219,7 +248,7 @@ function highlightActiveMenu() {
     const path = window.location.pathname;
     const page = path.split("/").pop();
     
-    const links = document.querySelectorAll('.navbar-nav .nav-link');
+    const links = document.querySelectorAll('.primary-nav .nav-link');
     links.forEach(link => {
         if (link.getAttribute('href') === page) {
             link.classList.add('text-danger', 'active');

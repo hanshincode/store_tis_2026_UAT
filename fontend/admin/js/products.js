@@ -8,9 +8,32 @@ let currentProductId = null; // null = Thêm mới, ID = Chỉnh sửa
 
 document.addEventListener('DOMContentLoaded', () => {
     initCKEditor();
+    initPriceInputFormatter();
     loadCategoriesForSelect(); // Tải danh mục vào thẻ <select> trong Modal
     loadProducts();
 });
+
+function onlyDigits(value) {
+    return String(value || '').replace(/\D/g, '');
+}
+
+function formatVndInput(value) {
+    const digits = onlyDigits(value);
+    if (!digits) return '';
+    return new Intl.NumberFormat('vi-VN').format(Number(digits));
+}
+
+function initPriceInputFormatter() {
+    const input = document.getElementById('p-price');
+    if (!input) return;
+
+    input.setAttribute('inputmode', 'numeric');
+    input.addEventListener('input', () => {
+        const cursorAtEnd = input.selectionStart === input.value.length;
+        input.value = formatVndInput(input.value);
+        if (cursorAtEnd) input.setSelectionRange(input.value.length, input.value.length);
+    });
+}
 
 // --- 1. KHỞI TẠO CKEDITOR ---
 function initCKEditor() {
@@ -87,11 +110,11 @@ function renderProductTable(products) {
                 <td class="ps-4">
                     <img src="${imgUrl}" class="rounded border" width="50" height="50" style="object-fit: cover;">
                 </td>
-                <td>
-                    <div class="fw-bold text-truncate" style="max-width: 200px;" title="${p.name}">${p.name}</div>
-                    <small class="text-muted text-truncate d-block" style="max-width: 200px;">${p.short_description || ''}</small>
+                <td class="product-name-cell">
+                    <div class="product-name-title" title="${escapeHTML(p.name || '')}">${escapeHTML(p.name || '')}</div>
+                    <small class="product-name-desc">${escapeHTML(p.short_description || '')}</small>
                 </td>
-                <td>${p.category_name || '-'}</td>
+                <td class="product-category-cell">${escapeHTML(p.category_name || '-')}</td>
                 <td>${targetBadge}</td>
                 <td>${priceDisplay}</td>
                 <td class="text-end pe-4">
@@ -129,11 +152,13 @@ window.openEditModal = function(id) {
     
     // Fill dữ liệu vào form
     document.getElementById('p-name').value = product.name;
+    document.getElementById('p-name-en').value = product.name_en || '';
     document.getElementById('p-short-desc').value = product.short_description || '';
+    document.getElementById('p-short-desc-en').value = product.short_description_en || '';
     document.getElementById('p-provider').value = product.provider_name || '';
     document.getElementById('p-category').value = product.category || '';
     document.getElementById('p-target').value = product.target_audience;
-    document.getElementById('p-price').value = product.base_price || 0;
+    document.getElementById('p-price').value = formatVndInput(product.base_price || 0);
     document.getElementById('p-hidden-price').checked = product.is_price_hidden;
 
     // Fill dữ liệu vào CKEditor
@@ -169,8 +194,12 @@ window.openEditModal = function(id) {
 // Hàm Reset Form về trắng
 function resetForm() {
     document.getElementById('product-form').reset();
+    const priceInput = document.getElementById('p-price');
+    if (priceInput) priceInput.value = '';
     document.getElementById('preview-container').innerHTML = '';
     if (myEditor) myEditor.setData('');
+    if (myEditorEn) myEditorEn.setData('');
+    document.querySelector('#product-vi-tab')?.click();
 }
 
 // --- 5. XỬ LÝ SUBMIT (THÊM HOẶC SỬA) ---
@@ -183,12 +212,15 @@ window.submitProduct = async function() {
         // Lấy dữ liệu từ Form
         const formData = new FormData();
         formData.append('name', document.getElementById('p-name').value);
+        formData.append('name_en', document.getElementById('p-name-en').value.trim());
         formData.append('short_description', document.getElementById('p-short-desc').value);
+        formData.append('short_description_en', document.getElementById('p-short-desc-en').value.trim());
         formData.append('description', myEditor ? myEditor.getData() : '');
+        formData.append('description_en', myEditorEn ? myEditorEn.getData() : '');
         formData.append('provider_name', document.getElementById('p-provider').value);
         formData.append('category', document.getElementById('p-category').value);
         formData.append('target_audience', document.getElementById('p-target').value);
-        formData.append('base_price', document.getElementById('p-price').value);
+        formData.append('base_price', onlyDigits(document.getElementById('p-price').value));
         
         // Boolean cần gửi đúng format
         const isHidden = document.getElementById('p-hidden-price').checked;

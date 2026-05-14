@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-reset-profile')?.addEventListener('click', () => {
         if (currentProfile) fillProfileForm(currentProfile);
     });
+    document.getElementById('avatar')?.addEventListener('change', previewAvatarFile);
     loadProfilePage();
 });
 
@@ -17,7 +18,7 @@ async function loadProfilePage() {
         loadProfileStats();
         loadCompanyCoverages();
     } catch (error) {
-        Toast.fire({ icon: 'error', title: 'Không thể tải hồ sơ' });
+        Toast.fire({ icon: 'error', title: getErrorMessage(error, 'Không thể tải hồ sơ') });
     }
 }
 
@@ -51,26 +52,67 @@ async function loadCompanyCoverages() {
     }
 }
 
+function getDisplayName(user) {
+    const fullName = `${user.last_name || ''} ${user.first_name || ''}`.trim();
+    if (user.user_type === 'enterprise') return user.company_name || fullName || user.phone || user.username || 'Doanh nghiệp';
+    return fullName || user.phone || user.username || 'Khách hàng';
+}
+
+function getAvatarFallbackText(user) {
+    return (getDisplayName(user) || user.phone || 'U').trim().charAt(0).toUpperCase();
+}
+
+function getAvatarHtml(user) {
+    if (user.avatar) {
+        return `<img src="${mediaUrl(user.avatar)}" alt="${escapeHTML(getDisplayName(user))}">`;
+    }
+    return getAvatarFallbackText(user);
+}
+
 function renderProfile(user) {
-    const displayName = user.full_name || `${user.last_name || ''} ${user.first_name || ''}`.trim() || user.username;
-    const avatarText = (displayName || user.phone || 'U').trim().charAt(0).toUpperCase();
+    const displayName = getDisplayName(user);
     const userType = user.user_type === 'enterprise' ? 'Doanh nghiệp' : 'Cá nhân';
 
-    document.getElementById('profile-avatar').textContent = avatarText;
+    document.getElementById('profile-avatar').innerHTML = getAvatarHtml(user);
+    document.getElementById('profile-avatar-preview').innerHTML = getAvatarHtml(user);
     document.getElementById('profile-name').textContent = displayName;
     document.getElementById('profile-phone').textContent = user.phone || '--';
     document.getElementById('info-phone').textContent = user.phone || '--';
-    document.getElementById('info-username').textContent = user.username || '--';
+    document.getElementById('info-display-name').textContent = displayName;
     document.getElementById('info-user-type').textContent = userType;
     document.getElementById('info-email').textContent = user.email || 'Chưa cập nhật';
+    document.getElementById('profile-type-badge').textContent = userType;
 
     const companyRow = document.getElementById('company-info-row');
-    if (user.company_name) {
+    if (user.user_type === 'enterprise' && user.company_name) {
         companyRow.classList.remove('d-none');
         document.getElementById('info-company').textContent = user.company_name;
     } else {
         companyRow.classList.add('d-none');
     }
+
+    toggleFormByUserType(user);
+}
+
+function toggleFormByUserType(user) {
+    const isEnterprise = user.user_type === 'enterprise';
+    const emailInput = document.getElementById('email');
+    const companyField = document.getElementById('company-field');
+    const companyInput = document.getElementById('company_name');
+
+    companyField.classList.toggle('d-none', !isEnterprise);
+    emailInput.readOnly = isEnterprise;
+    companyInput.readOnly = isEnterprise;
+
+    emailInput.classList.toggle('bg-light', isEnterprise);
+    companyInput.classList.toggle('bg-light', isEnterprise);
+}
+
+function previewAvatarFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    document.getElementById('profile-avatar-preview').innerHTML = `<img src="${url}" alt="Avatar mới">`;
 }
 
 function formatCoverageDate(value) {
@@ -91,6 +133,9 @@ function fillProfileForm(user) {
     document.getElementById('first_name').value = user.first_name || '';
     document.getElementById('email').value = user.email || '';
     document.getElementById('company_name').value = user.company_name || '';
+    document.getElementById('avatar').value = '';
+    document.getElementById('profile-avatar-preview').innerHTML = getAvatarHtml(user);
+    toggleFormByUserType(user);
 }
 
 async function loadProfileStats() {
@@ -124,20 +169,26 @@ async function saveProfile(event) {
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu';
 
-    const payload = {
-        last_name: document.getElementById('last_name').value.trim(),
-        first_name: document.getElementById('first_name').value.trim(),
-        email: document.getElementById('email').value.trim(),
-        company_name: document.getElementById('company_name').value.trim()
-    };
+    const formData = new FormData();
+    formData.append('last_name', document.getElementById('last_name').value.trim());
+    formData.append('first_name', document.getElementById('first_name').value.trim());
+
+    if (currentProfile.user_type !== 'enterprise') {
+        formData.append('email', document.getElementById('email').value.trim());
+        formData.append('company_name', '');
+    }
+
+    const avatarFile = document.getElementById('avatar').files?.[0];
+    if (avatarFile) formData.append('avatar', avatarFile);
 
     try {
-        const updated = await fetchAPI(`/users/${currentProfile.id}/`, 'PATCH', payload);
+        const updated = await fetchAPI(`/users/${currentProfile.id}/`, 'PATCH', formData);
         currentProfile = updated;
         renderProfile(updated);
         fillProfileForm(updated);
         localStorage.setItem('user_info', JSON.stringify(updated));
         Toast.fire({ icon: 'success', title: 'Đã cập nhật hồ sơ' });
+        if (typeof renderHeader === 'function') renderHeader(updated);
     } catch (error) {
         Toast.fire({ icon: 'error', title: getErrorMessage(error, 'Không thể cập nhật hồ sơ') });
     } finally {

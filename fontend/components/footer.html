@@ -8,7 +8,7 @@
                 
                 <h4 class="fw-bold text-danger mb-3">TIS BROKER</h4>
                 <p class="text-secondary opacity-75 small pe-lg-4 lh-base">
-                    Công ty Cổ phần Môi giới Bảo hiểm TIS Việt Nam là đơn vị hàng đầu cung cấp các giải pháp quản trị rủi ro chuyên nghiệp và tối ưu cho khách hàng.
+                    <span data-i18n="footer.about">Công ty Cổ phần Môi giới Bảo hiểm TIS Việt Nam là đơn vị hàng đầu cung cấp các giải pháp quản trị rủi ro chuyên nghiệp và tối ưu cho khách hàng.</span>
                 </p>
                 
                 <div class="social-links d-flex gap-2 mt-4">
@@ -20,17 +20,17 @@
             </div>
             
             <div class="col-lg-4">
-                <h5 class="fw-bold mb-4">Liên kết nhanh</h5>
+                <h5 class="fw-bold mb-4" data-i18n="footer.quick_links">Liên kết nhanh</h5>
                 <ul class="list-unstyled footer-links">
-                    <li class="mb-3"><a href="#" class="text-decoration-none text-secondary transition-hover">Về TIS Broker</a></li>
-                    <li class="mb-3"><a href="products.html" class="text-decoration-none text-secondary transition-hover">Sản phẩm Bảo hiểm</a></li>
-                    <li class="mb-3"><a href="#" class="text-decoration-none text-secondary transition-hover">Quy trình bồi thường</a></li>
-                    <li class="mb-3"><a href="#" class="text-decoration-none text-secondary transition-hover">Điều khoản sử dụng</a></li>
+                    <li class="mb-3"><a href="#" class="text-decoration-none text-secondary transition-hover" data-i18n="footer.about_link">Về TIS Broker</a></li>
+                    <li class="mb-3"><a href="products.html" class="text-decoration-none text-secondary transition-hover" data-i18n="footer.products">Sản phẩm Bảo hiểm</a></li>
+                    <li class="mb-3"><a href="#" class="text-decoration-none text-secondary transition-hover" data-i18n="footer.claims">Quy trình bồi thường</a></li>
+                    <li class="mb-3"><a href="#" class="text-decoration-none text-secondary transition-hover" data-i18n="footer.terms">Điều khoản sử dụng</a></li>
                 </ul>
             </div>
             
             <div class="col-lg-4">
-                <h5 class="fw-bold mb-4">Thông tin liên hệ</h5>
+                <h5 class="fw-bold mb-4" data-i18n="footer.contact">Thông tin liên hệ</h5>
                 <div class="contact-info small text-secondary">
                     <div class="d-flex mb-3 align-items-start">
                         <i class="fas fa-map-marker-alt text-danger mt-1 me-3 fs-6" style="width: 16px; text-align: center;"></i> 
@@ -54,7 +54,7 @@
         
         <hr class="mt-5 border-secondary opacity-25">
         <div class="text-center small text-secondary">
-            Copyright &copy; 2026 TIS Insurance Brokerage. Phát triển bởi TIS IT Team.
+            <span data-i18n="footer.copyright">Copyright &copy; 2026 TIS Insurance Broker. Phát triển bởi TIS IT Team.</span>
         </div>
     </div>
 </footer>
@@ -65,37 +65,37 @@
 
 <div id="chat-widget-window" class="chat-widget d-none">
     <div class="chat-widget-header bg-primary text-white p-3 d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold"><i class="fas fa-headset me-2"></i> Tư vấn trực tuyến</h6>
+        <h6 class="mb-0 fw-bold"><i class="fas fa-headset me-2"></i> <span data-i18n="chat.online_consult">Tư vấn trực tuyến</span></h6>
         <button id="close-chat-btn" class="btn btn-sm btn-link text-white p-0"><i class="fas fa-times fs-5"></i></button>
     </div>
 
     <div id="chat-widget-form" class="p-3 bg-white">
-        <p class="text-muted small mb-3">Vui lòng để lại thông tin để chúng tôi hỗ trợ bạn tốt nhất.</p>
+        <p class="text-muted small mb-3" data-i18n="chat.form_intro">Vui lòng để lại thông tin để chúng tôi hỗ trợ bạn tốt nhất.</p>
         <form id="start-consultation-form">
             <div class="mb-2">
-                <input type="text" id="chat-customer-name" class="form-control form-control-sm" placeholder="Họ và tên *" required>
+                <input type="text" id="chat-customer-name" class="form-control form-control-sm" placeholder="Họ và tên *" data-i18n-placeholder="chat.name_placeholder" required>
             </div>
             <div class="mb-2">
-                <input type="tel" id="chat-customer-phone" class="form-control form-control-sm" placeholder="Số điện thoại *" inputmode="tel" autocomplete="tel" pattern="^(\+84|84|0)(3|5|7|8|9)[0-9]{8}$" required>
+                <input type="tel" id="chat-customer-phone" class="form-control form-control-sm" placeholder="Số điện thoại *" data-i18n-placeholder="chat.phone_placeholder" inputmode="tel" autocomplete="tel" pattern="^(\+84|84|0)(3|5|7|8|9)[0-9]{8}$" required>
             </div>
             <div class="mb-2">
-                <textarea id="chat-customer-note" class="form-control form-control-sm" rows="2" placeholder="Bạn cần tư vấn về vấn đề gì?"></textarea>
+                <textarea id="chat-customer-note" class="form-control form-control-sm" rows="2" placeholder="Bạn cần tư vấn về vấn đề gì?" data-i18n-placeholder="chat.note_placeholder"></textarea>
             </div>
-            <button type="submit" class="btn btn-primary btn-sm w-100">Bắt đầu chat</button>
+            <button type="submit" class="btn btn-primary btn-sm w-100" data-i18n="chat.start">Bắt đầu chat</button>
         </form>
     </div>
 
     <div id="chat-widget-conversation" class="d-none d-flex flex-column bg-light h-100">
         <div id="chat-widget-messages" class="flex-grow-1 p-3 overflow-auto" style="height: 300px;">
-            <div class="text-center text-muted small my-2">Bắt đầu cuộc trò chuyện</div>
+            <div class="text-center text-muted small my-2" data-i18n="chat.start_conversation">Bắt đầu cuộc trò chuyện</div>
         </div>
         <div class="chat-widget-input border-top p-2 bg-white d-flex align-items-center">
-            <label for="chat-file-upload" id="chat-widget-attach-btn" class="chat-attach-btn mb-0 me-2 cursor-pointer text-secondary" title="Gửi file">
+            <label for="chat-file-upload" id="chat-widget-attach-btn" class="chat-attach-btn mb-0 me-2 cursor-pointer text-secondary" title="Gửi file" data-i18n-title="chat.attach_title">
                 <i class="fas fa-image fs-5"></i>
             </label>
             <input type="file" id="chat-file-upload" class="d-none" accept="image/*, .pdf, .doc, .docx, .xls, .xlsx">
             
-            <input type="text" id="chat-widget-input-text" class="form-control form-control-sm rounded-pill me-2" placeholder="Nhập tin nhắn...">
+            <input type="text" id="chat-widget-input-text" class="form-control form-control-sm rounded-pill me-2" placeholder="Nhập tin nhắn..." data-i18n-placeholder="chat.input_placeholder">
             
             <button id="chat-widget-send-btn" class="btn btn-primary btn-sm rounded-circle" style="width: 32px; height: 32px; padding: 0;">
                 <i class="fas fa-paper-plane"></i>

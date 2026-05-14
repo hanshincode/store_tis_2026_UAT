@@ -242,10 +242,11 @@ function appendMessageToDOM(msg) {
 }
 
 function formatMessageText(text) {
+    if (typeof formatRichChatMessageText === 'function') {
+        return formatRichChatMessageText(text);
+    }
     const safeText = String(text || '').replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return safeText
-        .replace(/(https?:\/\/[^\s<]+|\/user\/[^\s<]+)/g, '<a href="$1" class="fw-bold text-decoration-underline" target="_blank">$1</a>')
-        .replace(/\n/g, '<br>');
+    return safeText.replace(/\n/g, '<br>');
 }
 
 function parseCallMessage(message) {
@@ -311,7 +312,7 @@ window.sendMessage = function(e) {
         is_staff: false
     }));
 
-    // BÁO CHO SERVER BIẾT KHÁCH ĐÃ GÕ XONG
+    // Báo cho server biết khách đã gõ xong
     if (typingSent) {
         chatSocket.send(JSON.stringify({ type: 'stop_typing', is_staff: false }));
         typingSent = false; // Reset lại cờ

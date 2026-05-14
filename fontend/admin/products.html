@@ -2,11 +2,12 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Tiêu đề trang - TIS Admin</title>
+    <title>Kho sản phẩm - TIS Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/pages.css">
 </head>
 <body>
     <div class="main-content">
@@ -21,8 +22,16 @@
                 </button>
             </div>
 
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                <table class="table table-hover align-middle mb-0">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden admin-products-card">
+                <table class="table table-hover align-middle mb-0 admin-products-table">
+                    <colgroup>
+                        <col class="product-col-image">
+                        <col class="product-col-name">
+                        <col class="product-col-category">
+                        <col class="product-col-target">
+                        <col class="product-col-price">
+                        <col class="product-col-actions">
+                    </colgroup>
                     <thead class="table-light">
                         <tr>
                             <th class="ps-4">Ảnh</th>
@@ -50,19 +59,46 @@
                     <form id="product-form">
                         <div class="row g-4">
                             <div class="col-md-8">
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Tên sản phẩm *</label>
-                                    <input type="text" id="p-name" class="form-control form-control-lg" required>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Mô tả ngắn (Detail Base - Chỉ Text)</label>
-                                    <textarea id="p-short-desc" class="form-control" rows="4" placeholder="Nhập mô tả tóm tắt hiển thị ở đầu trang..."></textarea>
-                                </div>
+                                <ul class="nav nav-pills product-language-tabs mb-3" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="product-vi-tab" data-bs-toggle="pill" data-bs-target="#product-vi-pane" type="button" role="tab">Tiếng Việt</button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="product-en-tab" data-bs-toggle="pill" data-bs-target="#product-en-pane" type="button" role="tab">English <span class="small opacity-75">(tùy chọn)</span></button>
+                                    </li>
+                                </ul>
 
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Chi tiết quyền lợi (Detail Final - Hình ảnh & Bài viết)</label>
-                                    <div id="p-desc"></div> 
+                                <div class="tab-content">
+                                    <div class="tab-pane fade show active" id="product-vi-pane" role="tabpanel">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Tên sản phẩm *</label>
+                                            <input type="text" id="p-name" class="form-control form-control-lg" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Mô tả ngắn (Detail Base - chỉ text)</label>
+                                            <textarea id="p-short-desc" class="form-control" rows="4" placeholder="Nhập mô tả tóm tắt hiển thị ở đầu trang..."></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Chi tiết quyền lợi (Detail Final - hình ảnh & bài viết)</label>
+                                            <div id="p-desc"></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="tab-pane fade" id="product-en-pane" role="tabpanel">
+                                        <div class="alert alert-light border small mb-3">Nếu không nhập tiếng Anh, frontend sẽ tự dùng nội dung tiếng Việt.</div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Product name</label>
+                                            <input type="text" id="p-name-en" class="form-control form-control-lg">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Short description</label>
+                                            <textarea id="p-short-desc-en" class="form-control" rows="4" placeholder="Optional English short description..."></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Benefit details</label>
+                                            <div id="p-desc-en"></div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 

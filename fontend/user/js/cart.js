@@ -179,7 +179,7 @@ async function processCheckout() {
             
             try {
                 const response = await fetchAPI('/orders/checkout_cart/', 'POST', {});
-                window.location.href = `payment.html?order=${response.id}`;
+                window.location.href = `payment.html?token=${encodeURIComponent(response.payment_token || response.id)}`;
             } catch (error) {
                 Swal.fire('Lỗi', 'Có lỗi xảy ra khi tạo đơn hàng. Vui lòng thử lại.', 'error');
             }

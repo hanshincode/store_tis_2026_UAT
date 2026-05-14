@@ -5,22 +5,16 @@
  */
 
 // --- 1. CẤU HÌNH HỆ THỐNG ---
-const isTailscale = window.location.hostname === '100.96.50.61';
+const DEFAULT_API_DOMAIN = (() => {
+    const configuredDomain = document.querySelector('meta[name="tis-api-domain"]')?.content || window.TIS_API_DOMAIN;
+    if (configuredDomain) return configuredDomain.replace(/\/$/, '');
+    if (window.location.protocol === 'file:' || ['localhost', '127.0.0.1', ''].includes(window.location.hostname)) {
+        return 'http://127.0.0.1:8001';
+    }
+    return `${window.location.protocol}//${window.location.hostname}:8000`;
+})();
 
-const DEFAULT_API_DOMAIN = isTailscale 
-  ? 'http://100.96.50.61:8000' 
-  : 'http://hcm-tis-uat.tisbroker.local:8000';
-
-// const DEFAULT_API_DOMAIN = 'http://hcm-tis-uat.tisbroker.local:8000';
-
-// const DEFAULT_API_DOMAIN = (
-//     window.location.protocol === 'file:' ||
-//     ['localhost', '127.0.0.1', ''].includes(window.location.hostname)
-// )
-//     ? 'http://127.0.0.1:8001'
-//     : `${window.location.protocol}//${window.location.hostname}:8000`;
-
-const DOMAIN = window.TIS_API_DOMAIN || localStorage.getItem('tis_api_domain') || DEFAULT_API_DOMAIN;
+const DOMAIN = DEFAULT_API_DOMAIN;
 const API_BASE_URL = `${DOMAIN}/api`;
 
 function frontendPath(path = '') {
@@ -54,21 +48,194 @@ function redirectTo(path) {
     window.location.href = frontendPath(path);
 }
 
+function isAuthPage() {
+    return /(?:^|\/)(login|admin-login|forgot-password|reset-password|verify-email)\.html$/.test(window.location.pathname);
+}
+
 // --- 2. QUẢN LÝ TOKEN ---
-const getAccessToken = () => localStorage.getItem('access_token');
-const getRefreshToken = () => localStorage.getItem('refresh_token');
+function migrateLegacyTokens() {
+    const legacyAccess = localStorage.getItem('access_token');
+    const legacyRefresh = localStorage.getItem('refresh_token');
+    if (legacyAccess && !sessionStorage.getItem('access_token')) sessionStorage.setItem('access_token', legacyAccess);
+    if (legacyRefresh && !sessionStorage.getItem('refresh_token')) sessionStorage.setItem('refresh_token', legacyRefresh);
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+}
+
+migrateLegacyTokens();
+
+const getAccessToken = () => sessionStorage.getItem('access_token');
+const getRefreshToken = () => sessionStorage.getItem('refresh_token');
 
 const saveTokens = (access, refresh) => {
-    if (access) localStorage.setItem('access_token', access);
-    if (refresh) localStorage.setItem('refresh_token', refresh);
+    if (access) sessionStorage.setItem('access_token', access);
+    if (refresh) sessionStorage.setItem('refresh_token', refresh);
 };
 
 const clearTokens = () => {
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('user_info');
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_info');
 };
 const removeTokens = clearTokens;
+
+const TIS_SUPPORTED_LANGUAGES = ['vi', 'en'];
+const TIS_TRANSLATIONS = {
+    vi: {
+        'nav.home': 'Trang chủ',
+        'nav.products': 'Sản phẩm',
+        'nav.news': 'Tin tức',
+        'nav.admin': 'Trang quản trị',
+        'nav.profile': 'Hồ sơ của tôi',
+        'nav.orders': 'Đơn hàng đã mua',
+        'nav.logout': 'Đăng xuất',
+        'nav.login': 'Đăng nhập',
+        'nav.cart': 'Giỏ hàng',
+        'nav.support_chat': 'Hỗ trợ & Chat',
+        'nav.search_placeholder': 'Tìm gói bảo hiểm...',
+        'nav.hello': 'Xin chào',
+        'mega.individual': 'Cá nhân',
+        'mega.individual_desc': 'Bảo vệ bạn và gia đình',
+        'mega.enterprise': 'Doanh nghiệp',
+        'mega.enterprise_desc': 'Giải pháp toàn diện cho tổ chức',
+        'mega.loading': 'Đang tải...',
+        'mega.updating': 'Đang cập nhật...',
+        'mega.view_all': 'Xem tất cả gói',
+        'mega.free_consult': 'Tư vấn miễn phí',
+        'footer.about': 'Công ty Cổ phần Môi giới Bảo hiểm TIS Việt Nam là đơn vị hàng đầu cung cấp các giải pháp quản trị rủi ro chuyên nghiệp và tối ưu cho khách hàng.',
+        'footer.quick_links': 'Liên kết nhanh',
+        'footer.about_link': 'Về TIS Broker',
+        'footer.products': 'Sản phẩm Bảo hiểm',
+        'footer.claims': 'Quy trình bồi thường',
+        'footer.terms': 'Điều khoản sử dụng',
+        'footer.contact': 'Thông tin liên hệ',
+        'footer.copyright': 'Copyright © 2026 TIS Insurance Broker. Phát triển bởi TIS IT Team.',
+        'chat.online_consult': 'Tư vấn trực tuyến',
+        'chat.form_intro': 'Vui lòng để lại thông tin để chúng tôi hỗ trợ bạn tốt nhất.',
+        'chat.name_placeholder': 'Họ và tên *',
+        'chat.phone_placeholder': 'Số điện thoại *',
+        'chat.note_placeholder': 'Bạn cần tư vấn về vấn đề gì?',
+        'chat.start': 'Bắt đầu chat',
+        'chat.start_conversation': 'Bắt đầu cuộc trò chuyện',
+        'chat.input_placeholder': 'Nhập tin nhắn...',
+        'chat.attach_title': 'Gửi file',
+        'common.language': 'Ngôn ngữ',
+        'common.vietnamese': 'Tiếng Việt',
+        'common.english': 'English',
+    },
+    en: {
+        'nav.home': 'Home',
+        'nav.products': 'Products',
+        'nav.news': 'News',
+        'nav.admin': 'Admin panel',
+        'nav.profile': 'My profile',
+        'nav.orders': 'My orders',
+        'nav.logout': 'Log out',
+        'nav.login': 'Log in',
+        'nav.cart': 'Cart',
+        'nav.support_chat': 'Support & Chat',
+        'nav.search_placeholder': 'Search insurance plans...',
+        'nav.hello': 'Hello',
+        'mega.individual': 'Individual',
+        'mega.individual_desc': 'Protect yourself and your family',
+        'mega.enterprise': 'Enterprise',
+        'mega.enterprise_desc': 'Complete solutions for organizations',
+        'mega.loading': 'Loading...',
+        'mega.updating': 'Updating...',
+        'mega.view_all': 'View all plans',
+        'mega.free_consult': 'Free consultation',
+        'footer.about': 'TIS Vietnam Insurance Broker provides professional, optimized risk management solutions for customers.',
+        'footer.quick_links': 'Quick links',
+        'footer.about_link': 'About TIS Broker',
+        'footer.products': 'Insurance products',
+        'footer.claims': 'Claims process',
+        'footer.terms': 'Terms of use',
+        'footer.contact': 'Contact information',
+        'footer.copyright': 'Copyright © 2026 TIS Insurance Broker. Developed by TIS IT Team.',
+        'chat.online_consult': 'Online consultation',
+        'chat.form_intro': 'Please leave your information so we can support you better.',
+        'chat.name_placeholder': 'Full name *',
+        'chat.phone_placeholder': 'Phone number *',
+        'chat.note_placeholder': 'What do you need advice on?',
+        'chat.start': 'Start chat',
+        'chat.start_conversation': 'Start the conversation',
+        'chat.input_placeholder': 'Type a message...',
+        'chat.attach_title': 'Send file',
+        'common.language': 'Language',
+        'common.vietnamese': 'Tiếng Việt',
+        'common.english': 'English',
+    }
+};
+
+function getPreferredLanguage() {
+    const saved = localStorage.getItem('tis_language') || 'vi';
+    return TIS_SUPPORTED_LANGUAGES.includes(saved) ? saved : 'vi';
+}
+
+function t(key, fallback = '') {
+    const lang = getPreferredLanguage();
+    return TIS_TRANSLATIONS[lang]?.[key] || TIS_TRANSLATIONS.vi?.[key] || fallback || key;
+}
+
+function localizedField(item, field, fallback = '') {
+    if (!item) return fallback;
+    const lang = getPreferredLanguage();
+    if (lang === 'en') {
+        const englishValue = item[`${field}_en`];
+        if (englishValue !== undefined && englishValue !== null && String(englishValue).trim()) {
+            return englishValue;
+        }
+    }
+    const value = item[field];
+    return value !== undefined && value !== null && String(value).trim() ? value : fallback;
+}
+
+function applyTranslations(root = document) {
+    const lang = getPreferredLanguage();
+    document.documentElement.lang = lang;
+    root.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.dataset.i18n, el.textContent);
+    });
+    root.querySelectorAll('[data-i18n-html]').forEach(el => {
+        el.innerHTML = t(el.dataset.i18nHtml, el.innerHTML);
+    });
+    root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        el.setAttribute('placeholder', t(el.dataset.i18nPlaceholder, el.getAttribute('placeholder') || ''));
+    });
+    root.querySelectorAll('[data-i18n-title]').forEach(el => {
+        el.setAttribute('title', t(el.dataset.i18nTitle, el.getAttribute('title') || ''));
+    });
+    root.querySelectorAll('[data-language-label]').forEach(el => {
+        el.textContent = lang.toUpperCase();
+    });
+}
+
+async function setPreferredLanguage(lang, { persist = true } = {}) {
+    if (!TIS_SUPPORTED_LANGUAGES.includes(lang)) lang = 'vi';
+    localStorage.setItem('tis_language', lang);
+    applyTranslations();
+    if (typeof renderLanguageSwitcher === 'function') renderLanguageSwitcher();
+
+    if (persist && getAccessToken()) {
+        try {
+            const user = await fetchAPI('/users/me/');
+            if (user?.id && user.preferred_language !== lang) {
+                await fetchAPI(`/users/${user.id}/`, 'PATCH', { preferred_language: lang });
+            }
+        } catch (error) {
+            console.warn('Không thể lưu ngôn ngữ vào tài khoản:', error);
+        }
+    }
+}
+
+window.t = t;
+window.localizedField = localizedField;
+window.applyTranslations = applyTranslations;
+window.setPreferredLanguage = setPreferredLanguage;
+window.getPreferredLanguage = getPreferredLanguage;
 
 function normalizeList(payload) {
     if (Array.isArray(payload)) return payload;
@@ -159,11 +326,44 @@ function formatChatPreviewMessage(message, attachmentUrl = '') {
 
     if ((!message || !String(message).trim()) && attachmentUrl) return '[Tệp đính kèm]';
     return String(message || '')
-        .replace('[Tá»‡p Ä‘Ã­nh kÃ¨m]', '[Tệp đính kèm]')
-        .replace('Tá»‡p Ä‘Ã­nh kÃ¨m', 'Tệp đính kèm');
+        .replace('[Tệp đính kèm]', '[Tệp đính kèm]')
+        .replace('Tệp đính kèm', 'Tệp đính kèm');
 }
 
 // --- 3. KHỞI TẠO THÔNG BÁO (SWEETALERT2 SAFE) ---
+function escapeChatHtml(value) {
+    return String(value || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function normalizePaymentHref(href) {
+    const value = String(href || '').replace(/&amp;/g, '&');
+    const match = value.match(/\/user\/payment\.html\?(token|payment_token|order|order_id)=([^&\s]+)/);
+    if (!match) return value;
+    const key = match[1] === 'token' || match[1] === 'payment_token' ? 'token' : 'order';
+    return `/user/payment.html?${key}=${encodeURIComponent(match[2])}`;
+}
+
+function formatRichChatMessageText(text, options = {}) {
+    const paymentClass = options.paymentClass || 'btn btn-danger btn-sm rounded-pill px-3 mt-2 fw-bold';
+    const paymentStyle = options.paymentStyle || '';
+    let safeText = escapeChatHtml(text);
+
+    safeText = safeText.replace(
+        /(?:Thanh toán tại:|Bấm vào đây để tiến hành thanh toán:)?\s*(\/user\/payment\.html\?(?:token|payment_token|order|order_id)=[^\s<]+)/gi,
+        (_match, href) => {
+            const paymentHref = normalizePaymentHref(href);
+            return `<a href="${paymentHref}" class="${paymentClass}" style="${paymentStyle}" target="_blank"><i class="fas fa-qrcode me-1"></i>Ấn vào đây để tiến hành thanh toán</a>`;
+        }
+    );
+
+    safeText = safeText.replace(
+        /(https?:\/\/[^\s<]+)/g,
+        '<a href="$1" class="fw-bold text-decoration-underline" target="_blank">$1</a>'
+    );
+
+    return safeText.replace(/\n/g, '<br>');
+}
+
 let Toast = {
     fire: (obj) => console.log(`${obj.icon}: ${obj.title}`) 
 };
@@ -180,7 +380,7 @@ if (typeof Swal !== 'undefined') {
     console.warn("SweetAlert2 chưa được tải. Vui lòng kiểm tra script trong HTML.");
 }
 
-// --- 4. HÀM FETCH API TRUNG TÂM ---
+// --- 4. FETCH API TRUNG TAM ---
 async function fetchAPI(endpoint, method = 'GET', body = null) {
     const url = apiUrl(endpoint);
     
@@ -230,7 +430,7 @@ async function fetchAPI(endpoint, method = 'GET', body = null) {
         return await response.json();
 
     } catch (error) {
-        // [THÊM MỚI] XỬ LÝ LỖI MẠNG HOẶC SERVER SẬP & TRUYỀN MÃ LỖI
+        // Xu ly loi mang/server va truyen ma loi sang trang thong bao.
         if (error.name === 'TypeError' || 
             (error.message && (error.message.includes('fetch') || error.message.includes('NetworkError')))) {
             console.error("🔥 Báo động: Mất kết nối đến Backend Server!", error);
@@ -238,7 +438,7 @@ async function fetchAPI(endpoint, method = 'GET', body = null) {
             // Lấy thông báo lỗi và mã hóa để đưa lên URL
             const errorMsg = encodeURIComponent(error.message || "Network Error");
             
-            if (!window.location.pathname.includes('server-error.html')) {
+            if (!isAuthPage() && !window.location.pathname.includes('server-error.html')) {
                 window.location.href = frontendPath(`server-error.html?error=${errorMsg}`);
             }
         }
@@ -273,7 +473,7 @@ async function handleRefreshToken() {
 
 // --- 6. HÀM KIỂM TRA SỨC KHỎE SERVER NGAY KHI LOAD TRANG ---
 async function checkServerHealth() {
-    if (window.location.pathname.includes('server-error.html')) return;
+    if (isAuthPage() || window.location.pathname.includes('server-error.html')) return;
 
     try {
         await fetch(`${API_BASE_URL}/products/?limit=1`, { 
@@ -285,8 +485,7 @@ async function checkServerHealth() {
             (error.message && (error.message.includes('fetch') || error.message.includes('NetworkError')))) {
             console.error("🔥 Server Backend không phản hồi từ lúc load trang!");
             
-            const errorMsg = encodeURIComponent(error.message || "Connection Failed");
-            window.location.href = frontendPath(`server-error.html?error=${errorMsg}`);
+            console.warn("Bỏ qua chuyển trang lỗi server tự động từ health-check.", error);
         }
     }
 }

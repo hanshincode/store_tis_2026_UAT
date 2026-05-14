@@ -5,6 +5,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('reset-password-form')?.addEventListener('submit', handleResetPassword);
 });
 
+function getSafeAuthNext(defaultPath = 'login.html') {
+    const next = new URLSearchParams(window.location.search).get('next') || defaultPath;
+    return ['login.html', 'admin-login.html'].includes(next) ? next : defaultPath;
+}
+
 async function handleResetPassword(event) {
     event.preventDefault();
     const params = new URLSearchParams(window.location.search);
@@ -36,7 +41,7 @@ async function handleResetPassword(event) {
             title: 'Đã đổi mật khẩu',
             text: data.detail || 'Bạn có thể đăng nhập bằng mật khẩu mới.',
             confirmButtonColor: '#D71920'
-        }).then(() => redirectTo('login.html'));
+        }).then(() => redirectTo(getSafeAuthNext()));
     } catch (error) {
         Toast.fire({ icon: 'error', title: getErrorMessage(error, 'Không thể đặt lại mật khẩu.') });
     } finally {

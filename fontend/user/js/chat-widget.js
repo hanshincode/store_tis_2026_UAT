@@ -369,10 +369,14 @@ function initChatWidget() {
     }
 
     function formatWidgetMessageText(text) {
+        if (typeof formatRichChatMessageText === 'function') {
+            return formatRichChatMessageText(text, {
+                paymentClass: '',
+                paymentStyle: 'display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:8px 12px;border-radius:999px;background:#D71920;color:#fff;text-decoration:none;font-weight:700;'
+            });
+        }
         const safeText = String(text || '').replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        return safeText
-            .replace(/(https?:\/\/[^\s<]+|\/user\/[^\s<]+)/g, '<a href="$1" target="_blank" style="font-weight:700;color:inherit;text-decoration:underline;">$1</a>')
-            .replace(/\n/g, '<br>');
+        return safeText.replace(/\n/g, '<br>');
     }
 
     // =========================================================

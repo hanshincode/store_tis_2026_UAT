@@ -27,7 +27,7 @@ async function loadNews() {
             return;
         }
 
-        // ĐÃ SỬA LỖI: Xóa biến MEDIA_URL gây crash, lấy trực tiếp n.image
+        // Đã sửa lỗi: Xóa biến MEDIA_URL gây crash, lấy trực tiếp n.image
         list.innerHTML = newsList.map(n => `
             <div class="col-md-4 mb-4">
                 <div class="card h-100 shadow-sm border-0">

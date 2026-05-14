@@ -54,7 +54,7 @@ async function loadMyOrders() {
 
             const canPay = order.status === 'awaiting_payment' && order.payment_status === 'unpaid' && (order.payment_remaining_seconds || 0) > 0;
             const payButton = canPay
-                ? `<a href="payment.html?order=${order.id}" class="btn btn-danger btn-sm rounded-pill px-3">
+                ? `<a href="payment.html?token=${encodeURIComponent(order.payment_token || order.id)}" class="btn btn-danger btn-sm rounded-pill px-3">
                     <i class="fas fa-qrcode me-1"></i>Thanh toán tiếp
                    </a>`
                 : '';

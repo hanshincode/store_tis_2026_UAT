@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // A. KIỂM TRA TOKEN
     const token = getAccessToken();
     if (!token) {
-        window.location.replace('../login.html'); 
+        window.location.replace('../admin-login.html'); 
         return;
     }
 
@@ -63,15 +63,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         console.error("Lỗi xác thực Admin:", error);
         clearTokens();
-        window.location.replace('../login.html');
+        window.location.replace('../admin-login.html');
     }
 });
 /**
  * Render Sidebar và Topbar
  */
 function renderAdminLayout(user) {
-    const avatarUrl = user.avatar || `https://ui-avatars.com/api/?name=${user.last_name}+${user.first_name}&background=random`;
     const fullName = `${user.last_name || ''} ${user.first_name || ''}`.trim() || user.username;
+    const avatarName = encodeURIComponent(fullName || 'TIS');
+    const fallbackAvatarUrl = `https://ui-avatars.com/api/?name=${avatarName}&background=d71920&color=fff`;
+    const avatarUrl = user.avatar ? mediaUrl(user.avatar) : fallbackAvatarUrl;
     
     // HTML SIDEBAR
     const sidebarHtml = `
@@ -110,7 +112,9 @@ function renderAdminLayout(user) {
                 <li><a href="banners.html" id="menu-banners" class="nav-link"><i class="fas fa-images"></i> Banner</a></li>
                 <li><a href="news.html" id="menu-news" class="nav-link"><i class="fas fa-newspaper"></i> Tin tức</a></li>
                 <li><a href="enterprise-employees.html" id="menu-enterprise-employees" class="nav-link"><i class="fas fa-id-card"></i> Bảo hiểm DN</a></li>
+                <li><a href="accounts.html" id="menu-accounts" class="nav-link"><i class="fas fa-address-book"></i> Tài khoản</a></li>
                 <li><a href="staff.html" id="menu-staff" class="nav-link"><i class="fas fa-users-cog"></i> Nhân sự</a></li>
+                <li><a href="payment-settings.html" id="menu-payment-settings" class="nav-link"><i class="fas fa-qrcode"></i> Thanh toán QR</a></li>
                 
                 </ul>
         </div>
@@ -121,7 +125,7 @@ function renderAdminLayout(user) {
                  title="Xem hồ sơ cá nhân"
                  style="cursor: pointer; transition: all 0.2s ease;">
                  
-                <img src="${avatarUrl}" class="rounded-circle border" width="40" height="40" style="object-fit: cover;">
+                <img src="${avatarUrl}" class="rounded-circle border" width="40" height="40" style="object-fit: cover;" onerror="this.onerror=null;this.src='${fallbackAvatarUrl}';">
                 
                 <div class="overflow-hidden flex-grow-1">
                     <div class="fw-bold text-dark text-truncate small" title="${fullName}">${fullName}</div>
@@ -187,7 +191,7 @@ window.handleLogout = function() {
     if (confirm("Bạn có chắc chắn muốn đăng xuất?")) {
         clearTokens();
         sessionStorage.removeItem('admin_user');
-        window.location.replace('../login.html');
+        window.location.replace('../admin-login.html');
     }
 }
 

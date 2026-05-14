@@ -61,6 +61,14 @@ function sanitizeProductDetailHtml(html = '') {
     return template.innerHTML;
 }
 
+function fixVietnameseMojibake(value) {
+    return String(value || '')
+        .replace(/Năm/g, 'Năm')
+        .replace(/Tháng/g, 'Tháng')
+        .replace(/ngày/g, 'ngày')
+        .replace(/Liên hệ/g, 'Liên hệ');
+}
+
 function renderInsuranceUI() {
     const container = document.getElementById('product-detail-container');
     const p = currentProduct;
@@ -103,7 +111,7 @@ function renderInsuranceUI() {
         packagesHtml = p.packages.map((pkg, idx) => {
             const pkgPrice = isHidden ? 'Liên hệ' : formatMoney(pkg.price);
             const isSelected = idx === 0 ? 'selected' : '';
-            const durationText = pkg.duration_label || `${pkg.duration_days} ngày`;
+            const durationText = fixVietnameseMojibake(pkg.duration_label || `${pkg.duration_days} ngày`);
             
             // Icon minh họa thời hạn
             let iconClass = 'fa-calendar-alt';

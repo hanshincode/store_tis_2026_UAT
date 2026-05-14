@@ -2,65 +2,190 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hồ sơ cá nhân - TIS Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.min.css">
-    
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="css/layout.css">
     <link rel="stylesheet" href="css/pages.css">
 </head>
 <body>
     <div class="main-content">
-        <div class="row">
-            <div class="col-md-6">
-                <div class="admin-card">
-                    <h5 class="fw-bold border-bottom pb-2 mb-4"><i class="fas fa-user me-2 text-primary"></i>Thông tin cá nhân</h5>
-                    <form id="profile-form">
-                        <div class="mb-3">
-                            <label class="form-label text-muted">Tài khoản (SĐT/Username)</label>
-                            <input type="text" id="prof-username" class="form-control bg-light" readonly disabled>
+        <div class="content-body profile-page">
+            <section class="admin-profile-hero mb-4">
+                <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="admin-profile-avatar" id="profile-hero-avatar">T</div>
+                        <div>
+                            <div class="text-white-50 small mb-1">Hồ sơ nội bộ</div>
+                            <h1 class="h3 fw-bold text-white mb-1" id="profile-hero-name">Đang tải...</h1>
+                            <div class="text-white-50" id="profile-hero-contact">--</div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Họ và Tên</label>
-                            <input type="text" id="prof-name" class="form-control" required>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="index.html" class="btn btn-light rounded-pill px-4">
+                            <i class="fas fa-th-large me-2"></i>Dashboard
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="admin-profile-stat">
+                        <span class="profile-stat-icon bg-danger-subtle text-danger"><i class="fas fa-user-shield"></i></span>
+                        <div>
+                            <div class="text-muted small">Vai trò</div>
+                            <div class="h5 fw-bold mb-0" id="stat-role">--</div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Email</label>
-                            <input type="email" id="prof-email" class="form-control">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="admin-profile-stat">
+                        <span class="profile-stat-icon bg-success-subtle text-success"><i class="fas fa-envelope-circle-check"></i></span>
+                        <div>
+                            <div class="text-muted small">Email</div>
+                            <div class="h5 fw-bold mb-0" id="stat-email-status">--</div>
                         </div>
-                        <button type="submit" class="btn btn-primary" id="btn-update-profile">Cập nhật thông tin</button>
-                    </form>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="admin-profile-stat">
+                        <span class="profile-stat-icon bg-warning-subtle text-warning"><i class="fas fa-clock"></i></span>
+                        <div>
+                            <div class="text-muted small">Đăng nhập gần nhất</div>
+                            <div class="h5 fw-bold mb-0" id="stat-last-login">--</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="col-md-6">
-                <div class="admin-card">
-                    <h5 class="fw-bold border-bottom pb-2 mb-4"><i class="fas fa-lock me-2 text-warning"></i>Đổi mật khẩu</h5>
-                    <form id="password-form">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Mật khẩu hiện tại</label>
-                            <input type="password" id="old-pass" class="form-control" required>
+            <div class="row g-4">
+                <div class="col-lg-5">
+                    <section class="admin-profile-panel h-100">
+                        <h5 class="fw-bold mb-4">Thông tin tài khoản</h5>
+                        <div class="profile-info-list">
+                            <div><span>Tài khoản đăng nhập</span><strong id="info-username">--</strong></div>
+                            <div><span>Tên hiển thị</span><strong id="info-display-name">--</strong></div>
+                            <div><span>Số điện thoại</span><strong id="info-phone">--</strong></div>
+                            <div><span>Email</span><strong id="info-email">--</strong></div>
+                            <div><span>Loại tài khoản</span><strong id="info-user-type">--</strong></div>
+                            <div><span>Địa chỉ</span><strong id="info-address">--</strong></div>
+                            <div id="info-company-row" class="d-none"><span>Doanh nghiệp</span><strong id="info-company">--</strong></div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Mật khẩu mới</label>
-                            <input type="password" id="new-pass" class="form-control" required>
+                    </section>
+                </div>
+
+                <div class="col-lg-7">
+                    <section class="admin-profile-panel">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="fw-bold mb-0">Cập nhật thông tin</h5>
+                            <span class="badge bg-light text-dark border" id="profile-role-badge">Admin</span>
                         </div>
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Xác nhận mật khẩu mới</label>
-                            <input type="password" id="confirm-pass" class="form-control" required>
-                        </div>
-                        <button type="submit" class="btn btn-warning text-dark fw-bold" id="btn-change-password">Đổi mật khẩu</button>
-                    </form>
+
+                        <form id="profile-form" class="row g-3">
+                            <div class="col-12">
+                                <div class="admin-profile-avatar-edit">
+                                    <div class="admin-profile-avatar admin-profile-avatar-form" id="profile-avatar-preview">T</div>
+                                    <div class="flex-grow-1 min-width-0">
+                                        <label class="form-label small fw-bold">Ảnh đại diện</label>
+                                        <input type="file" id="prof-avatar" class="form-control" accept="image/*">
+                                        <div class="form-text">Ảnh đại diện sẽ hiển thị ở sidebar và hồ sơ nội bộ.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Tài khoản đăng nhập</label>
+                                <input type="text" id="prof-username" class="form-control bg-light" readonly disabled>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Vai trò hệ thống</label>
+                                <input type="text" id="prof-role" class="form-control bg-light" readonly disabled>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Họ</label>
+                                <input type="text" id="prof-last-name" class="form-control" autocomplete="family-name">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Tên</label>
+                                <input type="text" id="prof-first-name" class="form-control" autocomplete="given-name">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Số điện thoại</label>
+                                <input type="tel" id="prof-phone" class="form-control" inputmode="tel" autocomplete="tel" placeholder="0912345678">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Email</label>
+                                <input type="email" id="prof-email" class="form-control" autocomplete="email">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">CCCD/CMND</label>
+                                <input type="text" id="prof-cccd" class="form-control" inputmode="numeric">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Loại tài khoản</label>
+                                <select id="prof-user-type" class="form-select">
+                                    <option value="">Chưa chọn</option>
+                                    <option value="individual">Cá nhân</option>
+                                    <option value="enterprise">Doanh nghiệp</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 profile-enterprise-field">
+                                <label class="form-label small fw-bold">Tên doanh nghiệp</label>
+                                <input type="text" id="prof-company-name" class="form-control">
+                            </div>
+                            <div class="col-md-6 profile-enterprise-field">
+                                <label class="form-label small fw-bold">Mã số thuế</label>
+                                <input type="text" id="prof-tax-code" class="form-control">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-bold">Địa chỉ</label>
+                                <textarea id="prof-address" class="form-control" rows="3"></textarea>
+                            </div>
+                            <div class="col-12 d-flex justify-content-end gap-2 pt-2">
+                                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" id="btn-reset-profile">Hủy</button>
+                                <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold" id="btn-update-profile">
+                                    <i class="fas fa-save me-2"></i>Lưu thay đổi
+                                </button>
+                            </div>
+                        </form>
+                    </section>
                 </div>
             </div>
+
+            <section class="admin-profile-panel mt-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0">Bảo mật tài khoản</h5>
+                    <span class="badge bg-warning-subtle text-warning border border-warning">Mật khẩu</span>
+                </div>
+                <form id="password-form" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Mật khẩu hiện tại</label>
+                        <input type="password" id="old-pass" class="form-control" autocomplete="current-password" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Mật khẩu mới</label>
+                        <input type="password" id="new-pass" class="form-control" autocomplete="new-password" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Xác nhận mật khẩu mới</label>
+                        <input type="password" id="confirm-pass" class="form-control" autocomplete="new-password" required>
+                    </div>
+                    <div class="col-12 d-flex justify-content-end">
+                        <button type="submit" class="btn btn-warning text-dark fw-bold rounded-pill px-4" id="btn-change-password">
+                            <i class="fas fa-key me-2"></i>Đổi mật khẩu
+                        </button>
+                    </div>
+                </form>
+            </section>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
     <script src="../js/common.js"></script>
     <script src="js/core.js"></script>
     <script src="js/profile.js"></script>

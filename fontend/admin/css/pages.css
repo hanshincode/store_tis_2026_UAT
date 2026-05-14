@@ -16,6 +16,132 @@
 .stat-danger { border-left-color: #212529; }
 .image-preview-container img { width: 70px; height: 70px; object-fit: cover; border-radius: 5px; margin-right: 10px; margin-top: 10px; border: 1px solid #ccc; }
 
+.profile-page {
+    max-width: 1320px;
+}
+
+.admin-profile-hero {
+    padding: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #d71920 0%, #8f1116 100%);
+    box-shadow: 0 10px 28px rgba(215, 25, 32, 0.18);
+}
+
+.admin-profile-avatar {
+    width: 78px;
+    height: 78px;
+    border-radius: 50%;
+    background: #fff;
+    color: #d71920;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: 800;
+    border: 3px solid rgba(255,255,255,0.45);
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.admin-profile-avatar img,
+.admin-profile-avatar-preview-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.admin-profile-avatar-form {
+    width: 72px;
+    height: 72px;
+    font-size: 1.65rem;
+    border-color: #f1f3f5;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.admin-profile-avatar-edit {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px;
+    border: 1px solid #eef1f5;
+    border-radius: 8px;
+    background: #fafbfc;
+}
+
+.admin-profile-stat,
+.admin-profile-panel {
+    background: #fff;
+    border: 1px solid #e4e6eb;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+
+.admin-profile-stat {
+    min-height: 108px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.profile-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.admin-profile-panel {
+    padding: 24px;
+}
+
+.profile-info-list {
+    display: grid;
+    gap: 14px;
+}
+
+.profile-info-list > div {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #f0f1f3;
+}
+
+.profile-info-list > div:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.profile-info-list span {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.profile-info-list strong {
+    text-align: right;
+    color: #212529;
+    word-break: break-word;
+}
+
+@media (max-width: 576px) {
+    .admin-profile-panel,
+    .admin-profile-stat,
+    .admin-profile-hero {
+        padding: 20px;
+    }
+
+    .admin-profile-avatar-edit {
+        align-items: flex-start;
+    }
+}
+
 .admin-dashboard {
     max-width: 1320px;
 }
@@ -131,6 +257,85 @@
     vertical-align: middle;
 }
 
+.admin-products-card {
+    border: 1px solid #eef1f5;
+}
+
+.admin-products-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.admin-products-table th {
+    color: #111827;
+    white-space: nowrap;
+    font-weight: 800;
+}
+
+.admin-products-table td {
+    vertical-align: middle;
+}
+
+.product-col-image {
+    width: 96px;
+}
+
+.product-col-name {
+    width: 38%;
+}
+
+.product-col-category {
+    width: 17%;
+}
+
+.product-col-target {
+    width: 14%;
+}
+
+.product-col-price {
+    width: 16%;
+}
+
+.product-col-actions {
+    width: 120px;
+}
+
+.product-name-cell {
+    min-width: 0;
+    padding-top: 16px;
+    padding-bottom: 16px;
+}
+
+.product-name-title {
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.35;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+.product-name-desc {
+    display: block;
+    margin-top: 6px;
+    color: #6b7280;
+    line-height: 1.45;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.product-category-cell {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 992px) {
+    .admin-products-table {
+        table-layout: auto;
+        min-width: 920px;
+    }
+}
+
 .order-code-btn {
     text-decoration: none;
     letter-spacing: 0;
@@ -188,6 +393,43 @@
     border-radius: 6px;
     border: 1px solid #e5e7eb;
     flex: 0 0 auto;
+}
+
+.account-detail-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    padding: 18px;
+}
+
+.account-info-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.account-info-line:last-child {
+    border-bottom: 0;
+}
+
+.account-info-line span {
+    color: #6b7280;
+    font-size: 0.86rem;
+}
+
+.account-info-line strong {
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.account-stat-box {
+    min-height: 112px;
+    border: 1px solid #eef2f7;
+    border-radius: 8px;
+    padding: 16px;
+    background: #fbfcfd;
 }
 
 .min-width-0 {

@@ -136,7 +136,7 @@
 
 /* BONG BÓNG TIN NHẮN */
 .msg-bubble {
-    max-width: 100%; /* ĐÃ FIX: Chữ không bị bó hẹp quá mức */
+    max-width: 100%; /* Đã fix: Chữ không bị bó hẹp quá mức */
     padding: 8px 12px;
     border-radius: 18px;
     font-size: 0.95rem;
