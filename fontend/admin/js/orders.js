@@ -1,6 +1,6 @@
 ﻿/**
  * admin/js/orders.js
- * Quáº£n lÃ½ Ä‘Æ¡n Ä‘áº·t mua báº£o hiá»ƒm cá»§a khÃ¡ch hÃ ng.
+ * Quản lý đơn đặt mua bảo hiểm của khách hàng.
  */
 
 let currentStatusFilter = 'all';
@@ -32,12 +32,12 @@ async function loadOrderCustomers() {
             .filter(user => user.role === 'customer')
             .sort((a, b) => getCustomerOptionLabel(a).localeCompare(getCustomerOptionLabel(b), 'vi'));
         select.innerHTML = orderCustomers.length
-            ? '<option value="">Chá»n khÃ¡ch hÃ ng...</option>' + orderCustomers.map(user => `
+            ? '<option value="">Chọn khách hàng...</option>' + orderCustomers.map(user => `
                 <option value="${user.id}">${escapeHTML(getCustomerOptionLabel(user))}</option>
             `).join('')
-            : '<option value="">ChÆ°a cÃ³ khÃ¡ch hÃ ng</option>';
+            : '<option value="">Chưa có khách hàng</option>';
     } catch (error) {
-        select.innerHTML = '<option value="">KhÃ´ng táº£i Ä‘Æ°á»£c khÃ¡ch hÃ ng</option>';
+        select.innerHTML = '<option value="">Không tải được khách hàng</option>';
     }
 }
 
@@ -46,7 +46,7 @@ async function loadOrderProducts() {
         orderProducts = normalizeList(await fetchAPI('/products/'));
         orderPackageOptions = orderProducts.flatMap(product => (product.packages || []).map(pkg => ({
             id: pkg.id,
-            label: `${product.name} Â· ${pkg.duration_label}`,
+            label: `${product.name} · ${pkg.duration_label}`,
             price: Number(pkg.price || 0),
             isPriceHidden: Boolean(product.is_price_hidden),
         })));
@@ -72,9 +72,9 @@ function addOrderLine(value = {}) {
                     <input type="number" class="form-control order-quantity-input" min="1" value="${value.quantity || 1}" required>
                 </div>
                 <div class="col-md-2">
-                    <input type="number" class="form-control order-price-input" min="0" step="1000" value="${value.unit_price || ''}" placeholder="GiÃ¡ bill" required>
+                    <input type="number" class="form-control order-price-input" min="0" step="1000" value="${value.unit_price || ''}" placeholder="Giá bill" required>
                 </div>
-                <div class="col-md-2 text-md-end fw-bold text-danger order-line-total">0 Ä‘</div>
+                <div class="col-md-2 text-md-end fw-bold text-danger order-line-total">0 đ</div>
                 <div class="col-md-1 text-end">
                     <button type="button" class="btn btn-sm btn-outline-secondary" onclick="removeOrderLine('${lineId}')">
                         <i class="fas fa-trash"></i>
@@ -97,9 +97,9 @@ function renderExistingOrderLineOptions() {
 
 function renderPackageOptions(selectedId = '') {
     if (!orderPackageOptions.length) {
-        return '<option value="">Äang táº£i sáº£n pháº©m...</option>';
+        return '<option value="">Đang tải sản phẩm...</option>';
     }
-    return '<option value="">Chá»n gÃ³i báº£o hiá»ƒm...</option>' + orderPackageOptions.map(pkg => `
+    return '<option value="">Chọn gói bảo hiểm...</option>' + orderPackageOptions.map(pkg => `
         <option value="${pkg.id}" data-price="${pkg.price}" ${String(selectedId) === String(pkg.id) ? 'selected' : ''}>
             ${escapeHTML(pkg.label)} · ${pkg.isPriceHidden ? 'Giá liên hệ' : formatMoney(pkg.price)}
         </option>
@@ -127,7 +127,7 @@ function syncLinePrice(line) {
 window.removeOrderLine = function(lineId) {
     const lines = document.querySelectorAll('.create-order-line');
     if (lines.length <= 1) {
-        Toast.fire({ icon: 'warning', title: 'ÄÆ¡n cáº§n Ã­t nháº¥t má»™t sáº£n pháº©m' });
+        Toast.fire({ icon: 'warning', title: 'Đơn cần ít nhất một sản phẩm' });
         return;
     }
     document.getElementById(lineId)?.remove();
@@ -158,14 +158,14 @@ async function createOrderForCustomer(event) {
         unit_price: Number(line.querySelector('.order-price-input')?.value || 0),
     })).filter(item => item.package_id);
 
-    if (!customerId) return Toast.fire({ icon: 'warning', title: 'Vui lÃ²ng chá»n khÃ¡ch hÃ ng' });
-    if (!items.length) return Toast.fire({ icon: 'warning', title: 'Vui lÃ²ng chá»n sáº£n pháº©m' });
+    if (!customerId) return Toast.fire({ icon: 'warning', title: 'Vui lòng chọn khách hàng' });
+    if (!items.length) return Toast.fire({ icon: 'warning', title: 'Vui lòng chọn sản phẩm' });
     if (items.some(item => item.unit_price <= 0)) return Toast.fire({ icon: 'warning', title: 'Vui lòng nhập giá tiền để tạo bill' });
 
     const btn = document.getElementById('btn-create-order');
     const originalHtml = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Äang táº¡o';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang tạo';
 
     try {
         const order = await fetchAPI('/orders/create-for-customer/', 'POST', {
@@ -175,12 +175,12 @@ async function createOrderForCustomer(event) {
             send_chat: document.getElementById('create-order-send-chat')?.checked,
             beneficiary_note: document.getElementById('create-order-note')?.value || '',
         });
-        Toast.fire({ icon: 'success', title: `ÄÃ£ táº¡o Ä‘Æ¡n ${order.code}` });
+        Toast.fire({ icon: 'success', title: `Đã tạo đơn ${order.code}` });
         bootstrap.Modal.getInstance(document.getElementById('create-order-modal'))?.hide();
         resetCreateOrderForm();
         loadOrders(currentStatusFilter);
     } catch (error) {
-        Toast.fire({ icon: 'error', title: getErrorMessage(error, 'KhÃ´ng thá»ƒ táº¡o Ä‘Æ¡n cho khÃ¡ch') });
+        Toast.fire({ icon: 'error', title: getErrorMessage(error, 'Không thể tạo đơn cho khách') });
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalHtml;
@@ -200,7 +200,7 @@ window.loadOrders = async function(statusFilter = currentStatusFilter) {
     const tbody = document.getElementById('orders-list');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">Äang táº£i Ä‘Æ¡n hÃ ng...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">Đang tải đơn hàng...</td></tr>';
 
     try {
         let orders = await fetchAPI('/orders/');
@@ -209,14 +209,14 @@ window.loadOrders = async function(statusFilter = currentStatusFilter) {
         }
 
         if (!orders || orders.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-5">ChÆ°a cÃ³ Ä‘Æ¡n hÃ ng phÃ¹ há»£p.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-5">Chưa có đơn hàng phù hợp.</td></tr>';
             return;
         }
 
         tbody.innerHTML = orders.map(renderOrderRows).join('');
     } catch (e) {
-        console.error('Lá»—i táº£i Ä‘Æ¡n hÃ ng:', e);
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Lá»—i táº£i Ä‘Æ¡n hÃ ng</td></tr>';
+        console.error('Lỗi tải đơn hàng:', e);
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Lỗi tải đơn hàng</td></tr>';
     }
 };
 
@@ -226,11 +226,11 @@ function renderOrderRows(order) {
     const firstItem = items[0];
     const extraCount = Math.max(items.length - 1, 0);
     const productSummary = firstItem
-        ? `${escapeHTML(firstItem.product_name)}${extraCount ? ` +${extraCount} sáº£n pháº©m khÃ¡c` : ''}`
-        : 'ChÆ°a cÃ³ sáº£n pháº©m';
+        ? `${escapeHTML(firstItem.product_name)}${extraCount ? ` +${extraCount} sản phẩm khác` : ''}`
+        : 'Chưa có sản phẩm';
     const renewButton = order.status === 'payment_expired' || order.payment_status === 'expired'
         ? `<button class="btn btn-sm btn-warning border ms-1" onclick="renewOrderPayment(${order.id}, ${order.user_email ? 'true' : 'false'})">
-                <i class="fas fa-qrcode me-1"></i>Táº¡o QR má»›i
+                <i class="fas fa-qrcode me-1"></i>Tạo QR mới
            </button>`
         : '';
 
@@ -250,20 +250,20 @@ function renderOrderRows(order) {
             <td>
                 <div class="fw-semibold">${productSummary}</div>
                 <button class="btn btn-sm btn-outline-secondary rounded-pill mt-2" onclick="toggleOrderDetail(${order.id})">
-                    <i class="fas fa-list-ul me-1"></i>Xem ${items.length || 0} sáº£n pháº©m
+                    <i class="fas fa-list-ul me-1"></i>Xem ${items.length || 0} sản phẩm
                 </button>
             </td>
             <td class="fw-bold text-danger">${formatMoney(order.total_amount || 0)}</td>
             <td>
                 ${renderOrderStatus(order.status, order.payment_status)}
-                ${order.status === 'awaiting_payment' ? `<div class="small text-muted mt-1">Háº¡n QR: ${escapeHTML(order.payment_expires_at_formatted || '--')}</div>` : ''}
+                ${order.status === 'awaiting_payment' ? `<div class="small text-muted mt-1">Hạn QR: ${escapeHTML(order.payment_expires_at_formatted || '--')}</div>` : ''}
             </td>
             <td class="text-end pe-4">
-                <button class="btn btn-sm btn-light border" onclick="updateOrderStatus(${order.id}, 'active')" ${order.status !== 'pending' ? 'disabled title="Chá»‰ duyá»‡t sau khi khÃ¡ch Ä‘Ã£ thanh toÃ¡n"' : ''}>
-                    <i class="fas fa-check-circle text-success"></i> Duyá»‡t
+                <button class="btn btn-sm btn-light border" onclick="updateOrderStatus(${order.id}, 'active')" ${order.status !== 'pending' ? 'disabled title="Chỉ duyệt sau khi khách đã thanh toán"' : ''}>
+                    <i class="fas fa-check-circle text-success"></i> Duyệt
                 </button>
                 <button class="btn btn-sm btn-light border ms-1" onclick="updateOrderStatus(${order.id}, 'cancelled')">
-                    <i class="fas fa-times-circle text-danger"></i> Há»§y
+                    <i class="fas fa-times-circle text-danger"></i> Hủy
                 </button>
                 ${renewButton}
             </td>
@@ -280,17 +280,17 @@ function renderOrderDetail(order, customer) {
     const items = order.items || [];
     const itemRows = items.length
         ? items.map((item, index) => renderOrderItem(item, index)).join('')
-        : '<div class="text-muted py-3">ÄÆ¡n nÃ y chÆ°a cÃ³ sáº£n pháº©m.</div>';
+        : '<div class="text-muted py-3">Đơn này chưa có sản phẩm.</div>';
 
     return `
         <div class="order-detail-panel">
             <div class="row g-4">
                 <div class="col-lg-4">
                     <div class="order-detail-box">
-                        <div class="order-detail-label">ThÃ´ng tin khÃ¡ch hÃ ng</div>
+                        <div class="order-detail-label">Thông tin khách hàng</div>
                         <div class="fw-bold fs-6">${escapeHTML(customer.name)}</div>
-                        <div class="text-muted small mt-2"><i class="fas fa-phone me-2"></i>${escapeHTML(order.user_phone || 'ChÆ°a cÃ³ SÄT')}</div>
-                        <div class="text-muted small mt-1"><i class="fas fa-envelope me-2"></i>${escapeHTML(order.user_email || 'ChÆ°a cÃ³ email')}</div>
+                        <div class="text-muted small mt-2"><i class="fas fa-phone me-2"></i>${escapeHTML(order.user_phone || 'Chưa có SĐT')}</div>
+                        <div class="text-muted small mt-1"><i class="fas fa-envelope me-2"></i>${escapeHTML(order.user_email || 'Chưa có email')}</div>
                         <div class="text-muted small mt-1"><i class="fas fa-receipt me-2"></i>${escapeHTML(order.payment_reference || order.code || '--')}</div>
                         ${customer.company ? `<div class="text-muted small mt-1"><i class="fas fa-building me-2"></i>${escapeHTML(customer.company)}</div>` : ''}
                     </div>
@@ -299,11 +299,11 @@ function renderOrderDetail(order, customer) {
                     <div class="order-detail-box">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div>
-                                <div class="order-detail-label">Sáº£n pháº©m trong Ä‘Æ¡n</div>
-                                <div class="fw-bold">${items.length} sáº£n pháº©m</div>
+                                <div class="order-detail-label">Sản phẩm trong đơn</div>
+                                <div class="fw-bold">${items.length} sản phẩm</div>
                             </div>
                             <div class="text-end">
-                                <div class="order-detail-label">Tá»•ng tiá»n</div>
+                                <div class="order-detail-label">Tổng tiền</div>
                                 <div class="fw-bold text-danger fs-5">${formatMoney(order.total_amount || 0)}</div>
                             </div>
                         </div>
@@ -323,15 +323,15 @@ function renderOrderItem(item, index) {
         <div class="order-item-line">
             <img src="${imageUrl}" alt="${escapeHTML(item.product_name)}" onerror="this.src='https://placehold.co/96x72/f8f9fa/d71920?text=TIS'">
             <div class="flex-grow-1 min-width-0">
-                <div class="fw-bold">${index + 1}. ${escapeHTML(item.product_name || 'Sáº£n pháº©m')}</div>
+                <div class="fw-bold">${index + 1}. ${escapeHTML(item.product_name || 'Sản phẩm')}</div>
                 <div class="small text-muted">
-                    ${escapeHTML(item.category_name || 'ChÆ°a phÃ¢n loáº¡i')} Â· ${escapeHTML(item.duration || 'GÃ³i máº·c Ä‘á»‹nh')}
+                    ${escapeHTML(item.category_name || 'Chưa phân loại')} · ${escapeHTML(item.duration || 'Gói mặc định')}
                 </div>
-                <div class="small text-muted">Sá»‘ lÆ°á»£ng: ${item.quantity || 1}</div>
+                <div class="small text-muted">Số lượng: ${item.quantity || 1}</div>
             </div>
             <div class="text-end">
                 <div class="fw-semibold">${formatMoney(item.price || 0)}</div>
-                <div class="small text-muted">Táº¡m tÃ­nh</div>
+                <div class="small text-muted">Tạm tính</div>
                 <div class="fw-bold text-danger">${formatMoney(subtotal)}</div>
             </div>
         </div>
@@ -355,41 +355,41 @@ function renderOrderStatus(status, paymentStatus) {
         cancelled: 'bg-danger-subtle text-danger border-danger',
     };
     const labels = {
-        awaiting_payment: 'Chá» thanh toÃ¡n',
-        payment_expired: 'Háº¿t háº¡n thanh toÃ¡n',
-        pending: 'Chá» admin duyá»‡t',
-        confirmed: 'ÄÃ£ xÃ¡c nháº­n',
-        active: 'Hiá»‡u lá»±c',
-        cancelled: 'ÄÃ£ há»§y',
+        awaiting_payment: 'Chờ thanh toán',
+        payment_expired: 'Hết hạn thanh toán',
+        pending: 'Chờ admin duyệt',
+        confirmed: 'Đã xác nhận',
+        active: 'Hiệu lực',
+        cancelled: 'Đã hủy',
     };
-    const suffix = paymentStatus === 'paid' && status === 'pending' ? ' Â· Ä‘Ã£ thanh toÃ¡n' : '';
+    const suffix = paymentStatus === 'paid' && status === 'pending' ? ' · đã thanh toán' : '';
     return `<span class="badge border ${styles[status] || 'bg-secondary-subtle text-secondary border-secondary'}">${labels[status] || status}${suffix}</span>`;
 }
 
 window.updateOrderStatus = async function(id, status) {
     try {
         await fetchAPI(`/orders/${id}/`, 'PATCH', { status });
-        Toast.fire({ icon: 'success', title: 'ÄÃ£ cáº­p nháº­t Ä‘Æ¡n hÃ ng' });
+        Toast.fire({ icon: 'success', title: 'Đã cập nhật đơn hàng' });
         loadOrders(currentStatusFilter);
     } catch (e) {
-        Toast.fire({ icon: 'error', title: 'KhÃ´ng thá»ƒ cáº­p nháº­t' });
+        Toast.fire({ icon: 'error', title: 'Không thể cập nhật' });
     }
 };
 
 window.renewOrderPayment = async function(id, hasEmail = false) {
     const result = await Swal.fire({
-        title: 'Táº¡o QR thanh toÃ¡n má»›i?',
+        title: 'Tạo QR thanh toán mới?',
         html: `
             <div class="text-start">
-                <p class="text-muted mb-3">Há»‡ thá»‘ng sáº½ gia háº¡n QR theo cáº¥u hÃ¬nh hiá»‡n táº¡i vÃ  Ä‘Æ°a Ä‘Æ¡n vá» tráº¡ng thÃ¡i chá» thanh toÃ¡n.</p>
+                <p class="text-muted mb-3">Hệ thống sẽ gia hạn QR theo cấu hình hiện tại và đưa đơn về trạng thái chờ thanh toán.</p>
                 <div class="form-check mb-2">
                     <input class="form-check-input" type="checkbox" id="renew-send-email" ${hasEmail ? 'checked' : ''} ${hasEmail ? '' : 'disabled'}>
-                    <label class="form-check-label" for="renew-send-email">Gá»­i link QR qua email tÃ i khoáº£n</label>
-                    ${hasEmail ? '' : '<div class="small text-danger ms-4">KhÃ¡ch hÃ ng chÆ°a cÃ³ email.</div>'}
+                    <label class="form-check-label" for="renew-send-email">Gửi link QR qua email tài khoản</label>
+                    ${hasEmail ? '' : '<div class="small text-danger ms-4">Khách hàng chưa có email.</div>'}
                 </div>
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="renew-send-chat" checked>
-                    <label class="form-check-label" for="renew-send-chat">Gá»­i link QR qua chat há»— trá»£</label>
+                    <label class="form-check-label" for="renew-send-chat">Gửi link QR qua chat hỗ trợ</label>
                 </div>
             </div>
         `,
@@ -397,8 +397,8 @@ window.renewOrderPayment = async function(id, hasEmail = false) {
         showCancelButton: true,
         confirmButtonColor: '#D71920',
         cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Táº¡o QR má»›i',
-        cancelButtonText: 'Há»§y',
+        confirmButtonText: 'Tạo QR mới',
+        cancelButtonText: 'Hủy',
         preConfirm: () => ({
             send_email: document.getElementById('renew-send-email')?.checked || false,
             send_chat: document.getElementById('renew-send-chat')?.checked || false,
@@ -407,45 +407,45 @@ window.renewOrderPayment = async function(id, hasEmail = false) {
     if (!result.isConfirmed) return;
 
     try {
-        Swal.fire({ title: 'Äang táº¡o QR má»›i...', allowOutsideClick: false });
+        Swal.fire({ title: 'Đang tạo QR mới...', allowOutsideClick: false });
         Swal.showLoading();
         const response = await fetchAPI(`/orders/${id}/renew-payment/`, 'POST', result.value || {});
         const warnings = response.warnings || [];
         const sent = response.sent || {};
         const sentText = [
-            sent.email ? 'ÄÃ£ gá»­i email' : '',
-            sent.chat ? 'ÄÃ£ gá»­i chat' : '',
-        ].filter(Boolean).join(' Â· ');
+            sent.email ? 'Đã gửi email' : '',
+            sent.chat ? 'Đã gửi chat' : '',
+        ].filter(Boolean).join(' · ');
 
         await Swal.fire({
             icon: warnings.length ? 'warning' : 'success',
-            title: 'ÄÃ£ táº¡o QR má»›i',
-            text: warnings.length ? warnings.join(' ') : (sentText || 'QR má»›i Ä‘Ã£ sáºµn sÃ ng.'),
+            title: 'Đã tạo QR mới',
+            text: warnings.length ? warnings.join(' ') : (sentText || 'QR mới đã sẵn sàng.'),
             confirmButtonColor: '#D71920',
         });
         loadOrders(currentStatusFilter);
     } catch (error) {
-        Swal.fire('Lá»—i', getErrorMessage(error, 'KhÃ´ng thá»ƒ táº¡o láº¡i QR thanh toÃ¡n.'), 'error');
+        Swal.fire('Lỗi', getErrorMessage(error, 'Không thể tạo lại QR thanh toán.'), 'error');
     }
 };
 
 function getCustomerInfo(order) {
-    const name = order.user_name || order.user_phone || `KhÃ¡ch hÃ ng #${order.user || order.id}`;
-    const typeLabel = order.user_type === 'enterprise' ? 'Doanh nghiá»‡p' : 'CÃ¡ nhÃ¢n';
-    const contact = order.user_phone || order.user_email || 'ChÆ°a cÃ³ liÃªn há»‡';
+    const name = order.user_name || order.user_phone || `Khách hàng #${order.user || order.id}`;
+    const typeLabel = order.user_type === 'enterprise' ? 'Doanh nghiệp' : 'Cá nhân';
+    const contact = order.user_phone || order.user_email || 'Chưa có liên hệ';
     return {
         name,
-        meta: `${typeLabel} Â· ${contact}`,
+        meta: `${typeLabel} · ${contact}`,
         company: order.company_name || '',
     };
 }
 
 function getCustomerOptionLabel(user) {
     const fullName = `${user.last_name || ''} ${user.first_name || ''}`.trim();
-    const name = user.company_name || fullName || user.username || user.phone || `KhÃ¡ch hÃ ng #${user.id}`;
-    const type = user.user_type === 'enterprise' ? 'Doanh nghiá»‡p' : 'CÃ¡ nhÃ¢n';
-    const contact = user.phone || user.email || 'chÆ°a cÃ³ liÃªn há»‡';
-    return `${name} Â· ${type} Â· ${contact}`;
+    const name = user.company_name || fullName || user.username || user.phone || `Khách hàng #${user.id}`;
+    const type = user.user_type === 'enterprise' ? 'Doanh nghiệp' : 'Cá nhân';
+    const contact = user.phone || user.email || 'chưa có liên hệ';
+    return `${name} · ${type} · ${contact}`;
 }
 
 function formatDate(value) {

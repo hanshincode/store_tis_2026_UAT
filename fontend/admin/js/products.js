@@ -3,8 +3,9 @@
  */
 
 let allProducts = [];
-let myEditor; // Biến lưu instance của CKEditor
-let currentProductId = null; // null = Thêm mới, ID = Chỉnh sửa
+let myEditor = null;
+let myEditorEn = null;
+let currentProductId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     initCKEditor();
@@ -44,7 +45,20 @@ function initCKEditor() {
                 myEditor = editor;
             })
             .catch(error => {
-                console.error('Lỗi khởi tạo CKEditor:', error);
+                myEditor = null;
+                console.error('Loi khoi tao CKEditor:', error);
+            });
+    }
+
+    if (document.querySelector('#p-desc-en')) {
+        ClassicEditor
+            .create(document.querySelector('#p-desc-en'))
+            .then(editor => {
+                myEditorEn = editor;
+            })
+            .catch(error => {
+                myEditorEn = null;
+                console.error('Loi khoi tao CKEditor English:', error);
             });
     }
 }
@@ -165,6 +179,9 @@ window.openEditModal = function(id) {
     if (myEditor) {
         myEditor.setData(product.description || '');
     }
+    if (myEditorEn) {
+        myEditorEn.setData(product.description_en || '');
+    }
 
     // Hiển thị ảnh cũ (Preview)
     const previewContainer = document.getElementById('preview-container');
@@ -204,6 +221,9 @@ function resetForm() {
 
 // --- 5. XỬ LÝ SUBMIT (THÊM HOẶC SỬA) ---
 window.submitProduct = async function() {
+    const form = document.getElementById('product-form');
+    if (form && !form.reportValidity()) return;
+
     const btn = document.getElementById('btn-submit-product');
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
@@ -211,13 +231,19 @@ window.submitProduct = async function() {
     try {
         // Lấy dữ liệu từ Form
         const formData = new FormData();
-        formData.append('name', document.getElementById('p-name').value);
-        formData.append('name_en', document.getElementById('p-name-en').value.trim());
-        formData.append('short_description', document.getElementById('p-short-desc').value);
-        formData.append('short_description_en', document.getElementById('p-short-desc-en').value.trim());
+        formData.append('name', document.getElementById('p-name').value.trim());
+        formData.append('short_description', document.getElementById('p-short-desc').value.trim());
         formData.append('description', myEditor ? myEditor.getData() : '');
-        formData.append('description_en', myEditorEn ? myEditorEn.getData() : '');
-        formData.append('provider_name', document.getElementById('p-provider').value);
+        formData.append('provider_name', document.getElementById('p-provider').value.trim());
+
+        const englishFields = {
+            name_en: document.getElementById('p-name-en').value.trim(),
+            short_description_en: document.getElementById('p-short-desc-en').value.trim(),
+            description_en: myEditorEn ? myEditorEn.getData().trim() : '',
+        };
+        Object.entries(englishFields).forEach(([key, value]) => {
+            if (value) formData.append(key, value);
+        });
         formData.append('category', document.getElementById('p-category').value);
         formData.append('target_audience', document.getElementById('p-target').value);
         formData.append('base_price', onlyDigits(document.getElementById('p-price').value));

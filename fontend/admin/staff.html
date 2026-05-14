@@ -14,34 +14,65 @@
     <div class="main-content">
         <div class="admin-card">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="fw-bold m-0">Danh sách Nhân sự</h4>
-                <button class="btn btn-primary" id="btn-open-add-staff"><i class="fas fa-user-plus"></i> Thêm Nhân viên</button>
+                <h4 class="fw-bold m-0">Danh sách nhân sự</h4>
+                <button class="btn btn-primary" id="btn-open-add-staff"><i class="fas fa-user-plus"></i> Thêm nhân viên</button>
             </div>
-            <table class="table align-middle">
-                <thead class="table-light"><tr><th>Tài khoản (SĐT)</th><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th></tr></thead>
-                <tbody id="staff-list"></tbody>
-            </table>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tài khoản (SĐT)</th>
+                            <th>Họ tên</th>
+                            <th>Email</th>
+                            <th>Vai trò</th>
+                            <th>Chuyên môn</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staff-list"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <div class="modal fade" id="staffModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header"><h5 class="modal-title fw-bold">Thêm Nhân Sự</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Thêm nhân sự</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
                 <div class="modal-body">
                     <form id="staff-form">
-                        <div class="mb-3"><label>Tài khoản (SĐT)</label><input type="text" id="s-username" class="form-control" required></div>
-                        <div class="mb-3"><label>Họ tên</label><input type="text" id="s-name" class="form-control" required></div>
-                        <div class="mb-3"><label>Mật khẩu</label><input type="password" id="s-pass" class="form-control" required></div>
-                        <div class="mb-3"><label>Vai trò</label>
+                        <div class="mb-3">
+                            <label class="form-label">Tài khoản (SĐT)</label>
+                            <input type="text" id="s-username" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Họ tên</label>
+                            <input type="text" id="s-name" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Mật khẩu</label>
+                            <input type="password" id="s-pass" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Vai trò</label>
                             <select id="s-role" class="form-select">
                                 <option value="staff">Nhân viên tư vấn (Staff)</option>
                                 <option value="admin">Quản trị viên (Admin)</option>
                             </select>
                         </div>
+                        <div class="mb-3" id="staff-category-section">
+                            <label class="form-label">Danh mục chuyên môn</label>
+                            <div class="small text-muted mb-2">Staff chỉ được tiếp nhận tư vấn đúng các danh mục này.</div>
+                            <div id="s-categories" class="staff-category-picker"></div>
+                        </div>
                     </form>
                 </div>
-                <div class="modal-footer"><button id="btn-submit-staff" class="btn btn-primary">Tạo tài khoản</button></div>
+                <div class="modal-footer">
+                    <button id="btn-submit-staff" class="btn btn-primary">Tạo tài khoản</button>
+                </div>
             </div>
         </div>
     </div>

@@ -9,6 +9,7 @@ let currentUser = null;
 let reconnectInterval = null;
 let currentConversationFilter = 'all';
 let currentConversationSearch = '';
+let conversationsById = new Map();
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Lấy thông tin Admin đang đăng nhập
@@ -74,7 +75,9 @@ function escapeInline(value = '') {
 async function loadConversations(activeId) {
     const listEl = document.getElementById('conv-list');
     try {
-        const data = await fetchAPI('/consultations/'); 
+        const payload = await fetchAPI('/consultations/?scope=chat'); 
+        const data = Array.isArray(payload) ? payload : (payload.results || []);
+        conversationsById = new Map(data.map(item => [String(item.id), item]));
         
         if (!data || data.length === 0) {
             listEl.innerHTML = '<div class="text-center text-muted mt-5">Chưa có yêu cầu nào.</div>';
@@ -99,7 +102,7 @@ async function loadConversations(activeId) {
             // Thêm data-user-type và data-status vào div để Lọc (Filter)
             return `
             <div class="msgr-item ${isActive}" 
-                 onclick="openChat(${item.id}, '${escapeInline(item.customer_name)}', '${escapeInline(item.customer_contact || '')}', '${escapeInline(item.note || '')}', ${isMember})" 
+                 onclick="openChatById(${item.id})" 
                  id="conv-item-${item.id}" 
                  data-conversation-id="${item.id}"
                  data-user-type="${userType}"
@@ -121,7 +124,7 @@ async function loadConversations(activeId) {
         // Mở lại đoạn chat đang active (nếu có)
         if (activeId) {
             const activeItem = data.find(i => i.id == activeId);
-            if(activeItem) openChat(activeId, activeItem.customer_name, activeItem.customer_contact, activeItem.note, activeItem.user !== null && activeItem.user !== undefined);
+            if(activeItem) openChat(activeItem);
         }
 
         applyConversationFilters();
@@ -156,7 +159,26 @@ function setupFilterListeners() {
 
 
 // --- 2. MỞ CHAT VÀ KẾT NỐI WEBSOCKET ---
-async function openChat(id, name, contact, note, isMember = false) {
+function openChatById(id) {
+    const conversation = conversationsById.get(String(id));
+    if (conversation) openChat(conversation);
+}
+
+async function openChat(conversationOrId, name = '', contact = '', note = '', isMember = false) {
+    const conversation = typeof conversationOrId === 'object'
+        ? conversationOrId
+        : {
+            id: conversationOrId,
+            customer_name: name,
+            customer_contact: contact,
+            note,
+            user: isMember ? true : null,
+        };
+    const id = conversation.id;
+    name = conversation.customer_name || name || 'Khách hàng';
+    contact = conversation.customer_contact || contact || '';
+    note = conversation.note || note || conversation.product_name || '';
+    isMember = conversation.user !== null && conversation.user !== undefined;
     if (currentConsultationId === id) return; 
 
     // Đóng kết nối cũ nếu có
@@ -177,10 +199,10 @@ async function openChat(id, name, contact, note, isMember = false) {
     const safeNote = note && note !== 'null' && note !== 'undefined' ? note : '';
 
     if (safeContact) {
-        extraInfo += `<i class="fas fa-phone-alt ms-3 text-success"></i> ${safeContact} `;
+        extraInfo += `<span class="chat-info-line"><i class="fas fa-phone-alt text-success"></i><span>${escapeHTML(safeContact)}</span></span>`;
     }
     if (safeNote) {
-        extraInfo += `<i class="fas fa-sticky-note ms-2 text-warning"></i> <span title="${safeNote}">${safeNote.substring(0, 25)}${safeNote.length > 25 ? '...' : ''}</span>`;
+        extraInfo += `<span class="chat-info-line chat-note-line"><i class="fas fa-sticky-note text-warning"></i><span><strong>Tư vấn sản phẩm:</strong> ${escapeHTML(safeNote)}</span></span>`;
     }
     
     // Gắn thông tin SĐT / Ghi chú vào Header
@@ -193,6 +215,7 @@ async function openChat(id, name, contact, note, isMember = false) {
         document.getElementById('header-name').parentNode.appendChild(infoDiv);
     }
     infoDiv.innerHTML = extraInfo;
+    renderChatStaffInfo(conversation);
 
     // HIỂN THỊ CÁC KHU VỰC CHỨC NĂNG
     document.getElementById('input-area').style.display = 'flex'; // Khung gõ chat
@@ -218,8 +241,31 @@ async function openChat(id, name, contact, note, isMember = false) {
     }
 }
 
+function renderChatStaffInfo(conversation = {}) {
+    const staffBox = document.getElementById('header-staff-info');
+    if (!staffBox) return;
+
+    const processorName = conversation.processor_name || conversation.assigned_staff_name || '';
+    const hasProcessor = Boolean(processorName);
+    const staffName = hasProcessor ? processorName : 'Chưa tiếp nhận';
+    const initial = hasProcessor ? processorName.charAt(0).toUpperCase() : '?';
+    const statusLabel = hasProcessor ? 'Đang tư vấn' : 'Chờ staff tiếp nhận';
+    const statusClass = hasProcessor ? 'text-success' : 'text-warning';
+
+    staffBox.style.display = 'flex';
+    staffBox.innerHTML = `
+        <div class="staff-card-avatar ${hasProcessor ? '' : 'is-empty'}">${escapeHTML(initial)}</div>
+        <div class="staff-card-copy">
+            <span>Staff phụ trách</span>
+            <strong>${escapeHTML(staffName)}</strong>
+            <small class="${statusClass}"><i class="fas fa-circle"></i>${statusLabel}</small>
+        </div>
+    `;
+}
+
 function connectWebSocket(id) {
-    const wsUrl = websocketUrl(`/ws/chat/${id}/`); 
+    const token = getAccessToken();
+    const wsUrl = websocketUrl(`/ws/chat/${id}/${token ? `?token=${encodeURIComponent(token)}` : ''}`);
 
     console.log("Đang kết nối WebSocket tới:", wsUrl);
 
@@ -710,6 +756,10 @@ function setupArchiveListener() {
                     loadConversations();
                     document.getElementById('input-area').style.display = 'none';
                     document.getElementById('header-actions').style.display = 'none';
+                    const staffInfo = document.getElementById('header-staff-info');
+                    if (staffInfo) staffInfo.style.display = 'none';
+                    const extraInfo = document.getElementById('header-extra-info');
+                    if (extraInfo) extraInfo.innerHTML = '';
                     document.getElementById('message-box').innerHTML = `
                         <div class="msgr-empty">
                             <p class="text-muted">Cuộc hội thoại đã được chuyển vào mục lưu trữ.</p>

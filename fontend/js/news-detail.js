@@ -11,25 +11,30 @@ async function loadNewsDetail() {
 
     try {
         const news = await fetchAPI(`/news/${id}/`);
-        const imageHtml = news.image
-            ? `<img src="${mediaUrl(news.image)}" alt="${escapeHTML(news.title || 'Tin tức')}" class="img-fluid rounded-3 shadow-sm mb-4 w-100" style="max-height: 460px; object-fit: cover;">`
-            : '';
-        const createdAt = news.created_at
-            ? new Date(news.created_at).toLocaleDateString('vi-VN')
-            : '';
+        const image = news.image ? mediaUrl(news.image) : '';
+        const createdAt = news.created_at ? new Date(news.created_at).toLocaleDateString('vi-VN') : '';
 
         document.title = `${news.title || 'Tin tức'} - TIS Broker`;
         container.innerHTML = `
-            <div class="mb-4">
-                <span class="badge bg-danger-subtle text-danger mb-3">Tin tức</span>
-                <h1 class="fw-bold mb-3">${escapeHTML(news.title || 'Tin tức')}</h1>
-                ${createdAt ? `<div class="text-muted small"><i class="far fa-calendar-alt me-2"></i>${createdAt}</div>` : ''}
-            </div>
-            ${imageHtml}
-            <div class="news-content fs-6 lh-lg">${news.content || ''}</div>
-            <div class="border-top mt-5 pt-4">
-                <a href="index.html#news" class="btn btn-outline-danger rounded-pill px-4">
-                    <i class="fas fa-arrow-left me-2"></i>Quay lại tin tức
+            <header class="news-detail-header">
+                <a href="news.html" class="news-back-link"><i class="fas fa-arrow-left"></i> Tin tức</a>
+                <div class="news-detail-meta">
+                    <span>TIS Broker</span>
+                    ${createdAt ? `<span><i class="far fa-calendar-alt me-1"></i>${createdAt}</span>` : ''}
+                </div>
+                <h1>${escapeHTML(news.title || 'Tin tức')}</h1>
+            </header>
+            ${image ? `
+                <figure class="news-detail-cover">
+                    <img src="${escapeHTML(image)}" alt="${escapeHTML(news.title || 'Tin tức')}" onerror="this.closest('figure').remove()">
+                </figure>
+            ` : ''}
+            <section class="news-detail-content">
+                ${sanitizeNewsHtml(news.content || '<p>Nội dung bài viết đang được cập nhật.</p>')}
+            </section>
+            <div class="news-detail-footer">
+                <a href="news.html" class="btn btn-outline-danger rounded-pill px-4">
+                    <i class="fas fa-arrow-left me-2"></i>Quay lại danh sách tin
                 </a>
             </div>
         `;
@@ -39,13 +44,29 @@ async function loadNewsDetail() {
     }
 }
 
+function sanitizeNewsHtml(html = '') {
+    const template = document.createElement('template');
+    template.innerHTML = String(html);
+    template.content.querySelectorAll('script, iframe[src^="javascript:"], object, embed').forEach(el => el.remove());
+    template.content.querySelectorAll('*').forEach(el => {
+        [...el.attributes].forEach(attr => {
+            const name = attr.name.toLowerCase();
+            const value = attr.value || '';
+            if (name.startsWith('on') || value.trim().toLowerCase().startsWith('javascript:')) {
+                el.removeAttribute(attr.name);
+            }
+        });
+    });
+    return template.innerHTML;
+}
+
 function renderNotFound(container) {
     container.innerHTML = `
-        <div class="text-center py-5">
-            <i class="far fa-newspaper text-muted mb-3" style="font-size: 4rem;"></i>
-            <h3 class="fw-bold">Không tìm thấy tin tức</h3>
-            <p class="text-muted">Bài viết có thể đã bị xóa hoặc đường dẫn không hợp lệ.</p>
-            <a href="index.html#news" class="btn btn-danger rounded-pill px-4">Về trang chủ</a>
+        <div class="news-empty-state">
+            <i class="far fa-newspaper"></i>
+            <h3>Không tìm thấy tin tức</h3>
+            <p>Bài viết có thể đã bị xóa hoặc đường dẫn không hợp lệ.</p>
+            <a href="news.html" class="btn btn-danger rounded-pill px-4">Về trang tin tức</a>
         </div>
     `;
 }

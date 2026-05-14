@@ -99,6 +99,7 @@ function fillProfileForm(user) {
     document.getElementById('prof-address').value = user.address || '';
     document.getElementById('prof-avatar').value = '';
     document.getElementById('profile-avatar-preview').innerHTML = getAvatarHtml(user);
+    toggleCustomerFields(user);
     toggleEnterpriseFields();
 }
 
@@ -114,6 +115,18 @@ function toggleEnterpriseFields() {
     document.querySelectorAll('.profile-enterprise-field').forEach(el => {
         el.classList.toggle('d-none', !isEnterprise);
     });
+}
+
+function toggleCustomerFields(user = currentProfile) {
+    const isCustomer = user?.role === 'customer';
+    document.querySelectorAll('.profile-customer-field').forEach(el => {
+        el.classList.toggle('d-none', !isCustomer);
+    });
+    if (!isCustomer) {
+        document.getElementById('prof-user-type').value = '';
+        document.getElementById('prof-company-name').value = '';
+        document.getElementById('prof-tax-code').value = '';
+    }
 }
 
 async function updateProfile(event) {
@@ -141,10 +154,13 @@ async function updateProfile(event) {
     formData.append('last_name', document.getElementById('prof-last-name').value.trim());
     formData.append('email', document.getElementById('prof-email').value.trim());
     formData.append('cccd', document.getElementById('prof-cccd').value.trim());
-    formData.append('user_type', document.getElementById('prof-user-type').value);
-    formData.append('company_name', document.getElementById('prof-company-name').value.trim());
-    formData.append('tax_code', document.getElementById('prof-tax-code').value.trim());
     formData.append('address', document.getElementById('prof-address').value.trim());
+
+    if (currentProfile.role === 'customer') {
+        formData.append('user_type', document.getElementById('prof-user-type').value);
+        formData.append('company_name', document.getElementById('prof-company-name').value.trim());
+        formData.append('tax_code', document.getElementById('prof-tax-code').value.trim());
+    }
 
     const avatarFile = document.getElementById('prof-avatar').files?.[0];
     if (avatarFile) formData.append('avatar', avatarFile);

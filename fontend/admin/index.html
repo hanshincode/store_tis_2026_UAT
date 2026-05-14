@@ -13,62 +13,141 @@
 <body>
     <div class="main-content">
         <div class="container-fluid admin-dashboard p-4">
-            <div class="dashboard-heading mb-4">
-                <h4 class="fw-bold mb-1">Tổng quan hệ thống</h4>
-                <p class="text-muted mb-0">Theo dõi nhanh hoạt động kinh doanh và hỗ trợ khách hàng.</p>
-            </div>
-            
-            <div class="dashboard-stats mb-4">
-                <div class="admin-card stat-card stat-border stat-success">
+            <section class="dashboard-hero mb-4">
+                <div>
+                    <span class="dashboard-eyebrow">Trung tâm điều hành</span>
+                    <h1>Tổng quan hệ thống</h1>
+                    <p>Theo dõi doanh thu, đơn cần xử lý, thanh toán và hỗ trợ khách hàng trong một màn hình.</p>
+                </div>
+                <div class="dashboard-hero-actions">
+                    <a href="orders.html" class="btn btn-light border">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>Quản lý đơn
+                    </a>
+                    <a href="products.html" class="btn btn-danger">
+                        <i class="fas fa-plus me-2"></i>Thêm sản phẩm
+                    </a>
+                </div>
+            </section>
+
+            <section class="dashboard-stats mb-4" aria-label="Chỉ số chính">
+                <a class="admin-card stat-card stat-border stat-success" href="orders.html">
                     <div class="stat-content">
                         <div class="stat-text">
-                            <h6>Doanh thu</h6>
+                            <h6>Doanh thu đã thu</h6>
                             <div class="stat-value text-success" id="stat-revenue">0 đ</div>
+                            <small id="stat-paid-count">0 đơn đã thanh toán</small>
                         </div>
                         <div class="icon-box bg-success-subtle text-success">
                             <i class="fas fa-wallet"></i>
                         </div>
                     </div>
-                </div>
-                <div class="admin-card stat-card stat-border stat-warning">
+                </a>
+                <a class="admin-card stat-card stat-border stat-warning" href="orders.html">
                     <div class="stat-content">
                         <div class="stat-text">
-                            <h6>Đơn chờ duyệt</h6>
+                            <h6>Chờ admin duyệt</h6>
                             <div class="stat-value text-warning" id="stat-pending">0</div>
+                            <small>Đơn đã thanh toán cần xử lý</small>
                         </div>
                         <div class="icon-box bg-warning-subtle text-warning">
                             <i class="fas fa-clock"></i>
                         </div>
                     </div>
-                </div>
-                <div class="admin-card stat-card stat-border stat-primary">
+                </a>
+                <a class="admin-card stat-card stat-border stat-primary" href="orders.html">
                     <div class="stat-content">
                         <div class="stat-text">
                             <h6>Tổng đơn hàng</h6>
                             <div class="stat-value text-primary" id="stat-total">0</div>
+                            <small id="stat-active-count">0 đơn đang hiệu lực</small>
                         </div>
                         <div class="icon-box bg-primary-subtle text-primary">
                             <i class="fas fa-shopping-bag"></i>
                         </div>
                     </div>
-                </div>
-                <div class="admin-card stat-card stat-border stat-danger cursor-pointer" onclick="window.location.href='chat.html'">
+                </a>
+                <a class="admin-card stat-card stat-border stat-danger" href="consultations.html">
                     <div class="stat-content">
                         <div class="stat-text">
-                            <h6>Hỗ trợ trực tuyến</h6>
-                            <div class="stat-value text-danger">Live Chat</div>
+                            <h6>Yêu cầu tư vấn mới</h6>
+                            <div class="stat-value text-danger" id="stat-consultations">0</div>
+                            <small id="stat-chat-count">0 cuộc chat cần trả lời</small>
                         </div>
                         <div class="icon-box bg-danger-subtle text-danger">
-                            <i class="fab fa-facebook-messenger"></i>
+                            <i class="fas fa-headset"></i>
                         </div>
                     </div>
-                </div>
-            </div>
+                </a>
+            </section>
 
-            <div class="admin-card dashboard-table-card">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h5 class="fw-bold m-0"><i class="fas fa-history me-2 text-muted"></i>Đơn hàng mới nhất</h5>
-                    <a href="orders.html" class="btn btn-sm btn-outline-primary rounded-pill px-3">Xem tất cả</a>
+            <section class="dashboard-grid mb-4">
+                <div class="admin-card dashboard-panel dashboard-panel-large">
+                    <div class="panel-heading">
+                        <div>
+                            <h5>Luồng đơn hàng</h5>
+                            <p>Phân bổ trạng thái để biết điểm nghẽn trong quy trình.</p>
+                        </div>
+                        <a href="orders.html" class="btn btn-sm btn-outline-primary">Xem chi tiết</a>
+                    </div>
+                    <div class="order-pipeline" id="order-pipeline">
+                        <div class="dashboard-skeleton"></div>
+                    </div>
+                </div>
+
+                <div class="admin-card dashboard-panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h5>Việc cần xử lý</h5>
+                            <p>Các tác vụ ưu tiên hôm nay.</p>
+                        </div>
+                    </div>
+                    <div class="action-list" id="dashboard-actions">
+                        <div class="dashboard-skeleton"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="dashboard-grid mb-4">
+                <div class="admin-card dashboard-panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h5>Thanh toán</h5>
+                            <p>Tình trạng QR và tiền đã ghi nhận.</p>
+                        </div>
+                        <a href="payment-settings.html" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-qrcode me-1"></i>Cấu hình
+                        </a>
+                    </div>
+                    <div class="payment-summary" id="payment-summary">
+                        <div class="dashboard-skeleton"></div>
+                    </div>
+                </div>
+
+                <div class="admin-card dashboard-panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h5>Truy cập nhanh</h5>
+                            <p>Các khu vực quản trị thường dùng.</p>
+                        </div>
+                    </div>
+                    <div class="quick-links">
+                        <a href="products.html"><i class="fas fa-box-open"></i><span>Sản phẩm</span></a>
+                        <a href="categories.html"><i class="fas fa-list"></i><span>Danh mục</span></a>
+                        <a href="banners.html"><i class="fas fa-images"></i><span>Banner</span></a>
+                        <a href="news.html"><i class="fas fa-newspaper"></i><span>Tin tức</span></a>
+                        <a href="accounts.html"><i class="fas fa-address-book"></i><span>Tài khoản</span></a>
+                        <a href="chat.html"><i class="fab fa-facebook-messenger"></i><span>Live Chat</span></a>
+                    </div>
+                </div>
+            </section>
+
+            <section class="admin-card dashboard-table-card">
+                <div class="panel-heading">
+                    <div>
+                        <h5><i class="fas fa-history me-2 text-muted"></i>Đơn hàng mới nhất</h5>
+                        <p>Những đơn vừa phát sinh để admin kiểm tra nhanh.</p>
+                    </div>
+                    <a href="orders.html" class="btn btn-sm btn-outline-primary">Xem tất cả</a>
                 </div>
                 <div class="table-responsive">
                     <table class="table align-middle table-hover">
@@ -86,7 +165,7 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </section>
         </div>
     </div>
 

@@ -70,16 +70,18 @@
 
             <div class="msgr-main">
                 <div class="msgr-main-header" id="chat-header">
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="chat-contact-summary">
                         <div class="msgr-avatar-lg" id="header-avatar">?</div>
-                        <div>
+                        <div class="chat-contact-copy">
                             <div class="fw-bold" id="header-name">Chọn hội thoại</div>
                             <div class="msgr-status text-muted" id="header-status" style="font-size: 0.8rem;">
                                 <i class="fas fa-circle me-1" style="font-size:0.5rem;color:#65676b"></i>Offline
                             </div>
+                            <div id="header-extra-info" class="chat-consultation-info"></div>
                         </div>
                     </div>
                     
+                    <div id="header-staff-info" class="chat-staff-card" style="display: none;"></div>
                     <div id="header-actions" class="d-flex align-items-center gap-2" style="display: none;">
                         <button class="btn btn-sm btn-outline-success rounded-circle" id="btn-start-video-call" title="Gọi video" style="display: none;">
                             <i class="fas fa-video"></i>

@@ -5,14 +5,7 @@
  */
 
 // --- 1. CẤU HÌNH HỆ THỐNG ---
-const DEFAULT_API_DOMAIN = (() => {
-    const configuredDomain = document.querySelector('meta[name="tis-api-domain"]')?.content || window.TIS_API_DOMAIN;
-    if (configuredDomain) return configuredDomain.replace(/\/$/, '');
-    if (window.location.protocol === 'file:' || ['localhost', '127.0.0.1', ''].includes(window.location.hostname)) {
-        return 'http://127.0.0.1:8001';
-    }
-    return `${window.location.protocol}//${window.location.hostname}:8000`;
-})();
+const DEFAULT_API_DOMAIN = 'http://100.11.22.33:8080';
 
 const DOMAIN = DEFAULT_API_DOMAIN;
 const API_BASE_URL = `${DOMAIN}/api`;

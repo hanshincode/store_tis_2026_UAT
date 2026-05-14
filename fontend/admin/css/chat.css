@@ -114,6 +114,133 @@
     justify-content: space-between;
 }
 
+.chat-contact-summary {
+    min-width: 0;
+    flex: 1 1 auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.chat-contact-copy {
+    min-width: 0;
+    flex: 1;
+}
+
+.chat-contact-copy #header-name {
+    font-size: 1.05rem;
+    line-height: 1.25;
+    color: #111827;
+}
+
+.chat-consultation-info {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px 14px;
+    color: #4b5563;
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+
+.chat-consultation-info > i {
+    margin-left: 0 !important;
+}
+
+.chat-info-line {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+}
+
+.chat-note-line {
+    flex: 1 1 100%;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.chat-note-line strong {
+    color: #374151;
+}
+
+.chat-header-side {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.chat-staff-card {
+    min-width: 230px;
+    max-width: 320px;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    align-items: center;
+    gap: 10px;
+}
+
+.staff-card-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: #fef2f2;
+    color: #d71920;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    flex: 0 0 auto;
+}
+
+.staff-card-avatar.is-empty {
+    background: #fff7ed;
+    color: #d97706;
+}
+
+.staff-card-copy {
+    min-width: 0;
+    display: grid;
+    gap: 1px;
+}
+
+.staff-card-copy span {
+    color: #6b7280;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.staff-card-copy strong {
+    color: #111827;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.staff-card-copy small {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 700;
+    font-size: 0.76rem;
+}
+
+.staff-card-copy small i {
+    font-size: 0.45rem;
+}
+
+.msgr-main-header {
+    align-items: flex-start !important;
+    gap: 16px;
+}
+
 .msgr-avatar-lg {
     width: 40px;
     height: 40px;
@@ -227,6 +354,16 @@
     .msgr-sidebar {
         width: 300px;
     }
+
+    .msgr-main-header {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .chat-staff-card {
+        min-width: 210px;
+    }
 }
 
 @media (max-width: 768px) {
@@ -245,6 +382,20 @@
     .msgr-main {
         height: 60%;
         width: 100%;
+    }
+
+    .chat-contact-summary,
+    .chat-header-side {
+        width: 100%;
+    }
+
+    .chat-header-side {
+        justify-content: space-between;
+    }
+
+    .chat-staff-card {
+        flex: 1;
+        min-width: 0;
     }
     
     .msg-bubble {

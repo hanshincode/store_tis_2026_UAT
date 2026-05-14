@@ -1,7 +1,7 @@
-<nav class="navbar navbar-expand-lg fixed-top shadow-none" id="mainNavbar">
-    <div class="container">
-        <a class="navbar-brand animate__animated animate__fadeInDown" href="index.html">
-            <img src="images/logo.png" alt="TIS Logo" id="nav-logo" style="height: 60px; transition: 0.3s;" onerror="this.onerror=null; this.src='https://placehold.co/150x50/ffffff/d71920?text=TIS+LOGO';">
+<nav class="navbar navbar-expand-lg fixed-top shadow-none tis-main-header" id="mainNavbar">
+    <div class="container header-container">
+        <a class="navbar-brand header-brand animate__animated animate__fadeInDown" href="index.html">
+            <img src="images/logo.png" alt="TIS Logo" id="nav-logo" onerror="this.onerror=null; this.src='https://placehold.co/150x50/ffffff/d71920?text=TIS+LOGO';">
         </a>
 
         <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -9,7 +9,7 @@
         </button>
 
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto primary-nav">
+            <ul class="navbar-nav primary-nav">
                 <li class="nav-item"><a class="nav-link fw-bold px-3" href="index.html" data-i18n="nav.home">Trang chủ</a></li>
 
                 <li class="nav-item dropdown has-megamenu">
@@ -59,7 +59,7 @@
                 <li class="nav-item"><a class="nav-link fw-bold px-3" href="index.html#news" data-i18n="nav.news">Tin tức</a></li>
             </ul>
 
-            <form class="d-flex mx-auto header-search-form position-relative" onsubmit="handleGlobalSearch(event)" style="max-width: 400px; width: 100%;">
+            <form class="d-flex header-search-form position-relative" onsubmit="handleGlobalSearch(event)">
                 <div class="input-group search-group-custom">
                     <input type="text" id="global-search" class="form-control rounded-pill-start border-end-0" placeholder="Tìm gói bảo hiểm..." data-i18n-placeholder="nav.search_placeholder" autocomplete="off">
                     <button class="btn btn-white border border-start-0 rounded-pill-end" type="submit">
@@ -77,8 +77,8 @@
                     </a>
                 </li>
                 <li class="nav-item dropdown header-icon-item" id="language-section"></li>
-                <li id="chat-menu-item" style="display: none;">
-                    <a class="dropdown-item" href="user/chat.html">
+                <li class="nav-item header-support-item" id="chat-menu-item" style="display: none;">
+                    <a class="nav-link header-support-link" href="user/chat.html">
                         <i class="fas fa-headset me-2"></i> <span data-i18n="nav.support_chat">Hỗ trợ & Chat</span>
                     </a>
                 </li>

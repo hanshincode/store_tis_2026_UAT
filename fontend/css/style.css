@@ -545,6 +545,224 @@ footer a:hover {
     gap: 4px;
 }
 
+.news-page-heading {
+    border-bottom: 1px solid #eef0f3;
+    padding-bottom: 24px;
+}
+
+.news-page-main {
+    min-height: calc(100vh - var(--header-height));
+}
+
+.news-page-kicker,
+.news-list-meta,
+.news-detail-meta {
+    color: #6b7280;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.news-list-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.news-list-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+}
+
+.news-list-card-featured {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+}
+
+.news-list-image {
+    display: block;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: #f3f4f6;
+}
+
+.news-list-card-featured .news-list-image {
+    aspect-ratio: auto;
+    min-height: 360px;
+}
+
+.news-list-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.news-list-body {
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.news-list-meta,
+.news-detail-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.news-list-title {
+    font-size: 1.12rem;
+    line-height: 1.35;
+    font-weight: 800;
+    letter-spacing: 0;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+
+.news-list-title.featured {
+    font-size: clamp(1.6rem, 3vw, 2.35rem);
+    -webkit-line-clamp: 3;
+}
+
+.news-list-title a {
+    color: #111827;
+    text-decoration: none;
+}
+
+.news-list-title a:hover {
+    color: var(--primary-color);
+}
+
+.news-list-excerpt {
+    color: #4b5563;
+    line-height: 1.65;
+    margin-bottom: 20px;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+}
+
+.news-list-link,
+.news-back-link {
+    color: var(--primary-color);
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.news-empty-state {
+    min-height: 300px;
+    border: 1px dashed #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    padding: 42px 24px;
+    color: #6b7280;
+}
+
+.news-empty-state i {
+    font-size: 3.5rem;
+    margin-bottom: 16px;
+}
+
+.news-empty-state h3,
+.news-empty-state h4 {
+    color: #111827;
+    font-weight: 800;
+}
+
+.news-detail-shell {
+    max-width: 980px;
+}
+
+.news-detail-header {
+    margin-bottom: 28px;
+}
+
+.news-detail-header h1 {
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    line-height: 1.18;
+    font-weight: 900;
+    letter-spacing: 0;
+    color: #111827;
+    margin: 14px 0 0;
+}
+
+.news-detail-cover {
+    margin: 0 0 32px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    background: #f3f4f6;
+}
+
+.news-detail-cover img {
+    width: 100%;
+    max-height: 540px;
+    object-fit: cover;
+    display: block;
+}
+
+.news-detail-content {
+    color: #1f2937;
+    font-size: 1.03rem;
+    line-height: 1.85;
+}
+
+.news-detail-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 14px 0;
+}
+
+.news-detail-content h2,
+.news-detail-content h3,
+.news-detail-content h4 {
+    font-weight: 800;
+    letter-spacing: 0;
+    margin-top: 1.6em;
+}
+
+.news-detail-content p {
+    margin-bottom: 1rem;
+}
+
+.news-detail-footer {
+    border-top: 1px solid #e5e7eb;
+    margin-top: 42px;
+    padding-top: 24px;
+}
+
+@media (max-width: 991px) {
+    .news-list-card-featured {
+        grid-template-columns: 1fr;
+    }
+
+    .news-list-card-featured .news-list-image {
+        aspect-ratio: 16 / 9;
+        min-height: auto;
+    }
+}
+
 /* --- 7. RESPONSIVE MOBILE --- */
 @media (max-width: 991px) {
     /* Header trên Mobile */
@@ -726,5 +944,315 @@ footer a:hover {
         animation: none;
         transition: none;
         transform: none;
+    }
+}
+
+/* TIS public site refresh */
+:root {
+    --header-height: 88px;
+    --text-color: #111827;
+    --text-muted: #5f6875;
+    --bg-light: #f4f6f8;
+    --shadow-sm: 0 8px 22px rgba(17,24,39,.06);
+    --shadow-md: 0 18px 45px rgba(17,24,39,.12);
+}
+
+body {
+    font-family: var(--font-main) !important;
+    color: #111827;
+    background: #fff;
+    font-weight: 500;
+}
+
+.navbar {
+    height: var(--header-height);
+}
+
+.primary-nav > .nav-item > .nav-link::after {
+    height: 3px;
+    bottom: 0;
+}
+
+.hybrid-banner-section {
+    padding: 0 0 54px;
+    background: #fff;
+}
+
+.hybrid-banner-section > .container {
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.hybrid-banner-list,
+.home-banner-carousel {
+    border-radius: 0;
+}
+
+.hybrid-banner {
+    min-height: min(720px, calc(100vh - var(--header-height)));
+    border: 0;
+    border-radius: 0;
+    background-position: center;
+}
+
+.home-banner-carousel-track,
+.home-banner-carousel-track .hybrid-banner {
+    min-height: min(720px, calc(100vh - var(--header-height)));
+}
+
+.hybrid-banner::before {
+    background:
+        linear-gradient(90deg, rgba(255,255,255,.98) 0%, rgba(255,255,255,.90) 42%, rgba(255,255,255,.35) 74%, rgba(255,255,255,.08) 100%);
+}
+
+.hybrid-banner-overlay {
+    max-width: 740px;
+    padding: clamp(72px, 9vw, 146px) clamp(24px, 8vw, 96px);
+}
+
+.hybrid-eyebrow {
+    min-height: 34px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: #111827;
+    color: #fff;
+    font-size: .76rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+.hybrid-banner h1 {
+    font-size: clamp(2.85rem, 5.7vw, 5.6rem);
+    line-height: .98;
+    font-weight: 900;
+    color: #111827;
+    max-width: 760px;
+}
+
+.hybrid-banner h1 span {
+    color: var(--primary-color);
+}
+
+.hybrid-banner p {
+    max-width: 620px;
+    color: #374151;
+    font-size: clamp(1.04rem, 1.28vw, 1.32rem);
+    font-weight: 600;
+    line-height: 1.72;
+}
+
+.hybrid-banner-actions .btn {
+    min-height: 52px;
+    border-radius: 8px !important;
+    padding-inline: 28px !important;
+}
+
+#about .rounded-4,
+.home-product-card,
+.news-card,
+.news-list-card {
+    border-radius: 8px !important;
+    border: 1px solid #e5e7eb !important;
+    box-shadow: 0 12px 32px rgba(17,24,39,.07) !important;
+}
+
+#about .p-4 {
+    text-align: left;
+    padding: 30px !important;
+}
+
+#about i {
+    width: 54px;
+    height: 54px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff5f5;
+}
+
+#about h5,
+.home-product-card h5,
+.news-title {
+    font-weight: 900 !important;
+    color: #111827;
+}
+
+#products,
+.bg-light {
+    background: #f4f6f8 !important;
+}
+
+#products h2,
+#news h2,
+.news-page-heading h1 {
+    font-size: clamp(2rem, 3.4vw, 3.4rem);
+    font-weight: 900 !important;
+    letter-spacing: 0;
+}
+
+.divider-red {
+    width: 72px;
+    height: 4px;
+    background: var(--primary-color);
+    border-radius: 8px;
+}
+
+.section-kicker {
+    color: var(--primary-color);
+    font-size: .82rem;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+}
+
+.section-title {
+    font-size: clamp(2.1rem, 4vw, 4rem);
+    font-weight: 900;
+    line-height: 1.02;
+    max-width: 560px;
+}
+
+.section-lead {
+    color: #4b5563;
+    font-size: 1.08rem;
+    font-weight: 600;
+    line-height: 1.75;
+    max-width: 560px;
+}
+
+.tis-commitment-card {
+    min-height: 240px;
+    padding: 28px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 12px 32px rgba(17,24,39,.07);
+}
+
+.tis-commitment-card i {
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-color);
+    background: #fff5f5;
+    font-size: 1.35rem;
+    margin-bottom: 22px;
+}
+
+.tis-commitment-card h5 {
+    font-weight: 900;
+    margin-bottom: 12px;
+}
+
+.tis-commitment-card p {
+    color: #5f6875;
+    line-height: 1.68;
+    margin: 0;
+}
+
+.tis-metric-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #111827;
+    overflow: hidden;
+}
+
+.tis-metric-strip > div {
+    padding: 28px 24px;
+    border-right: 1px solid rgba(255,255,255,.12);
+}
+
+.tis-metric-strip > div:last-child {
+    border-right: 0;
+}
+
+.tis-metric-strip strong {
+    display: block;
+    color: #fff;
+    font-size: clamp(1.8rem, 3vw, 3rem);
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 10px;
+}
+
+.tis-metric-strip span {
+    color: #d1d5db;
+    font-weight: 700;
+}
+
+.product-audience-tabs .btn {
+    min-height: 44px;
+    border-radius: 8px !important;
+}
+
+.home-product-card {
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.home-product-card:hover,
+.news-card:hover,
+.news-list-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 22px 44px rgba(17,24,39,.12) !important;
+}
+
+.home-product-card .card-img-top,
+.news-img-wrapper {
+    border-radius: 0;
+}
+
+.home-product-card .badge,
+.news-list-card .badge {
+    border-radius: 6px !important;
+    font-weight: 850;
+}
+
+footer.footer-dark,
+footer {
+    background: #111827 !important;
+    color: #d1d5db;
+}
+
+footer h4,
+footer h5 {
+    font-weight: 900;
+}
+
+footer a {
+    font-weight: 700;
+}
+
+@media (max-width: 768px) {
+    .hybrid-banner {
+        min-height: 620px;
+    }
+
+    .hybrid-banner h1 {
+        font-size: clamp(2.4rem, 12vw, 3.6rem);
+    }
+
+    .home-banner-carousel-track,
+    .home-banner-carousel-track .hybrid-banner {
+        min-height: 620px;
+    }
+
+    .tis-metric-strip {
+        grid-template-columns: 1fr;
+    }
+
+    .tis-metric-strip > div {
+        border-right: 0;
+        border-bottom: 1px solid rgba(255,255,255,.12);
     }
 }

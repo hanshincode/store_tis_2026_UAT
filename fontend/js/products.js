@@ -266,7 +266,7 @@ function updateFilterTitle(count) {
     const categoryName = productFilters.category === 'all'
         ? 'Tất cả danh mục'
         : (allCategories.find(c => String(c.id) === String(productFilters.category))?.name || 'Danh mục đã chọn');
-    const targetName = productFilters.target === 'all' ? 'mọi đối tượng' : getTargetLabel(productFilters.target);
+    const targetName = productFilters.target === 'all' ? '' : getTargetLabel(productFilters.target);
 
     title.textContent = `${categoryName} · ${targetName} (${count})`;
 }

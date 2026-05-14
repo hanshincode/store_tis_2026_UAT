@@ -158,6 +158,7 @@ function renderAdminLayout(user) {
     if (mainContent) {
         mainContent.insertAdjacentHTML('afterbegin', topbarHtml);
     }
+    restrictStaffNavigation(user);
     
     // Thêm hiệu ứng hover bằng JS (hoặc CSS)
     const profileBtn = document.querySelector('.user-profile-btn');
@@ -165,6 +166,23 @@ function renderAdminLayout(user) {
         profileBtn.addEventListener('mouseenter', () => profileBtn.classList.add('bg-light'));
         profileBtn.addEventListener('mouseleave', () => profileBtn.classList.remove('bg-light'));
     }
+}
+
+function restrictStaffNavigation(user) {
+    if (!user || user.role !== 'staff') return;
+    [
+        'menu-products',
+        'menu-categories',
+        'menu-banners',
+        'menu-news',
+        'menu-accounts',
+        'menu-staff',
+        'menu-payment-settings',
+        'menu-enterprise-employees',
+    ].forEach(id => {
+        const link = document.getElementById(id);
+        link?.closest('li')?.remove();
+    });
 }
 
 /**

@@ -49,17 +49,55 @@ function initChatWidget() {
     let chatSocket = null;
     let reconnectTimer = null;
     let consultationId = localStorage.getItem('current_consultation_id');
+    let authenticatedCustomer = null;
     let customerName = localStorage.getItem('chat_customer_name') || "Khách hàng";
 
     // Lắng nghe sự kiện toàn cục
     attachEventListeners();
 
     // Kiểm tra trạng thái phiên làm việc khi load trang
-    checkCurrentSession();
+    loadAuthenticatedCustomer().then(() => checkCurrentSession());
 
     // =========================================================
     // CÁC HÀM XỬ LÝ SỰ KIỆN (EVENTS)
     // =========================================================
+    async function loadAuthenticatedCustomer() {
+        if (!getAccessToken()) return null;
+        try {
+            const user = await fetchAPI('/users/me/');
+            if (user?.role === 'customer') {
+                authenticatedCustomer = user;
+                customerName = getAuthenticatedCustomerName(user);
+                localStorage.setItem('chat_customer_name', customerName);
+                fillAuthenticatedCustomerForm(user);
+            }
+        } catch (e) {
+            authenticatedCustomer = null;
+        }
+        return authenticatedCustomer;
+    }
+
+    function getAuthenticatedCustomerName(user) {
+        return user.company_name
+            || user.full_name
+            || `${user.last_name || ''} ${user.first_name || ''}`.trim()
+            || user.username
+            || user.phone
+            || 'Khách hàng';
+    }
+
+    function fillAuthenticatedCustomerForm(user) {
+        const nameInput = document.getElementById('chat-customer-name');
+        const phoneInput = document.getElementById('chat-customer-phone');
+        if (nameInput) nameInput.value = getAuthenticatedCustomerName(user);
+        if (phoneInput) phoneInput.value = user.phone || user.email || '';
+    }
+
+    function isWidgetOpen() {
+        const widgetWindow = document.getElementById('chat-widget-window');
+        return Boolean(widgetWindow && !widgetWindow.classList.contains('d-none'));
+    }
+
     function attachEventListeners() {
         document.addEventListener('click', handleClicks);
         document.addEventListener('submit', handleForms);
@@ -163,6 +201,7 @@ function initChatWidget() {
 
             chatSocket.send(JSON.stringify({
                 message: '',
+                sender_id: authenticatedCustomer?.id,
                 sender_name: customerName,
                 is_staff: false,
                 attachment_url: data.attachment_url,
@@ -185,6 +224,10 @@ function initChatWidget() {
         if (!startForm) return;
 
         e.preventDefault();
+        if (authenticatedCustomer) {
+            await startAuthenticatedChat();
+            return;
+        }
 
         const name = document.getElementById('chat-customer-name')?.value.trim();
         const phone = validateVietnamPhoneInput(document.getElementById('chat-customer-phone'), 'Vui lòng nhập số điện thoại Việt Nam hợp lệ để bắt đầu chat.');
@@ -206,7 +249,10 @@ function initChatWidget() {
 
             const res = await fetch(apiUrl('/consultations/'), {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {})
+                },
                 body: JSON.stringify(payloadData)
             });
 
@@ -254,17 +300,58 @@ function initChatWidget() {
                 connectWebSocket(consultationId);
                 fetchChatHistory(consultationId);
             }
+        } else if (authenticatedCustomer && isWidgetOpen()) {
+            formView.classList.add('d-none');
+            conversationView.classList.remove('d-none');
+            conversationView.classList.add('d-flex');
+            startAuthenticatedChat();
         } else {
+            if (authenticatedCustomer) fillAuthenticatedCustomerForm(authenticatedCustomer);
             formView.classList.remove('d-none');
             conversationView.classList.add('d-none');
             conversationView.classList.remove('d-flex');
         }
     }
 
+    async function startAuthenticatedChat() {
+        if (consultationId || !authenticatedCustomer) return;
+        const msgBox = document.getElementById('chat-widget-messages');
+        if (msgBox) {
+            msgBox.innerHTML = '<div class="text-center text-muted small my-2">Đang kết nối tư vấn...</div>';
+        }
+
+        try {
+            const note = document.getElementById('chat-customer-note')?.value.trim() || 'Tư vấn trực tuyến';
+            const data = await fetchAPI('/consultations/', 'POST', {
+                customer_name: getAuthenticatedCustomerName(authenticatedCustomer),
+                customer_contact: authenticatedCustomer.phone || authenticatedCustomer.email || '',
+                note,
+                status: 'new'
+            });
+
+            if (data.id) {
+                consultationId = String(data.id);
+                customerName = getAuthenticatedCustomerName(authenticatedCustomer);
+                localStorage.setItem('current_consultation_id', consultationId);
+                localStorage.setItem('chat_customer_name', customerName);
+                checkCurrentSession();
+            }
+        } catch (err) {
+            console.error(err);
+            consultationId = null;
+            const formView = document.getElementById('chat-widget-form');
+            const conversationView = document.getElementById('chat-widget-conversation');
+            formView?.classList.remove('d-none');
+            conversationView?.classList.add('d-none');
+            alert('Không thể bắt đầu chat. Vui lòng thử lại sau.');
+        }
+    }
+
     function connectWebSocket(id) {
         if (chatSocket) chatSocket.close();
         
-        const wsUrl = websocketUrl(`/ws/chat/${id}/`);
+        const token = getAccessToken();
+        const wsUrl = websocketUrl(`/ws/chat/${id}/${token ? `?token=${encodeURIComponent(token)}` : ''}`);
         chatSocket = new WebSocket(wsUrl);
 
         chatSocket.onopen = () => console.log("WebSocket Widget Đã kết nối");
@@ -298,7 +385,9 @@ function initChatWidget() {
 
     async function fetchChatHistory(id) {
         try {
-            const res = await fetch(apiUrl(`/consultations/${id}/messages/`));
+            const res = await fetch(apiUrl(`/consultations/${id}/messages/`), {
+                headers: getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}
+            });
             if (!res.ok) return;
 
             const msgs = await res.json();
@@ -390,6 +479,7 @@ function initChatWidget() {
         if (text && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
             chatSocket.send(JSON.stringify({
                 message: text,
+                sender_id: authenticatedCustomer?.id,
                 sender_name: customerName,
                 is_staff: false
             }));
