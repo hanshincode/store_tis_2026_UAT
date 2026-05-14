@@ -4,13 +4,60 @@ from django.utils.html import strip_tags
 from django.utils import timezone
 from .models import (
     User, Product, ProductImage, ProductPackage, 
-    Order, OrderItem, EnterpriseEmployee, ChatMessage,
-    CartItem, ConsultationRequest, News, Category, Banner
+    Order, OrderItem, EnterpriseEmployee, EmployeeInsurance, ChatMessage,
+    CartItem, ConsultationRequest, News, Category, Banner, BannerSlide,
+    PaymentSetting, CategorySubjectField, OrderItemSubject
 )
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
 from django.contrib.auth import authenticate
+import re
+import json
+
+
+def normalize_vietnam_phone(value):
+    phone = re.sub(r'[\s().-]+', '', (value or '').strip())
+    if phone.startswith('+84'):
+        phone = f"0{phone[3:]}"
+    elif phone.startswith('84'):
+        phone = f"0{phone[2:]}"
+    return phone
+
+
+def validate_vietnam_phone(value):
+    phone = normalize_vietnam_phone(value)
+    if not re.fullmatch(r'0(3|5|7|8|9)\d{8}', phone):
+        raise serializers.ValidationError("Số điện thoại không đúng định dạng Việt Nam.")
+    return phone
+
+
+def format_chat_preview(content, attachment_url=''):
+    if content:
+        value = str(content).strip()
+        for _ in range(2):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, dict) and parsed.get('kind') == 'video_call':
+                    status = parsed.get('status')
+                    seconds = max(0, int(parsed.get('duration_seconds') or 0))
+                    if status == 'ended':
+                        minutes, rest = divmod(seconds, 60)
+                        duration = f"{minutes} phút {rest} giây" if minutes else f"{rest} giây"
+                        return f"Cuộc gọi video đã kết thúc · {duration}"
+                    if status == 'rejected':
+                        return "Cuộc gọi video đã bị từ chối"
+                    if status == 'missed':
+                        return "Cuộc gọi video nhỡ"
+                    return "Cuộc gọi video"
+                if isinstance(parsed, str):
+                    value = parsed
+                    continue
+            except (TypeError, ValueError, json.JSONDecodeError):
+                pass
+            break
+        return value.replace('[Tá»‡p Ä‘Ã­nh kÃ¨m]', '[Tệp đính kèm]')
+    return "[Tệp đính kèm]" if attachment_url else ''
 
 
 # --- 1. USER & AUTH SERIALIZERS ---
@@ -31,7 +78,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         }
 
     def validate_phone(self, value):
-        phone = (value or '').strip()
+        phone = validate_vietnam_phone(value)
         if not phone:
             raise serializers.ValidationError("Vui lòng nhập số điện thoại.")
         if User.objects.filter(phone=phone).exists():
@@ -95,11 +142,44 @@ class PhoneTokenObtainPairSerializer(TokenObtainPairSerializer):
             'refresh': str(refresh),
             'access': str(refresh.access_token)
         }
+class EmployeeInsuranceSerializer(serializers.ModelSerializer):
+    employee_name = serializers.CharField(source='employee.full_name', read_only=True)
+    employee_phone = serializers.CharField(source='employee.phone', read_only=True)
+    enterprise_name = serializers.SerializerMethodField()
+    order_code = serializers.CharField(source='order.code', read_only=True)
+    product_name = serializers.SerializerMethodField()
+    package_name = serializers.CharField(source='package.duration_label', read_only=True)
+    category_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EmployeeInsurance
+        fields = '__all__'
+
+    def get_enterprise_name(self, obj):
+        enterprise = obj.employee.enterprise
+        return enterprise.company_name or enterprise.get_full_name() or enterprise.username
+
+    def get_product_name(self, obj):
+        package = obj.package or (obj.order_item.package if obj.order_item else None)
+        return package.product.name if package else ''
+
+    def get_category_name(self, obj):
+        package = obj.package or (obj.order_item.package if obj.order_item else None)
+        return package.product.category.name if package and package.product.category else ''
+
+
 class EnterpriseEmployeeSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    enterprise_name = serializers.SerializerMethodField()
+    coverages = EmployeeInsuranceSerializer(many=True, read_only=True)
+
     class Meta:
         model = EnterpriseEmployee
         fields = '__all__'
-        read_only_fields = ['enterprise']
+        read_only_fields = ['enterprise', 'user']
+
+    def get_enterprise_name(self, obj):
+        return obj.enterprise.company_name or obj.enterprise.get_full_name() or obj.enterprise.username
 
 # --- 2. PRODUCT SERIALIZERS ---
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -146,6 +226,11 @@ class ProductSerializer(serializers.ModelSerializer):
             return strip_tags(value)
         return value
 
+    def validate_short_description_en(self, value):
+        if value:
+            return strip_tags(value)
+        return value
+
     def create(self, validated_data):
         # TÃ¡ch cÃ¡c dá»¯ liá»‡u khÃ´ng thuá»™c báº£ng Product
         price = validated_data.pop('base_price', None)
@@ -158,7 +243,7 @@ class ProductSerializer(serializers.ModelSerializer):
         if price and price > 0 and not product.is_price_hidden:
             ProductPackage.objects.create(
                 product=product,
-                duration_label="1 NÄƒm",
+                duration_label="1 Năm",
                 duration_days=365,
                 price=price
             )
@@ -192,7 +277,7 @@ class ProductSerializer(serializers.ModelSerializer):
                 # Náº¿u chÆ°a cÃ³ gÃ³i nÃ o thÃ¬ táº¡o má»›i
                 ProductPackage.objects.create(
                     product=instance,
-                    duration_label="1 NÄƒm",
+                    duration_label="1 Năm",
                     duration_days=365,
                     price=price
                 )
@@ -213,17 +298,61 @@ class ProductSerializer(serializers.ModelSerializer):
             data.pop('provider_name', None)
         return data
 
+class CategorySubjectFieldSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CategorySubjectField
+        fields = ['id', 'label', 'field_key', 'field_type', 'is_required', 'help_text', 'sort_order']
+        extra_kwargs = {'field_key': {'required': False, 'allow_blank': True}}
+
+
 class CategorySerializer(serializers.ModelSerializer):
+    subject_fields = CategorySubjectFieldSerializer(many=True, required=False)
+
     class Meta:
         model = Category
         fields = '__all__'
         extra_kwargs = {'slug': {'required': False}}
 
     def create(self, validated_data):
+        subject_fields = validated_data.pop('subject_fields', [])
         if 'name' in validated_data and 'slug' not in validated_data:
             from django.utils.text import slugify
             validated_data['slug'] = slugify(validated_data['name'])
-        return super().create(validated_data)
+        category = super().create(validated_data)
+        self._save_subject_fields(category, subject_fields)
+        return category
+
+    def update(self, instance, validated_data):
+        subject_fields = validated_data.pop('subject_fields', None)
+        category = super().update(instance, validated_data)
+        if subject_fields is not None:
+            category.subject_fields.all().delete()
+            self._save_subject_fields(category, subject_fields)
+        return category
+
+    def _save_subject_fields(self, category, fields):
+        from django.utils.text import slugify
+        used_keys = set()
+        for index, field in enumerate(fields or []):
+            label = (field.get('label') or '').strip()
+            if not label:
+                continue
+            base_key = slugify(field.get('field_key') or label) or f"field-{index + 1}"
+            field_key = base_key
+            suffix = 2
+            while field_key in used_keys:
+                field_key = f"{base_key}-{suffix}"
+                suffix += 1
+            used_keys.add(field_key)
+            CategorySubjectField.objects.create(
+                category=category,
+                label=label,
+                field_key=field_key,
+                field_type=field.get('field_type') or 'text',
+                is_required=field.get('is_required', True),
+                help_text=field.get('help_text') or '',
+                sort_order=field.get('sort_order', index),
+            )
 
 # --- 3. CART & ORDER SERIALIZERS ---
 from rest_framework import serializers
@@ -232,7 +361,8 @@ from .models import CartItem
 class CartItemSerializer(serializers.ModelSerializer):
     package_name = serializers.CharField(source='package.duration_label', read_only=True)
     product_name = serializers.CharField(source='package.product.name', read_only=True)
-    price = serializers.DecimalField(source='package.price', max_digits=15, decimal_places=0, read_only=True)
+    price = serializers.DecimalField(source='effective_price', max_digits=15, decimal_places=0, read_only=True)
+    package_price = serializers.DecimalField(source='package.price', max_digits=15, decimal_places=0, read_only=True)
     image = serializers.SerializerMethodField()
     subtotal = serializers.SerializerMethodField()
 
@@ -252,26 +382,40 @@ class CartItemSerializer(serializers.ModelSerializer):
     
     
     
+class OrderItemSubjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderItemSubject
+        fields = ['id', 'index', 'label', 'data', 'created_at', 'updated_at']
+
+
 class OrderItemSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    package = serializers.IntegerField(source='package.id', read_only=True)
     product_name = serializers.CharField(source='package.product.name', read_only=True)
     category_name = serializers.CharField(source='package.product.category.name', read_only=True)
     duration = serializers.CharField(source='package.duration_label', read_only=True)
     price = serializers.DecimalField(source='package.price', max_digits=15, decimal_places=0, read_only=True)
     subtotal = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
+    subject_fields = serializers.SerializerMethodField()
+    subjects = OrderItemSubjectSerializer(many=True, read_only=True)
 
     class Meta:
         model = OrderItem
-        fields = ['product_name', 'category_name', 'duration', 'quantity', 'price', 'subtotal', 'image']
+        fields = ['id', 'package', 'product_name', 'category_name', 'duration', 'quantity', 'price', 'package_price', 'unit_price', 'subtotal', 'image', 'subject_fields', 'subjects']
 
     def get_subtotal(self, obj):
-        return obj.package.price * obj.quantity
+        return obj.effective_price * obj.quantity
 
     def get_image(self, obj):
         first_image = obj.package.product.images.first()
         if first_image and first_image.image:
             return first_image.image.url
         return None
+
+    def get_subject_fields(self, obj):
+        fields = obj.package.product.category.subject_fields.all()
+        return CategorySubjectFieldSerializer(fields, many=True).data
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
@@ -283,6 +427,10 @@ class OrderSerializer(serializers.ModelSerializer):
     payment_expires_at_formatted = serializers.SerializerMethodField()
     payment_remaining_seconds = serializers.SerializerMethodField()
     payment_qr_payload = serializers.SerializerMethodField()
+    payment_qr_url = serializers.SerializerMethodField()
+    payment_description = serializers.SerializerMethodField()
+    payment_bank = serializers.SerializerMethodField()
+    payment_timeout_minutes = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
@@ -294,7 +442,7 @@ class OrderSerializer(serializers.ModelSerializer):
     def get_payment_expires_at_formatted(self, obj):
         if not obj.payment_expires_at:
             return None
-        return obj.payment_expires_at.strftime("%d/%m/%Y %H:%M")
+        return timezone.localtime(obj.payment_expires_at).strftime("%d/%m/%Y %H:%M")
 
     def get_payment_remaining_seconds(self, obj):
         if not obj.payment_expires_at or obj.payment_status != 'unpaid':
@@ -304,6 +452,68 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def get_payment_qr_payload(self, obj):
         return f"TIS|{obj.code}|{int(obj.total_amount)}|{obj.payment_reference or obj.code}"
+
+    def get_payment_qr_url(self, obj):
+        return PaymentSetting.get_solo().build_qr_url(obj)
+
+    def get_payment_description(self, obj):
+        return obj.code
+
+    def get_payment_bank(self, obj):
+        setting = PaymentSetting.get_solo()
+        if not setting.is_configured:
+            return None
+        return {
+            "bank_id": setting.bank_id,
+            "account_no": setting.account_no,
+            "account_name": setting.account_name,
+            "template": setting.template,
+        }
+
+    def get_payment_timeout_minutes(self, obj):
+        return PaymentSetting.get_solo().payment_timeout_minutes
+
+
+class PaymentSettingSerializer(serializers.ModelSerializer):
+    is_configured = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = PaymentSetting
+        fields = [
+            'id', 'bank_id', 'account_no', 'account_name', 'template',
+            'payment_timeout_minutes', 'is_active', 'is_configured', 'updated_at'
+        ]
+        read_only_fields = ['id', 'updated_at', 'is_configured']
+
+    def validate_bank_id(self, value):
+        value = (value or '').strip().upper()
+        if not value:
+            raise serializers.ValidationError("Vui lòng nhập mã ngân hàng VietQR.")
+        return value
+
+    def validate_account_no(self, value):
+        value = ''.join(ch for ch in str(value or '').strip().upper() if ch.isalnum())
+        if not value:
+            raise serializers.ValidationError("Vui lòng nhập số tài khoản nhận tiền.")
+        return value
+
+    def validate_account_name(self, value):
+        value = (value or '').strip()
+        if not value:
+            raise serializers.ValidationError("Vui lòng nhập tên chủ tài khoản.")
+        return value
+
+    def validate_template(self, value):
+        return (value or 'compact2').strip()
+
+    def validate_payment_timeout_minutes(self, value):
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            raise serializers.ValidationError("Thời hạn QR không hợp lệ.")
+        if value < 1 or value > 1440:
+            raise serializers.ValidationError("Thời hạn QR phải từ 1 đến 1440 phút.")
+        return value
 
 # --- 4. CHAT & NEWS SERIALIZERS ---
 # backend/api/serializers.py
@@ -350,14 +560,12 @@ class ConsultationRequestSerializer(serializers.ModelSerializer):
     def get_last_message(self, obj):
         last_msg = obj.messages.last()
         if last_msg:
-            # Náº¿u tin nháº¯n trá»‘ng nhÆ°ng cÃ³ file Ä‘Ã­nh kÃ¨m
-            content = last_msg.message
-            if not content and (last_msg.attachment or last_msg.attachment_url):
-                content = "[Tá»‡p Ä‘Ã­nh kÃ¨m]"
-            
+            attachment_url = last_msg.attachment_url or (last_msg.attachment.url if last_msg.attachment else '')
             return {
-                "message": content,
+                "message": format_chat_preview(last_msg.message, attachment_url),
+                "attachment_url": attachment_url,
                 "time": last_msg.created_at.strftime("%H:%M"),
+                "created_at": last_msg.created_at.isoformat(),
                 "is_staff": last_msg.is_staff_reply
             }
         return None
@@ -367,7 +575,16 @@ class NewsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class BannerSlideSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BannerSlide
+        fields = '__all__'
+        read_only_fields = ['banner']
+
+
 class BannerSerializer(serializers.ModelSerializer):
+    slides = BannerSlideSerializer(many=True, read_only=True)
+
     class Meta:
         model = Banner
         fields = '__all__'
@@ -385,10 +602,35 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'role', 'first_name', 'last_name',
             'full_name', 'avatar', 'is_superuser', 'is_staff', 'is_active',
-            'phone', 'user_type', 'company_name'
+            'phone', 'user_type', 'company_name', 'tax_code', 'cccd', 'address',
+            'specialization', 'email_verified', 'preferred_language', 'date_joined', 'last_login'
         ]
-        read_only_fields = ['id', 'username', 'role', 'is_superuser', 'is_staff', 'is_active']
+        read_only_fields = ['id', 'username', 'role', 'is_superuser', 'is_staff', 'is_active', 'date_joined', 'last_login']
 
     def get_full_name(self, obj):
         return obj.get_full_name() or obj.username
 
+    def validate_phone(self, value):
+        if not value:
+            return value
+        phone = validate_vietnam_phone(value)
+        queryset = User.objects.filter(phone=phone)
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise serializers.ValidationError("Số điện thoại này đã được sử dụng cho tài khoản khác.")
+        return phone
+
+    def validate_email(self, value):
+        email = (value or '').strip().lower()
+        if not email:
+            return email
+        queryset = User.objects.filter(email__iexact=email)
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise serializers.ValidationError("Email này đã được sử dụng cho tài khoản khác.")
+        role = getattr(self.instance, 'role', None) or self.initial_data.get('role')
+        if role in ['admin', 'staff', 'super_admin'] and not email.endswith('@tisbroker.com'):
+            raise serializers.ValidationError("Nhân viên/Admin phải sử dụng email @tisbroker.com.")
+        return email

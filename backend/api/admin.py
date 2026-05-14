@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     User, Product, Category, ProductImage, ProductPackage, 
     Order, OrderItem, News, EnterpriseEmployee, 
-    ConsultationRequest, ChatMessage, Banner
+    ConsultationRequest, ChatMessage, Banner, PaymentSetting
 )
 
 # Config hiển thị User
@@ -44,12 +44,20 @@ class OrderAdmin(admin.ModelAdmin):
     inlines = [OrderItemInline]
     readonly_fields = ('total_amount', 'code', 'user')
 
+
+class PaymentSettingAdmin(admin.ModelAdmin):
+    list_display = ('bank_id', 'account_no', 'account_name', 'template', 'payment_timeout_minutes', 'is_active', 'updated_at')
+
+    def has_add_permission(self, request):
+        return not PaymentSetting.objects.exists()
+
 # Đăng ký các model
 admin.site.register(User, UserAdmin)
 admin.site.register(Category)
 admin.site.register(Product, ProductAdmin)
 admin.site.register(News)
 admin.site.register(Banner)
+admin.site.register(PaymentSetting, PaymentSettingAdmin)
 admin.site.register(Order, OrderAdmin)
 admin.site.register(EnterpriseEmployee)
 admin.site.register(ConsultationRequest)

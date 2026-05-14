@@ -1,6 +1,8 @@
-from django.db import models
+﻿from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
+from datetime import timedelta
+import uuid
 
 from django.core.exceptions import ValidationError
 
@@ -16,6 +18,10 @@ class User(AbstractUser):
     USER_TYPE_CHOICES = (
         ('individual', 'Cá nhân'), 
         ('enterprise', 'Doanh nghiệp')
+    )
+    LANGUAGE_CHOICES = (
+        ('vi', 'Tiếng Việt'),
+        ('en', 'English'),
     )
     # Các loại bảo hiểm staff phụ trách 
     STAFF_SPECIALIZATION = (
@@ -40,6 +46,7 @@ class User(AbstractUser):
     # Info Staff
     specialization = models.CharField(max_length=20, choices=STAFF_SPECIALIZATION, null=True, blank=True)
     user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES, null=True, blank=True)
+    preferred_language = models.CharField(max_length=5, choices=LANGUAGE_CHOICES, default='vi')
     email_verified = models.BooleanField(default=False)
     email_verification_otp = models.CharField(max_length=6, blank=True)
     email_verification_token = models.CharField(max_length=64, blank=True)
@@ -57,13 +64,49 @@ class User(AbstractUser):
             super().save(*args, **kwargs)
 
 class EnterpriseEmployee(models.Model):
-    """Nhân viên do doanh nghiệp add vào để thụ hưởng bảo hiểm """
+    """Nhân viên thuộc doanh nghiệp và có thể được gắn quyền lợi bảo hiểm."""
     enterprise = models.ForeignKey(User, on_delete=models.CASCADE, related_name='employees')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='enterprise_memberships')
     full_name = models.CharField(max_length=255)
     phone = models.CharField(max_length=15, blank=True)
     email = models.EmailField(blank=True)
     address = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('enterprise', 'phone')
+
+    def __str__(self):
+        return f"{self.full_name} - {self.enterprise.company_name or self.enterprise.username}"
+
+
+class EmployeeInsurance(models.Model):
+    employee = models.ForeignKey(EnterpriseEmployee, on_delete=models.CASCADE, related_name='coverages')
+    order = models.ForeignKey('Order', on_delete=models.SET_NULL, null=True, blank=True, related_name='employee_coverages')
+    order_item = models.ForeignKey('OrderItem', on_delete=models.SET_NULL, null=True, blank=True, related_name='employee_coverages')
+    package = models.ForeignKey('ProductPackage', on_delete=models.SET_NULL, null=True, blank=True, related_name='employee_coverages')
+    start_date = models.DateField(default=timezone.localdate)
+    end_date = models.DateField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=(('active', 'Đang hiệu lực'), ('expired', 'Hết hạn'), ('cancelled', 'Đã hủy')),
+        default='active'
+    )
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if self.order_item and not self.package:
+            self.package = self.order_item.package
+        if self.order_item and not self.order:
+            self.order = self.order_item.order
+        if self.package and not self.end_date:
+            self.end_date = self.start_date + timedelta(days=self.package.duration_days)
+        super().save(*args, **kwargs)
 
 # --- 2. PRODUCTS & NEWS ---
 class Category(models.Model):
@@ -72,12 +115,40 @@ class Category(models.Model):
     # Mapping với staff specialization
     specialization_code = models.CharField(max_length=20, choices=User.STAFF_SPECIALIZATION) 
 
+
+class CategorySubjectField(models.Model):
+    FIELD_TYPE_CHOICES = (
+        ('text', 'Text'),
+        ('number', 'Number'),
+        ('date', 'Date'),
+        ('textarea', 'Textarea'),
+        ('file', 'Upload file'),
+    )
+
+    category = models.ForeignKey(Category, related_name='subject_fields', on_delete=models.CASCADE)
+    label = models.CharField(max_length=150)
+    field_key = models.SlugField(max_length=120)
+    field_type = models.CharField(max_length=20, choices=FIELD_TYPE_CHOICES, default='text')
+    is_required = models.BooleanField(default=True)
+    help_text = models.CharField(max_length=255, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        unique_together = ('category', 'field_key')
+
+    def __str__(self):
+        return f"{self.category.name} - {self.label}"
+
 class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
+    name_en = models.CharField(max_length=255, blank=True, null=True)
     provider_name = models.CharField(max_length=255) # Tên đơn vị cung cấp (Sensitive) 
     short_description = models.TextField(blank=True, null=True) # Detail Base (chỉ text)
+    short_description_en = models.TextField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)       # Detail Final (CKEditor)
+    description_en = models.TextField(blank=True, null=True)
     is_featured = models.BooleanField(default=False) # Sản phẩm nổi bật 
     is_price_hidden = models.BooleanField(default=False, verbose_name="Giá liên hệ")
     target_audience = models.CharField(max_length=10, choices=(('ind', 'Cá nhân'), ('ent', 'Doanh nghiệp')))
@@ -117,6 +188,7 @@ class Banner(models.Model):
         ('single_left', '1 banner - chữ bên trái'),
         ('single_center', '1 banner - chữ giữa'),
         ('triple_grid', '3 banner - lưới chiến dịch'),
+        ('carousel', 'Slider nhiều banner'),
         ('custom_html', 'Custom HTML/CSS overlay'),
     )
 
@@ -141,7 +213,79 @@ class Banner(models.Model):
     def __str__(self):
         return self.title
 
+
+class BannerSlide(models.Model):
+    banner = models.ForeignKey(Banner, on_delete=models.CASCADE, related_name='slides')
+    title = models.CharField(max_length=255)
+    subtitle = models.CharField(max_length=255, blank=True)
+    image = models.ImageField(upload_to='banners/slides/')
+    button_text = models.CharField(max_length=80, blank=True)
+    button_link = models.CharField(max_length=255, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return self.title
+
 # --- 3. ORDER & CART ---
+class PaymentSetting(models.Model):
+    bank_id = models.CharField(max_length=30, verbose_name="Mã ngân hàng VietQR")
+    account_no = models.CharField(max_length=50, verbose_name="Số tài khoản nhận tiền")
+    account_name = models.CharField(max_length=255, verbose_name="Tên chủ tài khoản")
+    template = models.CharField(max_length=30, default="compact2", verbose_name="Mẫu QR")
+    payment_timeout_minutes = models.PositiveSmallIntegerField(default=15, verbose_name="Thời hạn QR (phút)")
+    is_active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Cấu hình thanh toán VietQR"
+        verbose_name_plural = "Cấu hình thanh toán VietQR"
+
+    def __str__(self):
+        return f"{self.bank_id} - {self.account_no}"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(pk=1, defaults={
+            "bank_id": "",
+            "account_no": "",
+            "account_name": "",
+            "template": "compact2",
+            "payment_timeout_minutes": 15,
+            "is_active": False,
+        })
+        return obj
+
+    @property
+    def is_configured(self):
+        return self.is_active and self.bank_id and self.account_no and self.account_name
+
+    def build_qr_url(self, order):
+        from urllib.parse import quote, urlencode
+
+        if not self.is_configured:
+            return ""
+        path = "-".join([
+            quote(str(self.bank_id).strip(), safe=""),
+            quote(str(self.account_no).strip(), safe=""),
+            quote(str(self.template or "compact2").strip(), safe=""),
+        ])
+        query = urlencode({
+            "amount": int(order.total_amount or 0),
+            "addInfo": order.code,
+            "accountName": self.account_name.strip(),
+        })
+        return f"https://img.vietqr.io/image/{path}.png?{query}"
+
+
 class Order(models.Model):
     STATUS_CHOICES = (
         ('awaiting_payment', 'Chờ thanh toán'),
@@ -163,6 +307,7 @@ class Order(models.Model):
     payment_expires_at = models.DateTimeField(null=True, blank=True)
     payment_paid_at = models.DateTimeField(null=True, blank=True)
     payment_reference = models.CharField(max_length=50, blank=True)
+    payment_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     total_amount = models.DecimalField(max_digits=15, decimal_places=0)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -184,6 +329,27 @@ class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
     package = models.ForeignKey(ProductPackage, on_delete=models.CASCADE)
     quantity = models.IntegerField(default=1)
+    unit_price = models.DecimalField(max_digits=15, decimal_places=0, null=True, blank=True)
+
+    @property
+    def effective_price(self):
+        return self.unit_price if self.unit_price is not None else self.package.price
+
+
+class OrderItemSubject(models.Model):
+    order_item = models.ForeignKey(OrderItem, related_name='subjects', on_delete=models.CASCADE)
+    index = models.PositiveIntegerField(default=1)
+    label = models.CharField(max_length=150, blank=True)
+    data = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['index', 'id']
+        unique_together = ('order_item', 'index')
+
+    def __str__(self):
+        return self.label or f"Đối tượng {self.index}"
     
 class Cart(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -320,3 +486,4 @@ class ChatMessage(models.Model):
             msg_preview = "[Tin nhắn trống]"
             
         return f"[{self.created_at.strftime('%H:%M %d/%m')}] {sender_name}: {msg_preview}"
+
