@@ -5,7 +5,7 @@
  */
 
 // --- 1. CẤU HÌNH HỆ THỐNG ---
-const DEFAULT_API_DOMAIN = 'http://100.11.22.33:8080';
+const DEFAULT_API_DOMAIN = 'http://100.96.50.61:8000';
 
 const DOMAIN = DEFAULT_API_DOMAIN;
 const API_BASE_URL = `${DOMAIN}/api`;
