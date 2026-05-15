@@ -1,19 +1,55 @@
 import json
+from urllib.parse import parse_qs
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from api.models import ConsultationRequest, ChatMessage, User
 from django.utils import timezone
+from rest_framework_simplejwt.tokens import AccessToken
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.consultation_id = self.scope['url_route']['kwargs']['consultation_id']
         self.room_group_name = f'chat_{self.consultation_id}'
+        self.scope_user = await self.get_token_user()
+
+        if self.scope_user and not await self.user_can_access_room(self.scope_user):
+            await self.close(code=4403)
+            return
 
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
         await self.accept()
+
+    @database_sync_to_async
+    def get_token_user(self):
+        query = parse_qs((self.scope.get('query_string') or b'').decode())
+        token = (query.get('token') or [''])[0]
+        if not token:
+            return None
+        try:
+            access = AccessToken(token)
+            return User.objects.filter(id=access.get('user_id'), is_active=True).first()
+        except Exception:
+            return None
+
+    @database_sync_to_async
+    def user_can_access_room(self, user):
+        if user.is_superuser or user.role in ['super_admin', 'admin']:
+            return True
+        try:
+            consultation = ConsultationRequest.objects.get(id=self.consultation_id)
+        except ConsultationRequest.DoesNotExist:
+            return False
+        if user.role == 'staff':
+            return consultation.processor_id == user.id or consultation.assigned_staff_id == user.id
+        if user.role == 'leader':
+            category_id = consultation.category_id or (consultation.product.category_id if consultation.product_id else None)
+            if not category_id:
+                return False
+            return user.specialized_categories.filter(id=category_id).exists()
+        return consultation.user_id == user.id
 
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(
@@ -117,6 +153,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 sender = User.objects.get(id=sender_id)
             except User.DoesNotExist:
                 pass
+
+        if sender and is_staff:
+            if sender.is_superuser or sender.role in ['super_admin', 'admin']:
+                pass
+            elif sender.role == 'leader':
+                category_id = consultation.category_id or (consultation.product.category_id if consultation.product_id else None)
+                if not category_id or not sender.specialized_categories.filter(id=category_id).exists():
+                    return None
+            elif sender.role == 'staff':
+                if consultation.processor_id != sender.id and consultation.assigned_staff_id != sender.id:
+                    return None
+            else:
+                return None
 
         # Tạo bản ghi
 # Tạo bản ghi (Đảm bảo model ChatMessage của bạn ĐÃ CÓ 2 trường này nhé)
