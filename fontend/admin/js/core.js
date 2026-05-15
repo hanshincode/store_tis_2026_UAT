@@ -33,12 +33,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const user = await fetchAPI('/users/me/');
 
-        const allowedRoles = ['super_admin', 'admin', 'staff'];
+        const allowedRoles = ['super_admin', 'admin', 'leader', 'staff'];
         const hasAccess = user.is_superuser || allowedRoles.includes(user.role);
 
         if (!hasAccess) {
             alert("Tài khoản của bạn không có quyền truy cập trang quản trị!");
             window.location.replace('../index.html');
+            return;
+        }
+
+        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+        if (['leader', 'staff'].includes(user.role) && currentPage === 'index.html') {
+            window.location.replace('consultations.html');
             return;
         }
 
@@ -169,8 +175,8 @@ function renderAdminLayout(user) {
 }
 
 function restrictStaffNavigation(user) {
-    if (!user || user.role !== 'staff') return;
-    [
+    if (!user || !['leader', 'staff'].includes(user.role)) return;
+    const hiddenForStaff = [
         'menu-products',
         'menu-categories',
         'menu-banners',
@@ -179,7 +185,20 @@ function restrictStaffNavigation(user) {
         'menu-staff',
         'menu-payment-settings',
         'menu-enterprise-employees',
-    ].forEach(id => {
+    ];
+    const hiddenForLeader = [
+        'menu-products',
+        'menu-categories',
+        'menu-banners',
+        'menu-news',
+        'menu-accounts',
+        'menu-staff',
+        'menu-payment-settings',
+        'menu-enterprise-employees',
+        'menu-orders',
+    ];
+    const ids = user.role === 'leader' ? hiddenForLeader : hiddenForStaff;
+    ids.forEach(id => {
         const link = document.getElementById(id);
         link?.closest('li')?.remove();
     });

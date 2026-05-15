@@ -1,12 +1,10 @@
 // js/auth-banner.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // ================= CẤU HÌNH =================
-    const ALBUM_PATH = 'images/album/'; // Thư mục chứa ảnh gốc
-    const SWITCH_TIME = 7000; // Thời gian chuyển mỗi ảnh (7000ms = 7 giây)
+    const ALBUM_PATH = 'images/album/';
+    const SWITCH_TIME = 7000;
+    const ACTIVE_IMAGE_LIMIT = 3;
 
-    // Danh sách toàn bộ ảnh đã được trích xuất từ thư mục của bạn
     const IMAGE_LIST = [
         'shutterstock_673842874.jpg',
         'shutterstock_660832780.jpg',
@@ -29,74 +27,52 @@ document.addEventListener('DOMContentLoaded', () => {
         'shutterstock_2445632105.jpg',
         'shutterstock_2631423457.jpg'
     ];
-    // ============================================
 
-    // 1. Tìm container chứa Slideshow
     const container = document.getElementById('banner-slideshow');
-    
-    // Nếu không tìm thấy container (ví dụ mở trang khác) hoặc không có ảnh thì dừng script
     if (!container || IMAGE_LIST.length === 0) return;
 
-    let slides = [];
+    const selectedImages = pickRandomImages(IMAGE_LIST, ACTIVE_IMAGE_LIMIT);
+    const slides = selectedImages.map(createSlide);
     let currentIdx = -1;
 
-    // 2. Khởi tạo các thẻ div chứa ảnh (chỉ chạy 1 lần lúc load trang)
-    function initSlides() {
-        IMAGE_LIST.forEach((filename) => {
-            const slide = document.createElement('div');
-            slide.className = 'banner-slide';
-            // Dùng CSS background-image để ảnh luôn phủ kín (cover) và không bị méo tỉ lệ
-            slide.style.backgroundImage = `url('${ALBUM_PATH}${filename}')`;
-            container.appendChild(slide);
-            slides.push(slide);
-        });
+    slides.forEach((slide) => container.appendChild(slide));
+
+    setTimeout(() => {
+        showNextSlide();
+        if (slides.length > 1) {
+            setInterval(showNextSlide, SWITCH_TIME);
+        }
+    }, 200);
+
+    function pickRandomImages(images, limit) {
+        return [...images]
+            .sort(() => Math.random() - 0.5)
+            .slice(0, Math.min(limit, images.length));
     }
 
-    // 3. Hàm chuyển đổi qua lại giữa các slide ngẫu nhiên
-    function showNextRandomSlide() {
+    function createSlide(filename) {
+        const slide = document.createElement('div');
+        slide.className = 'banner-slide';
+        slide.style.backgroundImage = `url('${ALBUM_PATH}${filename}')`;
+        return slide;
+    }
+
+    function showNextSlide() {
         let nextIdx;
-        
         do {
             nextIdx = Math.floor(Math.random() * slides.length);
         } while (slides.length > 1 && nextIdx === currentIdx);
 
-        // XỬ LÝ ẢNH CŨ (Đang mờ dần)
         if (currentIdx >= 0) {
             const oldSlide = slides[currentIdx];
-            oldSlide.classList.remove('active'); // Bắt đầu mờ đi từ từ (tốn 2.5s)
-            
-            // TRICK CHỐNG GIẬT: Đợi đúng 2.5 giây cho ảnh cũ mờ hẳn (tàng hình)
-            // rồi mới gỡ hiệu ứng zoom của nó ra để tái sử dụng.
-            setTimeout(() => {
-                oldSlide.classList.remove('zooming');
-            }, 2500); 
+            oldSlide.classList.remove('active');
+            setTimeout(() => oldSlide.classList.remove('zooming'), 2500);
         }
 
-    // Tạo slide mới ngay tại thời điểm cần dùng (Lazy Load)
-        const newSlide = document.createElement('div');
-        newSlide.className = 'banner-slide zooming';
-        newSlide.style.backgroundImage = `url('${ALBUM_PATH}${IMAGE_LIST[nextIdx]}')`;
-        container.appendChild(newSlide);
-
-        setTimeout(() => {
-            newSlide.classList.add('active');
-            
-            // Xóa slide cũ sau khi tấm mới đã hiện đè lên hoàn toàn
-            if (container.children.length > 2) {
-                container.removeChild(container.children[0]);
-            }
-        }, 50);
+        const nextSlide = slides[nextIdx];
+        nextSlide.classList.remove('zooming');
+        void nextSlide.offsetWidth;
+        nextSlide.classList.add('active', 'zooming');
+        currentIdx = nextIdx;
     }
-
-    // --- KHỞI CHẠY HỆ THỐNG ---
-    initSlides(); // Nạp sẵn bộ khung HTML của tất cả các ảnh
-    
-    // Đợi 200ms để CSS kịp tải xong rồi mới hiện tấm ảnh đầu tiên (tránh bị giật chớp đen)
-    setTimeout(() => {
-        showNextRandomSlide(); 
-        
-        // Đặt lịch lặp lại vòng tuần hoàn chuyển ảnh
-        setInterval(showNextRandomSlide, SWITCH_TIME); 
-    }, 200);
-
 });

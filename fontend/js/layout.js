@@ -149,7 +149,7 @@ async function checkAuth() {
             
             // Menu quyền quản trị
             let roleMenu = '';
-            if (['admin', 'super_admin', 'staff'].includes(user.role)) {
+            if (['admin', 'super_admin', 'leader', 'staff'].includes(user.role)) {
                 roleMenu = `<li><a class="dropdown-item text-danger fw-bold" href="${frontendPath('admin/index.html')}"><i class="fas fa-cogs me-2"></i>${t('nav.admin')}</a></li>
                             <li><hr class="dropdown-divider"></li>`;
             }

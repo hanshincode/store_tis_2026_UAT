@@ -30,6 +30,7 @@ function getRoleLabel(role) {
     return {
         super_admin: 'Super Admin',
         admin: 'Admin',
+        leader: 'Leader',
         staff: 'Staff',
         customer: 'Khách hàng'
     }[role] || role || '--';

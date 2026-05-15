@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Nhân sự - TIS Admin</title>
+    <title>Phan quyen nhan su - TIS Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.min.css">
@@ -14,19 +14,23 @@
     <div class="main-content">
         <div class="admin-card">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="fw-bold m-0">Danh sách nhân sự</h4>
-                <button class="btn btn-primary" id="btn-open-add-staff"><i class="fas fa-user-plus"></i> Thêm nhân viên</button>
+                <div>
+                    <h4 class="fw-bold m-0">Phan quyen nhan su</h4>
+                    <p class="text-muted small mb-0 mt-1">Admin quan ly role va danh muc phu trach cho Leader/Staff.</p>
+                </div>
+                <button class="btn btn-primary" id="btn-open-add-staff"><i class="fas fa-user-plus"></i> Them nhan su</button>
             </div>
             <div class="table-responsive">
                 <table class="table align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>Tài khoản (SĐT)</th>
-                            <th>Họ tên</th>
+                            <th>Tai khoan (SDT)</th>
+                            <th>Ho ten</th>
                             <th>Email</th>
-                            <th>Vai trò</th>
-                            <th>Chuyên môn</th>
-                            <th>Trạng thái</th>
+                            <th>Vai tro</th>
+                            <th>Rule / Danh muc</th>
+                            <th>Trang thai</th>
+                            <th class="text-end">Thao tac</th>
                         </tr>
                     </thead>
                     <tbody id="staff-list"></tbody>
@@ -39,39 +43,81 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title fw-bold">Thêm nhân sự</h5>
+                    <h5 class="modal-title fw-bold">Them nhan su</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form id="staff-form">
                         <div class="mb-3">
-                            <label class="form-label">Tài khoản (SĐT)</label>
+                            <label class="form-label">Tai khoan (SDT)</label>
                             <input type="text" id="s-username" class="form-control" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Họ tên</label>
+                            <label class="form-label">Ho ten</label>
                             <input type="text" id="s-name" class="form-control" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Mật khẩu</label>
+                            <label class="form-label">Email noi bo</label>
+                            <input type="email" id="s-email" class="form-control" placeholder="ten@tisbroker.com">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Mat khau</label>
                             <input type="password" id="s-pass" class="form-control" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Vai trò</label>
+                            <label class="form-label">Vai tro</label>
                             <select id="s-role" class="form-select">
-                                <option value="staff">Nhân viên tư vấn (Staff)</option>
-                                <option value="admin">Quản trị viên (Admin)</option>
+                                <option value="staff">Staff - Chat va tao bill</option>
+                                <option value="leader">Leader - Phan cong staff theo danh muc</option>
+                                <option value="admin">Admin - Toan quyen he thong</option>
                             </select>
                         </div>
                         <div class="mb-3" id="staff-category-section">
-                            <label class="form-label">Danh mục chuyên môn</label>
-                            <div class="small text-muted mb-2">Staff chỉ được tiếp nhận tư vấn đúng các danh mục này.</div>
+                            <label class="form-label">Danh muc phan quyen</label>
+                            <div class="small text-muted mb-2">Leader quan ly danh muc; Staff chi chat/tao bill trong pham vi duoc giao.</div>
                             <div id="s-categories" class="staff-category-picker"></div>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button id="btn-submit-staff" class="btn btn-primary">Tạo tài khoản</button>
+                    <button id="btn-submit-staff" class="btn btn-primary">Tao tai khoan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="roleRulesModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Phan role / rule</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="rr-user-id">
+                    <div class="mb-3">
+                        <label class="form-label">Nhan su</label>
+                        <input type="text" id="rr-user-name" class="form-control" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Vai tro</label>
+                        <select id="rr-role" class="form-select">
+                            <option value="staff">Staff - Chat va tao bill</option>
+                            <option value="leader">Leader - Phan cong staff theo danh muc</option>
+                            <option value="admin">Admin - Toan quyen he thong</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="rr-category-section">
+                        <label class="form-label">Danh muc ap dung</label>
+                        <div id="rr-categories" class="staff-category-picker"></div>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="rr-active">
+                        <label class="form-check-label" for="rr-active">Tai khoan dang hoat dong</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="btn-save-role-rules" class="btn btn-primary">Luu phan quyen</button>
                 </div>
             </div>
         </div>

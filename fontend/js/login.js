@@ -1,4 +1,4 @@
-const INTERNAL_ROLES = ['super_admin', 'admin', 'staff'];
+const INTERNAL_ROLES = ['super_admin', 'admin', 'leader', 'staff'];
 let loginSubmitting = false;
 
 function getLoginScope() {
@@ -63,6 +63,10 @@ async function handleLogin(event) {
 
         sessionStorage.setItem('user_info', JSON.stringify(user));
         Toast.fire({ icon: 'success', title: 'Đăng nhập thành công!' });
+        if (user.must_change_password) {
+            setTimeout(() => redirectTo('force-change-password.html'), 500);
+            return;
+        }
         setTimeout(() => redirectByUserRole(user.role), 500);
     } catch (error) {
         clearTokens();
@@ -80,6 +84,10 @@ async function checkUserRoleAndRedirect() {
         if (!user?.role) return;
         if (!enforceLoginScope(user.role)) return;
         sessionStorage.setItem('user_info', JSON.stringify(user));
+        if (user.must_change_password) {
+            redirectTo('force-change-password.html');
+            return;
+        }
         redirectByUserRole(user.role);
     } catch (error) {
         clearTokens();

@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 getCurrentUser: () => currentUser
             });
         }
-        if (!['admin', 'super_admin', 'staff'].includes(currentUser.role) && !currentUser.is_superuser) {
+        if (!['admin', 'super_admin', 'leader', 'staff'].includes(currentUser.role) && !currentUser.is_superuser) {
             alert("Không có quyền truy cập");
             window.location.href = 'index.html';
             return;

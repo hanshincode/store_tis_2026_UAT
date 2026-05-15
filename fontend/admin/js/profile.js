@@ -30,6 +30,7 @@ function getDisplayName(user) {
 function getRoleLabel(user) {
     if (user.is_superuser || user.role === 'super_admin') return 'Super Admin';
     if (user.role === 'admin') return 'Admin';
+    if (user.role === 'leader') return 'Leader';
     if (user.role === 'staff') return 'Staff';
     return 'Khách hàng';
 }

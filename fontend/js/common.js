@@ -5,7 +5,8 @@
  */
 
 // --- 1. CẤU HÌNH HỆ THỐNG ---
-const DEFAULT_API_DOMAIN = 'http://100.96.50.61:8000';
+const DEFAULT_API_DOMAIN = 'http://127.0.0.1:8001';
+
 
 const DOMAIN = DEFAULT_API_DOMAIN;
 const API_BASE_URL = `${DOMAIN}/api`;
@@ -42,7 +43,7 @@ function redirectTo(path) {
 }
 
 function isAuthPage() {
-    return /(?:^|\/)(login|admin-login|forgot-password|reset-password|verify-email)\.html$/.test(window.location.pathname);
+    return /(?:^|\/)(login|admin-login|forgot-password|reset-password|verify-email|quick-form|force-change-password)\.html$/.test(window.location.pathname);
 }
 
 // --- 2. QUẢN LÝ TOKEN ---
