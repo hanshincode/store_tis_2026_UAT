@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from datetime import timedelta
 import uuid
+import secrets
 
 from django.core.exceptions import ValidationError
 
@@ -12,6 +13,7 @@ class User(AbstractUser):
     ROLE_CHOICES = (
         ('super_admin', 'Super Admin'), # 
         ('admin', 'Admin'), # 
+        ('leader', 'Leader'), #
         ('staff', 'Staff'), # 
         ('customer', 'Khách hàng'), # 
     )
@@ -45,6 +47,12 @@ class User(AbstractUser):
     
     # Info Staff
     specialization = models.CharField(max_length=20, choices=STAFF_SPECIALIZATION, null=True, blank=True)
+    specialized_categories = models.ManyToManyField(
+        'Category',
+        blank=True,
+        related_name='specialized_staff',
+        verbose_name='Danh mục chuyên môn'
+    )
     user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES, null=True, blank=True)
     preferred_language = models.CharField(max_length=5, choices=LANGUAGE_CHOICES, default='vi')
     email_verified = models.BooleanField(default=False)
@@ -54,10 +62,11 @@ class User(AbstractUser):
     password_reset_otp = models.CharField(max_length=6, blank=True)
     password_reset_token = models.CharField(max_length=64, blank=True)
     password_reset_expires_at = models.DateTimeField(null=True, blank=True)
+    must_change_password = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
             # Logic: Internal user dùng email cty
-            if self.role in ['admin', 'staff', 'super_admin']:
+            if self.role in ['admin', 'leader', 'staff', 'super_admin']:
                 if self.email and not self.email.endswith('@tisbroker.com'):
                     # SỬA LỖI: Thay lệnh pass bằng raise ValidationError
                     raise ValidationError("Nhân viên/Admin phải sử dụng email @tisbroker.com")
@@ -266,16 +275,26 @@ class PaymentSetting(models.Model):
 
     @property
     def is_configured(self):
-        return self.is_active and self.bank_id and self.account_no and self.account_name
+        return bool(self.is_active and self.bank_id and self.account_no and self.account_name)
+
+    def get_vietqr_account_parts(self):
+        bank_id = str(self.bank_id or "").strip().upper()
+        account_no = str(self.account_no or "").strip().upper()
+
+        # Guard against the two fields being entered in reverse order.
+        if bank_id.isdigit() and len(bank_id) > 8 and any(ch.isalpha() for ch in account_no):
+            bank_id, account_no = account_no, bank_id
+        return bank_id, account_no
 
     def build_qr_url(self, order):
         from urllib.parse import quote, urlencode
 
         if not self.is_configured:
             return ""
+        bank_id, account_no = self.get_vietqr_account_parts()
         path = "-".join([
-            quote(str(self.bank_id).strip(), safe=""),
-            quote(str(self.account_no).strip(), safe=""),
+            quote(bank_id, safe=""),
+            quote(account_no, safe=""),
             quote(str(self.template or "compact2").strip(), safe=""),
         ])
         query = urlencode({
@@ -364,6 +383,7 @@ class ConsultationRequest(models.Model): #
     # Auto assign staff based on category
     assigned_staff = models.ForeignKey(User, related_name='consultations', null=True, blank=True, on_delete=models.SET_NULL)
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True)
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='consultations')
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     customer_name = models.CharField(max_length=255)
     customer_contact = models.CharField(max_length=255)
@@ -384,6 +404,39 @@ class ConsultationRequest(models.Model): #
 
     def __str__(self):
         return f"{self.customer_name} - {self.status}"
+
+
+class QuickCustomerForm(models.Model):
+    STATUS_CHOICES = (
+        ('pending', 'Chờ khách cập nhật'),
+        ('submitted', 'Đã gửi dữ liệu'),
+        ('expired', 'Hết hạn'),
+    )
+
+    token = models.CharField(max_length=64, unique=True, default=secrets.token_urlsafe)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='quick_forms')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_quick_forms')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='quick_forms')
+    customer_name = models.CharField(max_length=255, blank=True)
+    phone = models.CharField(max_length=15, blank=True)
+    email = models.EmailField(blank=True)
+    data = models.JSONField(default=dict, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    expires_at = models.DateTimeField(null=True, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    @property
+    def is_expired(self):
+        return bool(self.expires_at and timezone.now() > self.expires_at)
+
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(days=7)
+        super().save(*args, **kwargs)
 
 
 

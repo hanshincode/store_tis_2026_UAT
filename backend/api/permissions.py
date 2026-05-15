@@ -28,4 +28,4 @@ class IsTISAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
         # Cho phép nếu user đã đăng nhập và có role là admin/super_admin/staff
         return request.user.is_authenticated and \
-               request.user.role in ['super_admin', 'admin', 'staff']
+               request.user.role in ['super_admin', 'admin', 'leader', 'staff']

@@ -2,11 +2,12 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.utils.html import strip_tags
 from django.utils import timezone
+from django.conf import settings
 from .models import (
     User, Product, ProductImage, ProductPackage, 
     Order, OrderItem, EnterpriseEmployee, EmployeeInsurance, ChatMessage,
     CartItem, ConsultationRequest, News, Category, Banner, BannerSlide,
-    PaymentSetting, CategorySubjectField, OrderItemSubject
+    PaymentSetting, CategorySubjectField, OrderItemSubject, QuickCustomerForm
 )
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -354,6 +355,50 @@ class CategorySerializer(serializers.ModelSerializer):
                 sort_order=field.get('sort_order', index),
             )
 
+
+class QuickCustomerFormSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+    form_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = QuickCustomerForm
+        fields = [
+            'id', 'token', 'category', 'category_name', 'created_by', 'created_by_name',
+            'user', 'customer_name', 'phone', 'email', 'data', 'status',
+            'expires_at', 'submitted_at', 'created_at', 'form_url'
+        ]
+        read_only_fields = ['id', 'token', 'created_by', 'user', 'data', 'status', 'submitted_at', 'created_at']
+
+    def get_created_by_name(self, obj):
+        if not obj.created_by:
+            return None
+        return obj.created_by.get_full_name() or obj.created_by.username or obj.created_by.phone
+
+    def get_form_url(self, obj):
+        request = self.context.get('request')
+        base_url = getattr(settings, 'FRONTEND_BASE_URL', '').strip().rstrip('/')
+        if request:
+            from urllib.parse import urlparse
+            origin = request.headers.get('Origin') or request.headers.get('Referer')
+            if origin and not base_url:
+                parsed = urlparse(origin)
+                base_url = f"{parsed.scheme}://{parsed.netloc}"
+        base_url = base_url.rstrip('/') or 'http://127.0.0.1:5500'
+        return f"{base_url}/quick-form.html?token={obj.token}"
+
+
+class QuickCustomerFormPublicSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    subject_fields = serializers.SerializerMethodField()
+
+    class Meta:
+        model = QuickCustomerForm
+        fields = ['token', 'category', 'category_name', 'customer_name', 'phone', 'email', 'status', 'expires_at', 'subject_fields']
+
+    def get_subject_fields(self, obj):
+        return CategorySubjectFieldSerializer(obj.category.subject_fields.all(), many=True).data
+
 # --- 3. CART & ORDER SERIALIZERS ---
 from rest_framework import serializers
 from .models import CartItem
@@ -361,17 +406,17 @@ from .models import CartItem
 class CartItemSerializer(serializers.ModelSerializer):
     package_name = serializers.CharField(source='package.duration_label', read_only=True)
     product_name = serializers.CharField(source='package.product.name', read_only=True)
-    price = serializers.DecimalField(source='effective_price', max_digits=15, decimal_places=0, read_only=True)
+    price = serializers.DecimalField(source='package.price', max_digits=15, decimal_places=0, read_only=True)
     package_price = serializers.DecimalField(source='package.price', max_digits=15, decimal_places=0, read_only=True)
     image = serializers.SerializerMethodField()
     subtotal = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
-        fields = ['id', 'package', 'package_name', 'product_name', 'price', 'quantity', 'subtotal', 'image']
+        fields = ['id', 'package', 'package_name', 'product_name', 'price', 'package_price', 'quantity', 'subtotal', 'image']
 
     def get_image(self, obj):
-        # Láº¥y áº£nh Ä‘áº§u tiÃªn cá»§a sáº£n pháº©m trong album
+        # Lấy ảnh đầu tiên của sản phẩm trong album
         first_image = obj.package.product.images.first()
         if first_image and first_image.image:
             return first_image.image.url
@@ -379,7 +424,6 @@ class CartItemSerializer(serializers.ModelSerializer):
 
     def get_subtotal(self, obj):
         return obj.package.price * obj.quantity
-    
     
     
 class OrderItemSubjectSerializer(serializers.ModelSerializer):
@@ -394,7 +438,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='package.product.name', read_only=True)
     category_name = serializers.CharField(source='package.product.category.name', read_only=True)
     duration = serializers.CharField(source='package.duration_label', read_only=True)
-    price = serializers.DecimalField(source='package.price', max_digits=15, decimal_places=0, read_only=True)
+    price = serializers.DecimalField(source='effective_price', max_digits=15, decimal_places=0, read_only=True)
     subtotal = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
     subject_fields = serializers.SerializerMethodField()
@@ -402,7 +446,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'package', 'product_name', 'category_name', 'duration', 'quantity', 'price', 'package_price', 'unit_price', 'subtotal', 'image', 'subject_fields', 'subjects']
+        fields = fields = ['id', 'package', 'product_name', 'category_name', 'duration', 'quantity', 'price', 'unit_price', 'subtotal', 'image', 'subject_fields', 'subjects']
 
     def get_subtotal(self, obj):
         return obj.effective_price * obj.quantity
@@ -437,7 +481,7 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_user_name(self, obj):
-        return obj.user.get_full_name() or obj.user.username or obj.user.phone or "KhÃ¡ch hÃ ng"
+        return obj.user.get_full_name() or obj.user.username or obj.user.phone or "Khách hàng"
 
     def get_payment_expires_at_formatted(self, obj):
         if not obj.payment_expires_at:
@@ -534,7 +578,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     def get_sender_name(self, obj):
         if obj.sender:
             return f"{obj.sender.last_name} {obj.sender.first_name}".strip() or obj.sender.username
-        return obj.guest_name or "KhÃ¡ch hÃ ng"
+        return obj.guest_name or "Khách hàng"
 
     def get_avatar(self, obj):
         # Tráº£ vá» avatar cá»§a ngÆ°á»i gá»­i (Staff hoáº·c User cÃ³ tÃ i khoáº£n)
@@ -544,8 +588,10 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
 class ConsultationRequestSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
+    category_name = serializers.SerializerMethodField()
     created_at_formatted = serializers.DateTimeField(source='created_at', format="%d/%m/%Y %H:%M", read_only=True)
     processor_name = serializers.SerializerMethodField()
+    assigned_staff_name = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
 
     class Meta:
@@ -555,6 +601,18 @@ class ConsultationRequestSerializer(serializers.ModelSerializer):
     def get_processor_name(self, obj):
         if obj.processor:
             return f"{obj.processor.last_name} {obj.processor.first_name}".strip()
+        return None
+
+    def get_category_name(self, obj):
+        if obj.category:
+            return obj.category.name
+        if obj.product and obj.product.category:
+            return obj.product.category.name
+        return ''
+
+    def get_assigned_staff_name(self, obj):
+        if obj.assigned_staff:
+            return f"{obj.assigned_staff.last_name} {obj.assigned_staff.first_name}".strip() or obj.assigned_staff.username
         return None
 
     def get_last_message(self, obj):
@@ -596,6 +654,12 @@ class BannerSerializer(serializers.ModelSerializer):
 # ThÃªm vÃ o vá»‹ trÃ­ thÃ­ch há»£p (vÃ­ dá»¥ ngay sau RegisterSerializer)
 class UserSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
+    specialized_categories = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(),
+        many=True,
+        required=False
+    )
+    specialized_category_names = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -603,12 +667,16 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'role', 'first_name', 'last_name',
             'full_name', 'avatar', 'is_superuser', 'is_staff', 'is_active',
             'phone', 'user_type', 'company_name', 'tax_code', 'cccd', 'address',
-            'specialization', 'email_verified', 'preferred_language', 'date_joined', 'last_login'
+            'specialization', 'specialized_categories', 'specialized_category_names',
+            'email_verified', 'must_change_password', 'preferred_language', 'date_joined', 'last_login'
         ]
         read_only_fields = ['id', 'username', 'role', 'is_superuser', 'is_staff', 'is_active', 'date_joined', 'last_login']
 
     def get_full_name(self, obj):
         return obj.get_full_name() or obj.username
+
+    def get_specialized_category_names(self, obj):
+        return [category.name for category in obj.specialized_categories.all()]
 
     def validate_phone(self, value):
         if not value:
@@ -631,6 +699,6 @@ class UserSerializer(serializers.ModelSerializer):
         if queryset.exists():
             raise serializers.ValidationError("Email này đã được sử dụng cho tài khoản khác.")
         role = getattr(self.instance, 'role', None) or self.initial_data.get('role')
-        if role in ['admin', 'staff', 'super_admin'] and not email.endswith('@tisbroker.com'):
-            raise serializers.ValidationError("Nhân viên/Admin phải sử dụng email @tisbroker.com.")
+        if role in ['admin', 'leader', 'staff', 'super_admin'] and not email.endswith('@tisbroker.com'):
+            raise serializers.ValidationError("Nhân sự nội bộ phải sử dụng email @tisbroker.com.")
         return email

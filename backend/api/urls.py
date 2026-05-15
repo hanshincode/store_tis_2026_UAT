@@ -12,7 +12,8 @@ from .views import (
     CategoryViewSet,
     PhoneTokenObtainPairView,
     BannerViewSet,
-    PaymentSettingViewSet
+    PaymentSettingViewSet,
+    QuickCustomerFormViewSet
 )
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -38,6 +39,7 @@ router.register(r'cart', CartViewSet, basename='cart')
 router.register(r'categories', CategoryViewSet)
 router.register(r'banners', BannerViewSet, basename='banners')
 router.register(r'payment-settings', PaymentSettingViewSet, basename='payment-settings')
+router.register(r'quick-forms', QuickCustomerFormViewSet, basename='quick-forms')
 
 
 urlpatterns = [

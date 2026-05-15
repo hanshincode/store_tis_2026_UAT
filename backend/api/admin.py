@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     User, Product, Category, ProductImage, ProductPackage, 
     Order, OrderItem, News, EnterpriseEmployee, 
-    ConsultationRequest, ChatMessage, Banner, PaymentSetting
+    ConsultationRequest, ChatMessage, Banner, PaymentSetting, QuickCustomerForm
 )
 
 # Config hiển thị User
@@ -62,3 +62,4 @@ admin.site.register(Order, OrderAdmin)
 admin.site.register(EnterpriseEmployee)
 admin.site.register(ConsultationRequest)
 admin.site.register(ChatMessage)
+admin.site.register(QuickCustomerForm)

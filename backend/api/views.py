@@ -15,7 +15,7 @@ from django.core.files.storage import default_storage
 from django.contrib.auth.password_validation import validate_password
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction, IntegrityError
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.utils import timezone
 from django.utils.html import escape
 from rest_framework import viewsets, permissions, status, filters, mixins
@@ -29,7 +29,7 @@ from .models import (
     Product, ProductImage, ProductPackage, Category,
     Order, OrderItem, OrderItemSubject, News, User, EnterpriseEmployee, EmployeeInsurance,
     ConsultationRequest, ChatMessage, Cart, CartItem, Banner, BannerSlide,
-    PaymentSetting
+    PaymentSetting, QuickCustomerForm
 )
 
 # Import Serializers
@@ -39,18 +39,25 @@ from .serializers import (
     CartItemSerializer, OrderItemSerializer,
     ProductPackageSerializer, ConsultationRequestSerializer, NewsSerializer,
     UserSerializer, PhoneTokenObtainPairSerializer, BannerSerializer, BannerSlideSerializer,
-    PaymentSettingSerializer, validate_vietnam_phone
+    PaymentSettingSerializer, QuickCustomerFormSerializer, QuickCustomerFormPublicSerializer,
+    validate_vietnam_phone
 )
 
 # --- PHÂN QUYỀN TÙY CHỈNH (INTERNAL) ---
 
 class IsTISAdminOrStaff(permissions.BasePermission):
     """
-    Quyền truy cập dành cho cấp quản trị dựa trên trường 'role' trong Model User.
+    Quyền truy cập dành cho cấp quản trị. Staff có phạm vi riêng ở từng ViewSet nghiệp vụ.
     """
     def has_permission(self, request, view):
         return request.user.is_authenticated and \
-               (request.user.is_superuser or request.user.is_staff or request.user.role in ['super_admin', 'admin', 'staff'])
+               (request.user.is_superuser or request.user.role in ['super_admin', 'admin'])
+
+
+class IsTISInternalUser(permissions.BasePermission):
+    """Quyền đăng nhập khu vực nội bộ: admin, leader, staff."""
+    def has_permission(self, request, view):
+        return is_internal_staff(request.user)
 
 
 def make_order_code():
@@ -61,7 +68,15 @@ def make_otp():
     return f"{random.randint(100000, 999999)}"
 
 
+def make_temporary_password():
+    return f"TIS{random.randint(100000, 999999)}"
+
+
 def get_frontend_base_url(request):
+    configured_url = getattr(settings, 'FRONTEND_BASE_URL', '').strip()
+    if configured_url:
+        return configured_url.rstrip('/')
+
     origin = request.headers.get('Origin') or request.headers.get('Referer')
     if origin:
         try:
@@ -145,6 +160,62 @@ def send_tis_action_email(user, subject, intro, otp, action_url, action_label, p
 
     email = EmailMultiAlternatives(
         subject=subject,
+        body=text_body,
+        from_email=from_email,
+        to=[user.email],
+    )
+    email.attach_alternative(html_body, "text/html")
+    email.send(fail_silently=False)
+
+
+def send_quick_account_email(user, temporary_password, request):
+    login_url = f"{get_frontend_base_url(request)}/login.html"
+    display_name = user.get_full_name() or user.username or user.phone or user.email
+    safe_display_name = escape(display_name)
+    safe_password = escape(temporary_password)
+    safe_login_url = escape(login_url)
+    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@tisbroker.local')
+    text_body = (
+        f"Xin chào {display_name},\n\n"
+        "TIS Broker đã tạo tài khoản nhanh cho bạn từ thông tin vừa cập nhật.\n"
+        f"Tài khoản/SĐT đăng nhập: {user.phone}\n"
+        f"Mật khẩu tạm thời: {temporary_password}\n\n"
+        f"Vui lòng đăng nhập tại {login_url} và đổi mật khẩu mới trong lần đăng nhập đầu tiên."
+    )
+    html_body = f"""
+    <!doctype html>
+    <html lang="vi">
+    <body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,'Helvetica Neue',sans-serif;color:#1f2937;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:28px 12px;">
+        <tr><td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e5e7eb;">
+            <tr><td style="padding:26px 30px;background:#d71920;color:#fff;">
+              <div style="font-size:26px;font-weight:800;">TIS Broker</div>
+              <div style="font-size:14px;opacity:.92;margin-top:4px;">Tài khoản khách hàng</div>
+            </td></tr>
+            <tr><td style="padding:30px;">
+              <h1 style="margin:0 0 12px;font-size:22px;color:#111827;">Tài khoản TIS Broker của bạn</h1>
+              <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#4b5563;">Xin chào <strong>{safe_display_name}</strong>,</p>
+              <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#4b5563;">Chúng tôi đã tạo tài khoản nhanh cho bạn từ thông tin vừa cập nhật.</p>
+              <div style="background:#fff5f5;border:1px solid #fecdd3;border-radius:12px;padding:18px;margin:0 0 24px;">
+                <div style="font-size:14px;color:#6b7280;margin-bottom:8px;">Số điện thoại đăng nhập</div>
+                <div style="font-size:20px;font-weight:800;color:#111827;">{escape(user.phone or '')}</div>
+                <div style="font-size:14px;color:#6b7280;margin:16px 0 8px;">Mật khẩu tạm thời</div>
+                <div style="font-size:24px;font-weight:800;color:#d71920;letter-spacing:2px;">{safe_password}</div>
+              </div>
+              <div style="text-align:center;margin:26px 0;">
+                <a href="{safe_login_url}" style="display:inline-block;background:#d71920;color:#fff;text-decoration:none;font-weight:800;padding:14px 28px;border-radius:999px;font-size:15px;">Đăng nhập và đổi mật khẩu</a>
+              </div>
+              <p style="margin:14px 0 0;font-size:13px;line-height:1.6;color:#6b7280;">Vì lý do bảo mật, hệ thống sẽ yêu cầu bạn đặt mật khẩu mới trong lần đăng nhập đầu tiên.</p>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+    """
+    email = EmailMultiAlternatives(
+        subject="Tài khoản TIS Broker của bạn",
         body=text_body,
         from_email=from_email,
         to=[user.email],
@@ -279,7 +350,11 @@ def send_payment_link_email(order, request):
 
 
 def user_can_access_order(user, order):
-    return order.user == user or user.role in ['admin', 'super_admin', 'staff'] or user.is_staff
+    if order.user == user or is_admin_user(user):
+        return True
+    if user.role == 'staff':
+        return order.processed_by_id == user.id
+    return False
 
 
 def validate_order_subjects(order):
@@ -304,6 +379,72 @@ def validate_order_subjects(order):
                 if value in [None, '']:
                     errors.append(f"{item.package.product.name} - đối tượng {index}: thiếu {field.label}.")
     return errors
+
+
+def is_admin_user(user):
+    return bool(
+        user.is_authenticated and (
+            user.is_superuser or user.role in ['super_admin', 'admin']
+        )
+    )
+
+
+def is_internal_staff(user):
+    return bool(
+        user.is_authenticated and (
+            user.is_superuser or user.is_staff or user.role in ['super_admin', 'admin', 'leader', 'staff']
+        )
+    )
+
+
+def get_staff_category_ids(user):
+    if not user.is_authenticated or user.role not in ['leader', 'staff']:
+        return []
+    category_ids = list(user.specialized_categories.values_list('id', flat=True))
+    if not category_ids and user.specialization:
+        category_ids = list(Category.objects.filter(specialization_code=user.specialization).values_list('id', flat=True))
+    return category_ids
+
+
+def leader_consultation_filter(user):
+    category_ids = get_staff_category_ids(user)
+    if not category_ids:
+        return Q(pk__in=[])
+    return Q(product__category_id__in=category_ids) | Q(category_id__in=category_ids)
+
+
+def staff_consultation_filter(user, include_claimable=False):
+    query = Q(processor=user) | Q(assigned_staff=user)
+    if include_claimable:
+        category_ids = get_staff_category_ids(user)
+        if category_ids:
+            query |= (
+                Q(processor__isnull=True, assigned_staff__isnull=True)
+                & (Q(product__category_id__in=category_ids) | Q(category_id__in=category_ids))
+            )
+    return query
+
+
+def staff_customer_ids(user):
+    if user.role == 'leader':
+        query = leader_consultation_filter(user)
+    else:
+        query = staff_consultation_filter(user)
+    return ConsultationRequest.objects.filter(query, user__isnull=False).values_list('user_id', flat=True).distinct()
+
+
+def user_can_access_consultation(user, consultation):
+    if is_admin_user(user):
+        return True
+    if user.role == 'leader':
+        return ConsultationRequest.objects.filter(
+            pk=consultation.pk
+        ).filter(leader_consultation_filter(user)).exists()
+    if user.role == 'staff':
+        return ConsultationRequest.objects.filter(
+            pk=consultation.pk
+        ).filter(staff_consultation_filter(user)).exists()
+    return consultation.user_id == user.id
 
 
 def find_customer_consultation(customer):
@@ -394,7 +535,16 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False):
             return User.objects.none()
-        return User.objects.all()
+        user = self.request.user
+        queryset = User.objects.all()
+        if is_admin_user(user):
+            return queryset
+        if user.is_authenticated and user.role in ['leader', 'staff']:
+            allowed_customer_ids = list(staff_customer_ids(user))
+            return queryset.filter(Q(id=user.id) | Q(id__in=allowed_customer_ids))
+        if user.is_authenticated:
+            return queryset.filter(id=user.id)
+        return User.objects.none()
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -420,16 +570,19 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         user = self.get_object()
-        if user.id != request.user.id and not IsTISAdminOrStaff().has_permission(request, self):
+        if user.id != request.user.id and not is_admin_user(request.user):
             return Response({"detail": "Bạn không có quyền xem tài khoản này."}, status=status.HTTP_403_FORBIDDEN)
         return Response(UserSerializer(user, context={'request': request}).data)
 
     def update(self, request, *args, **kwargs):
         user = self.get_object()
-        if user.id != request.user.id and not IsTISAdminOrStaff().has_permission(request, self):
+        if user.id != request.user.id and not is_admin_user(request.user):
             return Response({"detail": "Bạn không có quyền cập nhật tài khoản này."}, status=status.HTTP_403_FORBIDDEN)
         partial = kwargs.pop('partial', False)
         data = request.data.copy()
+        if not is_admin_user(request.user):
+            for protected_field in ['role', 'is_staff', 'is_superuser', 'is_active', 'specialization', 'specialized_categories']:
+                data.pop(protected_field, None)
         if user.id == request.user.id and user.role == 'customer':
             if user.user_type == 'enterprise':
                 data.pop('email', None)
@@ -529,23 +682,29 @@ class UserViewSet(viewsets.ModelViewSet):
         user.password_reset_otp = ''
         user.password_reset_token = ''
         user.password_reset_expires_at = None
+        user.must_change_password = False
         if not user.email_verified:
             user.email_verified = True
             user.is_active = True
         user.save(update_fields=[
             'password', 'password_reset_otp', 'password_reset_token',
-            'password_reset_expires_at', 'email_verified', 'is_active'
+            'password_reset_expires_at', 'must_change_password', 'email_verified', 'is_active'
         ])
         return Response({"detail": "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới."})
 
     @action(detail=False, methods=['get'], url_path='staff-list')
     def staff_list(self, request):
-        users = User.objects.filter(role__in=['super_admin', 'admin', 'staff']).order_by('role', 'username')
+        if not (is_admin_user(request.user) or request.user.role == 'leader'):
+            return Response({"detail": "Bạn không có quyền xem danh sách nhân sự."}, status=status.HTTP_403_FORBIDDEN)
+        users = User.objects.filter(role__in=['super_admin', 'admin', 'leader', 'staff']).order_by('role', 'username')
+        if request.user.role == 'leader' and not is_admin_user(request.user):
+            category_ids = get_staff_category_ids(request.user)
+            users = users.filter(role='staff', specialized_categories__id__in=category_ids).distinct()
         return Response(UserSerializer(users, many=True, context={'request': request}).data)
 
     @action(detail=False, methods=['get'], url_path='enterprise-list')
     def enterprise_list(self, request):
-        if not IsTISAdminOrStaff().has_permission(request, self):
+        if not is_admin_user(request.user):
             return Response({"detail": "Bạn không có quyền xem danh sách doanh nghiệp."}, status=status.HTTP_403_FORBIDDEN)
         users = User.objects.filter(role='customer', user_type='enterprise').order_by('company_name', 'username')
         return Response(UserSerializer(users, many=True, context={'request': request}).data)
@@ -559,10 +718,18 @@ class UserViewSet(viewsets.ModelViewSet):
         password = request.data.get('password') or ''
         full_name = (request.data.get('full_name') or '').strip()
         email = (request.data.get('email') or '').strip().lower()
-        role = request.data.get('role') if request.data.get('role') in ['admin', 'staff'] else 'staff'
+        role = request.data.get('role') if request.data.get('role') in ['admin', 'leader', 'staff'] else 'staff'
+        specialized_category_ids = request.data.get('specialized_categories') or []
+        if isinstance(specialized_category_ids, str):
+            try:
+                specialized_category_ids = json.loads(specialized_category_ids)
+            except json.JSONDecodeError:
+                specialized_category_ids = [item.strip() for item in specialized_category_ids.split(',') if item.strip()]
 
         if not username or not password:
             return Response({"detail": "Vui lòng nhập tài khoản và mật khẩu."}, status=status.HTTP_400_BAD_REQUEST)
+        if role in ['leader', 'staff'] and not specialized_category_ids:
+            return Response({"detail": "Vui lòng chọn ít nhất một danh mục quản lý/chuyên môn."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             phone = validate_vietnam_phone(username)
@@ -605,7 +772,61 @@ class UserViewSet(viewsets.ModelViewSet):
         except IntegrityError:
             return Response({"detail": "Số điện thoại hoặc email đã tồn tại. Vui lòng kiểm tra lại thông tin."}, status=status.HTTP_400_BAD_REQUEST)
 
+        if role in ['leader', 'staff']:
+            categories = Category.objects.filter(id__in=specialized_category_ids)
+            if categories.count() != len(set(map(str, specialized_category_ids))):
+                user.delete()
+                return Response({"detail": "Danh mục quản lý/chuyên môn không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
+            user.specialized_categories.set(categories)
+
         return Response(UserSerializer(user, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch'], url_path='role-rules')
+    def role_rules(self, request, pk=None):
+        if not is_admin_user(request.user):
+            return Response({"detail": "Bạn không có quyền phân role/rule nhân sự."}, status=status.HTTP_403_FORBIDDEN)
+
+        user = self.get_object()
+        if user.id == request.user.id:
+            return Response({"detail": "Không thể tự thay đổi role/rule tài khoản đang đăng nhập."}, status=status.HTTP_400_BAD_REQUEST)
+        if user.role == 'customer' and not user.is_staff:
+            return Response({"detail": "Chỉ được phân quyền cho nhân sự nội bộ."}, status=status.HTTP_400_BAD_REQUEST)
+
+        role = request.data.get('role')
+        if role not in ['admin', 'leader', 'staff']:
+            return Response({"detail": "Vai trò không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
+
+        specialized_category_ids = request.data.get('specialized_categories') or []
+        if isinstance(specialized_category_ids, str):
+            try:
+                specialized_category_ids = json.loads(specialized_category_ids)
+            except json.JSONDecodeError:
+                specialized_category_ids = [item.strip() for item in specialized_category_ids.split(',') if item.strip()]
+
+        if role in ['leader', 'staff'] and not specialized_category_ids:
+            return Response({"detail": "Leader/Staff cần ít nhất một danh mục được phân quyền."}, status=status.HTTP_400_BAD_REQUEST)
+
+        categories = Category.objects.none()
+        if role in ['leader', 'staff']:
+            categories = Category.objects.filter(id__in=specialized_category_ids)
+            if categories.count() != len(set(map(str, specialized_category_ids))):
+                return Response({"detail": "Danh mục phân quyền không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
+
+        raw_is_active = request.data.get('is_active', user.is_active)
+        if isinstance(raw_is_active, str):
+            is_active = raw_is_active.lower() in ['1', 'true', 'yes', 'on']
+        else:
+            is_active = bool(raw_is_active)
+
+        user.role = role
+        user.is_staff = True
+        user.is_active = is_active
+        user.save(update_fields=['role', 'is_staff', 'is_active'])
+        if role in ['leader', 'staff']:
+            user.specialized_categories.set(categories)
+        else:
+            user.specialized_categories.clear()
+        return Response(UserSerializer(user, context={'request': request}).data)
 
     @action(detail=True, methods=['post'], url_path='toggle-status')
     def toggle_status(self, request, pk=None):
@@ -615,7 +836,7 @@ class UserViewSet(viewsets.ModelViewSet):
         user = self.get_object()
         if user.id == request.user.id:
             return Response({"detail": "Không thể tự khóa tài khoản đang đăng nhập."}, status=status.HTTP_400_BAD_REQUEST)
-        if user.role not in ['super_admin', 'admin', 'staff'] and not user.is_staff:
+        if user.role not in ['super_admin', 'admin', 'leader', 'staff'] and not user.is_staff:
             return Response({"detail": "Chỉ được cập nhật tài khoản nhân sự."}, status=status.HTTP_400_BAD_REQUEST)
 
         user.is_active = not user.is_active
@@ -624,12 +845,20 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='account-overview')
     def account_overview(self, request, pk=None):
-        if not IsTISAdminOrStaff().has_permission(request, self):
+        if not is_internal_staff(request.user):
             return Response({"detail": "Bạn không có quyền xem thông tin tài khoản."}, status=status.HTTP_403_FORBIDDEN)
 
         user = self.get_object()
+        if request.user.role in ['leader', 'staff'] and user.id not in staff_customer_ids(request.user) and user.id != request.user.id:
+            return Response({"detail": "Bạn không có quyền xem khách hàng này."}, status=status.HTTP_403_FORBIDDEN)
         orders = Order.objects.filter(user=user).order_by('-created_at')
         consultations = ConsultationRequest.objects.filter(user=user).order_by('-created_at')
+        if request.user.role == 'leader':
+            consultations = consultations.filter(leader_consultation_filter(request.user))
+            orders = orders.filter(items__package__product__category_id__in=get_staff_category_ids(request.user)).distinct()
+        elif request.user.role == 'staff':
+            orders = orders.filter(processed_by=request.user)
+            consultations = consultations.filter(staff_consultation_filter(request.user))
         messages_count = ChatMessage.objects.filter(sender=user).count()
         orders_total = orders.aggregate(total=Sum('total_amount')).get('total') or 0
 
@@ -679,7 +908,8 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({"new_password": exc.messages}, status=status.HTTP_400_BAD_REQUEST)
 
         request.user.set_password(new_password)
-        request.user.save(update_fields=['password'])
+        request.user.must_change_password = False
+        request.user.save(update_fields=['password', 'must_change_password'])
         return Response({"detail": "Đổi mật khẩu thành công."})
 
 # --- BUSINESS VIEWSETS ---
@@ -694,6 +924,177 @@ class CategoryViewSet(viewsets.ModelViewSet):
             return [permissions.AllowAny()]
         # Chấp nhận Admin/Super Admin/Staff thực hiện ghi dữ liệu
         return [IsTISAdminOrStaff()]
+
+
+class QuickCustomerFormViewSet(viewsets.ModelViewSet):
+    serializer_class = QuickCustomerFormSerializer
+
+    def get_permissions(self):
+        if self.action in ['public_form', 'submit']:
+            return [permissions.AllowAny()]
+        return [IsTISInternalUser()]
+
+    def get_queryset(self):
+        queryset = QuickCustomerForm.objects.select_related('category', 'created_by', 'user')
+        user = self.request.user
+        if is_admin_user(user):
+            return queryset
+        if user.role == 'leader':
+            return queryset.filter(category_id__in=get_staff_category_ids(user))
+        if user.role == 'staff':
+            return queryset.filter(Q(created_by=user) | Q(category_id__in=get_staff_category_ids(user)))
+        return queryset.none()
+
+    def create(self, request, *args, **kwargs):
+        category_id = request.data.get('category')
+        category = Category.objects.filter(id=category_id).first()
+        if not category:
+            return Response({"detail": "Vui lòng chọn danh mục hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
+        if request.user.role in ['leader', 'staff'] and category.id not in get_staff_category_ids(request.user):
+            return Response({"detail": "Bạn không có quyền tạo form cho danh mục này."}, status=status.HTTP_403_FORBIDDEN)
+
+        expires_days = request.data.get('expires_days') or 7
+        try:
+            expires_days = max(1, min(30, int(expires_days)))
+        except (TypeError, ValueError):
+            expires_days = 7
+
+        form = QuickCustomerForm.objects.create(
+            category=category,
+            created_by=request.user,
+            customer_name=(request.data.get('customer_name') or '').strip(),
+            phone=(request.data.get('phone') or '').strip(),
+            email=(request.data.get('email') or '').strip().lower(),
+            expires_at=timezone.now() + timedelta(days=expires_days),
+        )
+        return Response(QuickCustomerFormSerializer(form, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='public')
+    def public_form(self, request):
+        token = (request.query_params.get('token') or '').strip()
+        form = QuickCustomerForm.objects.select_related('category').filter(token=token).first()
+        if not form:
+            return Response({"detail": "Link form không hợp lệ."}, status=status.HTTP_404_NOT_FOUND)
+        if form.is_expired:
+            if form.status != 'expired':
+                form.status = 'expired'
+                form.save(update_fields=['status'])
+            return Response({"detail": "Link form đã hết hạn."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(QuickCustomerFormPublicSerializer(form, context={'request': request}).data)
+
+    @action(detail=False, methods=['post'], url_path='submit')
+    def submit(self, request):
+        token = (request.data.get('token') or request.query_params.get('token') or '').strip()
+        form = QuickCustomerForm.objects.select_related('category', 'created_by').filter(token=token).first()
+        if not form:
+            return Response({"detail": "Link form không hợp lệ."}, status=status.HTTP_404_NOT_FOUND)
+        if form.status == 'submitted':
+            return Response({"detail": "Form này đã được gửi trước đó."}, status=status.HTTP_400_BAD_REQUEST)
+        if form.is_expired:
+            form.status = 'expired'
+            form.save(update_fields=['status'])
+            return Response({"detail": "Link form đã hết hạn."}, status=status.HTTP_400_BAD_REQUEST)
+
+        full_name = (request.data.get('customer_name') or form.customer_name or '').strip()
+        email = (request.data.get('email') or form.email or '').strip().lower()
+        try:
+            phone = validate_vietnam_phone(request.data.get('phone') or form.phone)
+        except Exception as exc:
+            detail = getattr(exc, 'detail', None)
+            if isinstance(detail, list) and detail:
+                detail = str(detail[0])
+            elif detail:
+                detail = str(detail)
+            else:
+                detail = str(exc)
+            return Response({"phone": [detail]}, status=status.HTTP_400_BAD_REQUEST)
+        if not email:
+            return Response({"email": ["Vui lòng nhập email để nhận mật khẩu tạm thời."]}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(phone=phone).exists():
+            return Response({"phone": ["Số điện thoại này đã có tài khoản. Vui lòng đăng nhập hoặc dùng khôi phục mật khẩu."]}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(email__iexact=email).exists():
+            return Response({"email": ["Email này đã có tài khoản. Vui lòng đăng nhập hoặc dùng khôi phục mật khẩu."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        submitted_data, errors = self._collect_quick_form_data(form, request)
+        if errors:
+            return Response({"fields": errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        temporary_password = make_temporary_password()
+        name_parts = full_name.split(maxsplit=1)
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=phone,
+                phone=phone,
+                email=email,
+                password=temporary_password,
+                first_name=name_parts[-1] if name_parts else '',
+                last_name=name_parts[0] if len(name_parts) > 1 else '',
+                role='customer',
+                user_type=request.data.get('user_type') or 'individual',
+                is_active=True,
+                email_verified=True,
+                must_change_password=True,
+            )
+            form.user = user
+            form.customer_name = full_name
+            form.phone = phone
+            form.email = email
+            form.data = submitted_data
+            form.status = 'submitted'
+            form.submitted_at = timezone.now()
+            form.save(update_fields=['user', 'customer_name', 'phone', 'email', 'data', 'status', 'submitted_at'])
+
+            assigned_staff = form.created_by if form.created_by and form.created_by.role == 'staff' else None
+            ConsultationRequest.objects.create(
+                category=form.category,
+                user=user,
+                customer_name=full_name or phone,
+                customer_contact=f"{phone} / {email}",
+                note=json.dumps({
+                    "source": "quick_customer_form",
+                    "quick_form_id": form.id,
+                    "category": form.category.name,
+                    "data": submitted_data,
+                }, ensure_ascii=False),
+                assigned_staff=assigned_staff,
+                status='processed' if assigned_staff else 'new',
+            )
+
+        warning = None
+        try:
+            send_quick_account_email(user, temporary_password, request)
+        except Exception as exc:
+            warning = f"Đã tạo tài khoản nhưng chưa gửi được email mật khẩu: {exc}"
+
+        return Response({
+            "detail": "Đã gửi thông tin thành công. Tài khoản đăng nhập đã được tạo và mật khẩu tạm thời được gửi qua email.",
+            "login_phone": phone,
+            "warning": warning,
+        }, status=status.HTTP_201_CREATED)
+
+    def _collect_quick_form_data(self, form, request):
+        raw_data = request.data.get('data') or {}
+        if isinstance(raw_data, str):
+            try:
+                raw_data = json.loads(raw_data)
+            except json.JSONDecodeError:
+                raw_data = {}
+
+        payload = {}
+        errors = {}
+        for field in form.category.subject_fields.all():
+            key = field.field_key
+            value = raw_data.get(key, request.data.get(key, ''))
+            if field.field_type == 'file':
+                uploaded = request.FILES.get(key)
+                if uploaded:
+                    path = default_storage.save(f"quick_forms/{form.token}/{uploaded.name}", uploaded)
+                    value = default_storage.url(path)
+            if field.is_required and value in [None, '']:
+                errors[key] = f"Vui lòng nhập {field.label}."
+                continue
+            payload[key] = value
+        return payload, errors
 
 class ProductViewSet(viewsets.ModelViewSet):
     """Quản lý sản phẩm, giá phí và album ảnh"""
@@ -764,8 +1165,10 @@ class OrderViewSet(viewsets.ModelViewSet):
             'items__package__product__images',
             'items__subjects',
         )
-        if user.role in ['admin', 'super_admin', 'staff']:
+        if is_admin_user(user):
             return queryset.order_by('-created_at')
+        if user.role == 'staff':
+            return queryset.filter(processed_by=user).order_by('-created_at')
         return queryset.filter(user=user).order_by('-created_at')
 
     @action(detail=False, methods=['post'])
@@ -788,7 +1191,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 payment_reference=build_payment_reference(order_code),
             )
             OrderItem.objects.create(order=order, package=package, quantity=quantity, unit_price=package.price)
-            return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+            return Response(OrderSerializer(order, context={'request': request}).data, status=status.HTTP_201_CREATED)
         except (ValueError, ProductPackage.DoesNotExist) as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -796,7 +1199,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     def checkout_cart(self, request):
         try:
             cart = Cart.objects.get(user=request.user)
-            items = cart.items.all()
+            items = cart.items.select_related('package__product')
             
             if not items.exists():
                 return Response({"error": "Giỏ hàng đang trống"}, status=status.HTTP_400_BAD_REQUEST)
@@ -827,7 +1230,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 # Xóa sạch giỏ hàng sau khi tạo đơn
                 items.delete()
 
-            return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+            return Response(OrderSerializer(order, context={'request': request}).data, status=status.HTTP_201_CREATED)
         except Cart.DoesNotExist:
             return Response({"error": "Không tìm thấy giỏ hàng"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
@@ -835,7 +1238,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='create-for-customer')
     def create_for_customer(self, request):
-        if request.user.role not in ['admin', 'super_admin', 'staff'] and not request.user.is_staff:
+        if not (is_admin_user(request.user) or request.user.role == 'staff'):
             return Response({"detail": "Bạn không có quyền tạo đơn cho khách hàng."}, status=status.HTTP_403_FORBIDDEN)
 
         customer_id = request.data.get('customer_id') or request.data.get('user_id')
@@ -847,6 +1250,17 @@ class OrderViewSet(viewsets.ModelViewSet):
             customer = User.objects.filter(phone=customer_phone, role='customer').first()
         if not customer:
             return Response({"detail": "Không tìm thấy tài khoản khách hàng."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if request.user.role == 'staff':
+            consultation_id = request.data.get('consultation_id')
+            allowed_consultations = ConsultationRequest.objects.filter(
+                staff_consultation_filter(request.user),
+                user=customer,
+            )
+            if consultation_id:
+                allowed_consultations = allowed_consultations.filter(id=consultation_id)
+            if not allowed_consultations.exists():
+                return Response({"detail": "Bạn chỉ được tạo đơn cho khách hàng đang được mình tư vấn."}, status=status.HTTP_403_FORBIDDEN)
 
         raw_items = request.data.get('items') or []
         if not isinstance(raw_items, list) or not raw_items:
@@ -941,11 +1355,17 @@ class OrderViewSet(viewsets.ModelViewSet):
         token = (request.query_params.get('token') or '').strip()
         if not token:
             return Response({"detail": "Thiếu mã thanh toán."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            payment_token = uuid.UUID(token)
+        except (TypeError, ValueError):
+            return Response({"detail": "Mã thanh toán không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
 
         order = Order.objects.select_related('user').prefetch_related(
             'items__package__product__category',
+            'items__package__product__category__subject_fields',
             'items__package__product__images',
-        ).filter(payment_token=token).first()
+            'items__subjects',
+        ).filter(payment_token=payment_token).first()
         if not order:
             return Response({"detail": "Không tìm thấy đơn thanh toán."}, status=status.HTTP_404_NOT_FOUND)
         if order.user != request.user and request.user.role not in ['admin', 'super_admin', 'staff']:
@@ -959,8 +1379,10 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='renew-payment')
     def renew_payment(self, request, pk=None):
         order = self.get_object()
-        if request.user.role not in ['admin', 'super_admin', 'staff'] and not request.user.is_staff:
+        if not (is_admin_user(request.user) or request.user.role == 'staff'):
             return Response({"detail": "Bạn không có quyền tạo lại QR thanh toán."}, status=status.HTTP_403_FORBIDDEN)
+        if request.user.role == 'staff' and order.processed_by_id != request.user.id:
+            return Response({"detail": "Bạn chỉ được tạo lại QR cho đơn do mình phụ trách."}, status=status.HTTP_403_FORBIDDEN)
 
         if order.payment_status == 'paid':
             return Response({"detail": "Đơn này đã thanh toán, không thể tạo lại QR."}, status=status.HTTP_400_BAD_REQUEST)
@@ -1147,7 +1569,13 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 
         queryset = EnterpriseEmployee.objects.select_related('enterprise', 'user').prefetch_related('coverages__package__product__category', 'coverages__order')
         user = self.request.user
-        if user.role in ['admin', 'super_admin', 'staff'] or user.is_staff:
+        if is_admin_user(user):
+            enterprise_id = self.request.query_params.get('enterprise')
+            if enterprise_id:
+                queryset = queryset.filter(enterprise_id=enterprise_id)
+            return queryset.order_by('enterprise__company_name', 'full_name')
+        if user.role == 'staff':
+            queryset = queryset.filter(enterprise_id__in=staff_customer_ids(user))
             enterprise_id = self.request.query_params.get('enterprise')
             if enterprise_id:
                 queryset = queryset.filter(enterprise_id=enterprise_id)
@@ -1163,11 +1591,17 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 
     def _resolve_enterprise(self):
         request = self.request
-        if request.user.role in ['admin', 'super_admin', 'staff'] or request.user.is_staff:
+        if is_admin_user(request.user):
             enterprise_id = request.data.get('enterprise') or request.data.get('enterprise_id')
             enterprise = User.objects.filter(id=enterprise_id, user_type='enterprise').first()
             if not enterprise:
                 raise DjangoValidationError("Vui lòng chọn doanh nghiệp hợp lệ.")
+            return enterprise
+        if request.user.role == 'staff':
+            enterprise_id = request.data.get('enterprise') or request.data.get('enterprise_id')
+            enterprise = User.objects.filter(id=enterprise_id, user_type='enterprise').first()
+            if not enterprise or enterprise.id not in staff_customer_ids(request.user):
+                raise DjangoValidationError("Bạn chỉ được thêm nhân viên cho doanh nghiệp đang được mình tư vấn.")
             return enterprise
         if request.user.user_type != 'enterprise':
             raise DjangoValidationError("Chỉ doanh nghiệp hoặc admin/staff được thêm nhân viên.")
@@ -1210,8 +1644,8 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     def add_coverage(self, request, pk=None):
         employee = self.get_object()
         if not (
-            request.user.role in ['admin', 'super_admin', 'staff']
-            or request.user.is_staff
+            is_admin_user(request.user)
+            or (request.user.role == 'staff' and employee.enterprise_id in staff_customer_ids(request.user))
             or employee.enterprise_id == request.user.id
         ):
             return Response({"detail": "Bạn không có quyền gắn bảo hiểm cho nhân viên này."}, status=status.HTTP_403_FORBIDDEN)
@@ -1261,6 +1695,33 @@ class ConsultationRequestViewSet(viewsets.ModelViewSet):
         # Các hành động xem/xóa/sửa thì bắt buộc phải đăng nhập
         return [permissions.IsAuthenticated()]
 
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy()
+        user = request.user if request.user.is_authenticated and request.user.role == 'customer' else None
+
+        # Client không được tự truyền user để tránh giả mạo thành viên khác.
+        data.pop('user', None)
+        if user:
+            display_name = (
+                user.company_name
+                or user.get_full_name()
+                or user.username
+                or user.phone
+                or 'Khách hàng'
+            )
+            data['user'] = user.id
+            data['customer_name'] = data.get('customer_name') or display_name
+            data['customer_contact'] = data.get('customer_contact') or user.phone or user.email or ''
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        if serializer.validated_data.get('product') and not serializer.validated_data.get('category'):
+            data['category'] = serializer.validated_data['product'].category_id
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
     def get_queryset(self):
         # Nếu chưa đăng nhập (trường hợp hiếm khi lọt vào get_queryset trừ khi code lỗi) thì trả rỗng
         if self.action == 'messages':
@@ -1270,23 +1731,77 @@ class ConsultationRequestViewSet(viewsets.ModelViewSet):
             return ConsultationRequest.objects.none()
 
         user = self.request.user
-        # Admin/Staff thấy tất cả, User thường chỉ thấy của mình
-        if user.role in ['admin', 'super_admin', 'staff']:
+        # Admin thấy tất cả, leader thấy danh mục được giao, staff thấy phạm vi phụ trách/chuyên môn.
+        if is_admin_user(user):
             return ConsultationRequest.objects.all().order_by('-created_at')
+        if user.role == 'leader':
+            return ConsultationRequest.objects.filter(
+                leader_consultation_filter(user)
+            ).order_by('-created_at')
+        if user.role == 'staff':
+            include_claimable = self.request.query_params.get('scope') != 'chat'
+            return ConsultationRequest.objects.filter(
+                staff_consultation_filter(user, include_claimable=include_claimable)
+            ).order_by('-created_at')
         return ConsultationRequest.objects.filter(user=user).order_by('-created_at')
 
     @action(detail=True, methods=['post'])
     def assign_processor(self, request, pk=None):
         consultation = self.get_object()
+        if request.user.role == 'leader':
+            return Response({"detail": "Leader chỉ phân công staff, không tiếp nhận xử lý trực tiếp."}, status=status.HTTP_403_FORBIDDEN)
+        if request.user.role == 'staff':
+            can_claim = ConsultationRequest.objects.filter(
+                pk=consultation.pk
+            ).filter(staff_consultation_filter(request.user, include_claimable=True)).exists()
+            if not can_claim:
+                return Response({"detail": "Bạn không có quyền tiếp nhận yêu cầu tư vấn này."}, status=status.HTTP_403_FORBIDDEN)
+            if consultation.processor and consultation.processor_id != request.user.id:
+                return Response({"detail": "Yêu cầu này đã có staff khác tiếp nhận."}, status=status.HTTP_400_BAD_REQUEST)
+            if consultation.assigned_staff and consultation.assigned_staff_id != request.user.id:
+                return Response({"detail": "Yêu cầu này đã được chỉ định cho staff khác."}, status=status.HTTP_403_FORBIDDEN)
+        elif not is_admin_user(request.user):
+            return Response({"detail": "Bạn không có quyền tiếp nhận yêu cầu tư vấn."}, status=status.HTTP_403_FORBIDDEN)
+
         if not consultation.processor:
             consultation.processor = request.user
-            consultation.status = 'processed'
-            consultation.save()
+        consultation.status = 'processed'
+        consultation.save(update_fields=['processor', 'status', 'updated_at'])
         return Response({"status": "assigned", "processor": request.user.username})
+
+    @action(detail=True, methods=['post'], url_path='assign-staff')
+    def assign_staff(self, request, pk=None):
+        if not (is_admin_user(request.user) or request.user.role == 'leader'):
+            return Response({"detail": "Bạn không có quyền chỉ định staff."}, status=status.HTTP_403_FORBIDDEN)
+        consultation = self.get_object()
+        if request.user.role == 'leader' and not ConsultationRequest.objects.filter(
+            pk=consultation.pk
+        ).filter(leader_consultation_filter(request.user)).exists():
+            return Response({"detail": "Leader chỉ được chỉ định yêu cầu thuộc danh mục mình quản lý."}, status=status.HTTP_403_FORBIDDEN)
+        staff_id = request.data.get('staff_id') or request.data.get('assigned_staff')
+        staff = User.objects.filter(id=staff_id, role='staff', is_active=True).first()
+        if not staff:
+            return Response({"detail": "Staff không hợp lệ hoặc đang bị khóa."}, status=status.HTTP_400_BAD_REQUEST)
+        if request.user.role == 'leader':
+            leader_category_ids = set(get_staff_category_ids(request.user))
+            staff_category_ids = set(get_staff_category_ids(staff))
+            consultation_category_id = consultation.category_id or (consultation.product.category_id if consultation.product_id else None)
+            if consultation_category_id and consultation_category_id not in leader_category_ids:
+                return Response({"detail": "Yêu cầu không thuộc danh mục leader quản lý."}, status=status.HTTP_403_FORBIDDEN)
+            if not (leader_category_ids & staff_category_ids):
+                return Response({"detail": "Staff không thuộc danh mục leader quản lý."}, status=status.HTTP_400_BAD_REQUEST)
+            if consultation_category_id and consultation_category_id not in staff_category_ids:
+                return Response({"detail": "Staff chưa được phân quyền danh mục của yêu cầu này."}, status=status.HTTP_400_BAD_REQUEST)
+        consultation.assigned_staff = staff
+        consultation.status = 'processed'
+        consultation.save(update_fields=['assigned_staff', 'status', 'updated_at'])
+        return Response(ConsultationRequestSerializer(consultation, context={'request': request}).data)
 
     @action(detail=True, methods=['get', 'post'])
     def messages(self, request, pk=None):
         consultation = self.get_object()
+        if not user_can_access_consultation(request.user, consultation):
+            return Response({"detail": "Bạn không có quyền xem hội thoại này."}, status=status.HTTP_403_FORBIDDEN)
 
         # 1. LẤY DANH SÁCH TIN NHẮN
         if request.method == 'GET':
@@ -1315,11 +1830,11 @@ class ConsultationRequestViewSet(viewsets.ModelViewSet):
 
 
 class NewsViewSet(viewsets.ModelViewSet):
-    queryset = News.objects.all()
+    queryset = News.objects.all().order_by('-created_at')
     serializer_class = NewsSerializer
 
     def get_permissions(self):
-        if self.action in ['create', 'update', 'destroy']:
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsTISAdminOrStaff()]
         return [permissions.AllowAny()]
 
@@ -1332,7 +1847,7 @@ class BannerViewSet(viewsets.ModelViewSet):
         queryset = Banner.objects.all().order_by('sort_order', '-created_at')
         if self.action in ['list', 'retrieve'] and not (
             self.request.user.is_authenticated
-            and self.request.user.role in ['admin', 'super_admin', 'staff']
+            and is_admin_user(self.request.user)
         ):
             queryset = queryset.filter(is_active=True)
         return queryset
@@ -1431,12 +1946,12 @@ class CartViewSet(viewsets.ViewSet):
 
     def list(self, request):
         cart, _ = Cart.objects.get_or_create(user=request.user)
-        items = cart.items.all()
+        items = cart.items.select_related('package__product').prefetch_related('package__product__images')
         total_price = sum(item.package.price * item.quantity for item in items)
         return Response({
-            "items": CartItemSerializer(items, many=True).data,
+            "items": CartItemSerializer(items, many=True, context={'request': request}).data,
             "total_price": total_price,
-            "total_items": items.count()
+            "total_items": sum(item.quantity for item in items)
         })
 
     @action(detail=False, methods=['post'])
