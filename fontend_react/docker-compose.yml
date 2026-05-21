@@ -1,0 +1,22 @@
+services:
+  frontend-lan:
+    build: .
+    container_name: tis_frontend_lan
+    ports:
+      - "1234:80"
+    volumes:
+      - ./env/lan.env:/usr/share/nginx/html/.env:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  frontend-cloudflare:
+    build: .
+    container_name: tis_frontend_cloudflare
+    ports:
+      - "8080:80"
+    volumes:
+      - ./env/cloudflare.env:/usr/share/nginx/html/.env:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
