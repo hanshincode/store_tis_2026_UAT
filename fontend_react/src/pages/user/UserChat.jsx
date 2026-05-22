@@ -186,7 +186,7 @@ export default function UserChat() {
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Chat hỗ trợ</h1>
           <p className="text-gray-500 text-sm mt-1">Trò chuyện trực tiếp với đội ngũ hỗ trợ</p>
@@ -197,10 +197,10 @@ export default function UserChat() {
       </div>
 
       {/* Chat Container */}
-      <div className="admin-card p-0 overflow-hidden" style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}>
+      <div className="admin-card p-0 overflow-hidden" style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}>
         <div className="flex h-full">
           {/* Sidebar: Conversation List */}
-          <div className="w-72 border-r border-gray-100 flex flex-col flex-shrink-0 hidden sm:flex">
+          <div className={`w-full sm:w-72 border-r border-gray-100 flex-col flex-shrink-0 ${selectedConvo ? 'hidden sm:flex' : 'flex'}`}>
             <div className="p-3 border-b border-gray-100">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Cuộc hội thoại</p>
             </div>
@@ -257,7 +257,7 @@ export default function UserChat() {
           </div>
 
           {/* Main Chat Area */}
-          <div className="flex-1 flex flex-col min-w-0">
+          <div className={`flex-1 flex-col min-w-0 ${selectedConvo ? 'flex' : 'hidden sm:flex'}`}>
             {selectedConvo ? (
               <>
                 {/* Chat Header */}

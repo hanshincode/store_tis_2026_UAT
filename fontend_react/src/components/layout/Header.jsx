@@ -73,11 +73,15 @@ export default function Header() {
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount]     = useState(0)
   const [showNotif, setShowNotif]         = useState(false)
+  const [languageOpen, setLanguageOpen]   = useState(false)
+  const [profileOpen, setProfileOpen]     = useState(false)
   const [cmsMenus, setCmsMenus]           = useState([])
   const [language, setUiLanguage]         = useState(getLanguage())
   const [searchHistory, setSearchHistory] = useState(() => getSearchHistory())
   const [searchSuggestions, setSearchSuggestions] = useState([])
   const searchRef = useRef(null)
+  const languageRef = useRef(null)
+  const profileRef = useRef(null)
 
   // Scroll effect
   useEffect(() => {
@@ -120,6 +124,15 @@ export default function Header() {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
+  useEffect(() => {
+    const handler = (e) => {
+      if (!languageRef.current?.contains(e.target)) setLanguageOpen(false)
+      if (!profileRef.current?.contains(e.target)) setProfileOpen(false)
+    }
+    document.addEventListener('pointerdown', handler)
+    return () => document.removeEventListener('pointerdown', handler)
+  }, [])
+
   // Focus search input when opened
   useEffect(() => {
     if (!searchOpen) return
@@ -140,7 +153,7 @@ export default function Header() {
           type: 'category',
           label: category.name,
           subtitle: 'Danh mục bảo hiểm',
-          href: `/products?category=${category.id}`,
+          href: `/category/${category.id}`,
         })),
       ])
     }).catch(() => setSearchSuggestions([]))
@@ -170,6 +183,7 @@ export default function Header() {
   const changeLanguage = (lang) => {
     setLanguage(lang)
     setUiLanguage(lang)
+    setLanguageOpen(false)
   }
 
   const openSearch = () => {
@@ -180,6 +194,7 @@ export default function Header() {
   const handleLogout = () => {
     logout()
     setMobileOpen(false)
+    setProfileOpen(false)
   }
 
   const markAllRead = async () => {
@@ -239,7 +254,7 @@ export default function Header() {
               {/* Search */}
               <button
                 onClick={openSearch}
-                className="p-2 rounded-lg text-gray-600 hover:text-tis-red hover:bg-red-50 transition-colors"
+                className="header-action-icon"
                 title={t('common.search')}
               >
                 <i className="fas fa-search text-lg" />
@@ -248,7 +263,7 @@ export default function Header() {
               {/* Cart */}
               <Link
                 to="/user/cart"
-                className="relative p-2 rounded-lg text-gray-600 hover:text-tis-red hover:bg-red-50 transition-colors"
+                className="header-action-icon relative"
                 title={t('nav.cart')}
               >
                 <i className="fas fa-shopping-cart text-lg" />
@@ -263,8 +278,12 @@ export default function Header() {
               {isAuthenticated && (
                 <div className="relative">
                   <button
-                    onClick={() => setShowNotif(!showNotif)}
-                    className="relative p-2 rounded-lg text-gray-600 hover:text-tis-red hover:bg-red-50 transition-colors"
+                    onClick={() => {
+                      setShowNotif(!showNotif)
+                      setLanguageOpen(false)
+                      setProfileOpen(false)
+                    }}
+                    className="header-action-icon relative"
                     title="Thông báo"
                   >
                     <i className="fas fa-bell text-lg" />
@@ -300,15 +319,21 @@ export default function Header() {
                 </div>
               )}
 
-              <div className="relative group hidden lg:block">
+              <div ref={languageRef} className="relative hidden lg:block">
                 <button
-                  className="flex items-center gap-1 p-2 rounded-lg text-gray-600 hover:text-tis-red hover:bg-red-50 transition-colors text-sm font-bold"
+                  type="button"
+                  onClick={() => {
+                    setLanguageOpen(open => !open)
+                    setProfileOpen(false)
+                  }}
+                  className="header-action-language"
                   title={t('common.language')}
+                  aria-expanded={languageOpen}
                 >
                   <i className="fas fa-globe" />
                   <span>{language.toUpperCase()}</span>
                 </button>
-                <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150">
+                <div className={`absolute right-0 top-full mt-1 w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 transition-all duration-150 ${languageOpen ? 'visible translate-y-0 opacity-100' : 'invisible -translate-y-1 opacity-0'}`}>
                   <button onClick={() => changeLanguage('vi')} className={`block w-full text-left px-3 py-2 text-sm ${language === 'vi' ? 'text-tis-red font-bold bg-red-50' : 'text-gray-700 hover:bg-gray-50'}`}>
                     Tiếng Việt
                   </button>
@@ -320,35 +345,44 @@ export default function Header() {
 
               {/* Auth */}
               {isAuthenticated ? (
-                <div className="relative group hidden lg:block">
-                  <button className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors text-sm font-semibold text-gray-700">
+                <div ref={profileRef} className="relative hidden lg:block">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileOpen(open => !open)
+                      setLanguageOpen(false)
+                      setShowNotif(false)
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors text-sm font-semibold text-gray-700"
+                    aria-expanded={profileOpen}
+                  >
                     <div className="w-8 h-8 rounded-full bg-tis-red text-white flex items-center justify-center text-xs font-bold">
                       {(user?.first_name || user?.username || 'U')[0].toUpperCase()}
                     </div>
                     <span className="hidden xl:block max-w-[100px] truncate">
                       {user?.last_name} {user?.first_name || user?.username}
                     </span>
-                    <i className="fas fa-chevron-down text-xs text-gray-400" />
+                    <i className={`fas fa-chevron-down text-xs text-gray-400 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {/* Dropdown */}
-                  <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150">
+                  <div className={`absolute right-0 top-full mt-1 w-52 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 transition-all duration-150 ${profileOpen ? 'visible translate-y-0 opacity-100' : 'invisible -translate-y-1 opacity-0'}`}>
                     <div className="p-3 border-b border-gray-50">
                       <p className="text-xs text-gray-400">Xin chào</p>
                       <p className="text-sm font-bold text-gray-800 truncate">{user?.last_name} {user?.first_name}</p>
                     </div>
                     <div className="p-1">
-                      <Link to="/user" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg hover:bg-gray-50">
+                      <Link to="/user" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg hover:bg-gray-50">
                         <i className="fas fa-user w-4" /> Hồ sơ của tôi
                       </Link>
-                      <Link to="/user/orders" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg hover:bg-gray-50">
+                      <Link to="/user/orders" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg hover:bg-gray-50">
                         <i className="fas fa-file-invoice w-4" /> Đơn hàng
                       </Link>
-                      <Link to="/user/chat" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg hover:bg-gray-50">
+                      <Link to="/user/chat" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg hover:bg-gray-50">
                         <i className="fas fa-headset w-4" /> Hỗ trợ & Chat
                       </Link>
                       {isInternal && (
-                        <Link to="/admin" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg hover:bg-gray-50">
+                        <Link to="/admin" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg hover:bg-gray-50">
                           <i className="fas fa-shield-halved w-4" /> {t('nav.admin')}
                         </Link>
                       )}

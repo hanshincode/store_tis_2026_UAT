@@ -1,10 +1,10 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuth } from '@/context/AuthContext'
-import { clearTokens } from '@/lib/auth'
+import { clearTokens, saveTokens } from '@/lib/auth'
 import Swal from 'sweetalert2'
 import api from '@/lib/api'
 
@@ -14,9 +14,57 @@ const schema = z.object({
 })
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const { login, fetchMe } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [showPass, setShowPass] = useState(false)
+
+  // Handle Google/Microsoft callback (access + refresh in URL)
+  useEffect(() => {
+    const access = searchParams.get('access')
+    const refresh = searchParams.get('refresh')
+    if (access && refresh) {
+      saveTokens(access, refresh)
+      fetchMe().then(() => {
+        const next = searchParams.get('next') || '/'
+        navigate(next, { replace: true })
+      }).catch(() => {
+        clearTokens()
+        Swal.fire({
+          icon: 'error',
+          title: 'Thất bại',
+          text: 'Không thể lấy thông tin tài khoản.',
+          confirmButtonColor: '#D71920',
+        })
+      })
+      return
+    }
+
+    // Handle Zalo callback (code in URL)
+    const code = searchParams.get('code')
+    if (code) {
+      Swal.fire({ title: 'Đang xử lý Zalo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
+      api.post('/auth/zalo/callback/', { code })
+        .then(({ data }) => {
+          saveTokens(data.access, data.refresh)
+          return fetchMe()
+        })
+        .then(() => {
+          Swal.close()
+          navigate('/', { replace: true })
+        })
+        .catch((err) => {
+          Swal.close()
+          clearTokens()
+          Swal.fire({
+            icon: 'error',
+            title: 'Đăng nhập Zalo thất bại',
+            text: err.response?.data?.detail || err.message || 'Lỗi kết nối hệ thống',
+            confirmButtonColor: '#D71920',
+          })
+        })
+    }
+  }, [searchParams, fetchMe, navigate])
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),

@@ -184,9 +184,10 @@ export default function CategoryPage() {
               {category.intro_title || `Tại sao chọn ${category.name}?`}
             </h2>
             {category.intro_description && (
-              <p className="text-gray-500 leading-relaxed text-base max-w-3xl mx-auto">
-                {category.intro_description}
-              </p>
+              <div
+                className="rich-content text-gray-500 leading-relaxed text-base max-w-3xl mx-auto"
+                dangerouslySetInnerHTML={{ __html: category.intro_description }}
+              />
             )}
             <div className="divider-red mx-auto mt-6" />
           </div>

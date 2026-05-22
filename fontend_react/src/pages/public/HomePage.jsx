@@ -11,7 +11,9 @@ import Swal from 'sweetalert2'
 function HeroBanner() {
   const [banners, setBanners] = useState([])
   const [current, setCurrent] = useState(0)
+  const [isPlaying, setIsPlaying] = useState(true)
   const timerRef = useRef(null)
+  const videoRef = useRef(null)
 
   useEffect(() => {
     fetchList('/banners/?is_active=true').then(list => {
@@ -20,15 +22,56 @@ function HeroBanner() {
   }, [])
 
   useEffect(() => {
+    setIsPlaying(true)
+  }, [current])
+
+  useEffect(() => {
     if (banners.length <= 1) return
-    timerRef.current = setInterval(() => setCurrent(c => (c + 1) % banners.length), 5000)
+    const activeBanner = banners[current]
+
+    // Pause auto-sliding while a video is playing
+    if (activeBanner?.video_file && isPlaying) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+      return
+    }
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+    }
+
+    timerRef.current = setInterval(() => {
+      setCurrent(c => (c + 1) % banners.length)
+    }, 5000)
+
     return () => clearInterval(timerRef.current)
-  }, [banners.length])
+  }, [banners.length, current, isPlaying])
 
   const goTo = (idx) => {
     setCurrent(idx)
-    clearInterval(timerRef.current)
-    timerRef.current = setInterval(() => setCurrent(c => (c + 1) % banners.length), 5000)
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+    }
+  }
+
+  const handleVideoEnded = () => {
+    if (banners.length > 1) {
+      setCurrent(c => (c + 1) % banners.length)
+    }
+  }
+
+  const togglePlayPause = (e) => {
+    e.stopPropagation()
+    if (!videoRef.current) return
+    if (isPlaying) {
+      videoRef.current.pause()
+      setIsPlaying(false)
+    } else {
+      videoRef.current.play().catch(() => {})
+      setIsPlaying(true)
+    }
   }
 
   if (!banners.length) {
@@ -44,37 +87,89 @@ function HeroBanner() {
   }
 
   const b = banners[current]
-  const imgUrl = getValidImageUrl(b.image_url || b.image)
+  const imgUrl = getValidImageUrl(b.background_image || b.image_url || b.image)
+  const videoUrl = b.video_file ? getValidImageUrl(b.video_file) : null
+  const primaryLink = b.button_link || b.cta_url
+  const primaryText = b.button_text || b.cta_text || 'Xem ngay'
+  const bannerTemplate = b.template || 'single_left'
+  const showTitle = b.show_title !== false
+  const isWideBanner = bannerTemplate === 'wide_product'
+  const hasBannerContent = Boolean((showTitle && b.title) || b.subtitle || b.eyebrow || b.custom_html)
 
   return (
-    <div className="relative rounded-2xl overflow-hidden group banner-img-wrap">
-      <img
-        src={imgUrl}
-        alt={b.title || 'TIS Banner'}
-        className="w-full h-[420px] object-cover transition-all duration-500"
-        onError={e => {
-          e.target.src = 'https://placehold.co/1200x500/D71920/ffffff?text=TIS+Broker'
-        }}
-      />
+    <div className={`relative rounded-2xl overflow-hidden group banner-img-wrap hero-banner hero-banner-${bannerTemplate} ${isWideBanner ? 'hero-banner-wide-frame' : 'h-[420px]'}`}>
+      {/* Media: Video or Image */}
+      {videoUrl ? (
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          autoPlay
+          muted
+          playsInline
+          onEnded={handleVideoEnded}
+          className={`hero-banner-media absolute inset-0 w-full h-full transition-all duration-500 ${isWideBanner ? 'object-contain' : 'object-cover'}`}
+        />
+      ) : (
+        <img
+          src={imgUrl}
+          alt={b.title || 'TIS Banner'}
+          className={`hero-banner-media w-full h-full transition-all duration-500 ${isWideBanner ? 'object-contain' : 'object-cover'}`}
+          onError={e => {
+            e.target.src = 'https://placehold.co/1200x500/D71920/ffffff?text=TIS+Broker'
+          }}
+        />
+      )}
+
       {/* Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+      {(!isWideBanner || hasBannerContent) && (
+        <div className={`absolute inset-0 z-10 ${
+          isWideBanner
+            ? 'bg-gradient-to-r from-black/65 via-black/15 to-transparent'
+            : 'bg-gradient-to-t from-black/70 via-black/20 to-transparent'
+        }`} />
+      )}
+
+      {/* Video Controls Overlay */}
+      {videoUrl && (
+        <button
+          type="button"
+          onClick={togglePlayPause}
+          className="absolute bottom-4 right-4 z-30 w-10 h-10 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center text-white backdrop-blur-sm transition-all shadow-lg border border-white/20"
+          title={isPlaying ? "Tạm dừng" : "Phát video"}
+        >
+          <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'} text-sm`} />
+        </button>
+      )}
 
       {/* Content */}
-      {(b.title || b.subtitle) && (
-        <div className="absolute bottom-8 left-8 right-8 text-white">
-          {b.title && <h2 className="text-2xl font-bold mb-2 drop-shadow-lg">{b.title}</h2>}
+      {hasBannerContent && (
+        <div className="hero-banner-content absolute inset-x-8 bottom-8 text-white z-20">
+          {b.eyebrow && <span className="hero-banner-eyebrow">{b.eyebrow}</span>}
+          {showTitle && b.title && <h2 className="text-2xl font-bold mb-2 drop-shadow-lg">{b.title}</h2>}
           {b.subtitle && <p className="text-white/90 text-sm line-clamp-2 drop-shadow">{b.subtitle}</p>}
-          {b.cta_url && (
-            <a href={b.cta_url} className="inline-flex items-center gap-2 mt-4 btn-tis bg-white text-tis-red hover:bg-gray-100 text-sm px-5 py-2">
-              {b.cta_text || 'Xem ngay'} <i className="fas fa-arrow-right" />
-            </a>
+          {b.custom_html && bannerTemplate === 'custom_html' && (
+            <div className="hero-banner-custom" dangerouslySetInnerHTML={{ __html: b.custom_html }} />
+          )}
+          {(primaryLink || b.secondary_button_link) && (
+            <div className="hero-banner-actions">
+              {primaryLink && (
+                <a href={primaryLink} className="inline-flex items-center gap-2 btn-tis hero-banner-primary text-sm px-5 py-2">
+                  {primaryText} <i className="fas fa-arrow-right" />
+                </a>
+              )}
+              {b.secondary_button_link && (
+                <a href={b.secondary_button_link} className="inline-flex items-center gap-2 btn-tis hero-banner-secondary text-sm px-5 py-2">
+                  {b.secondary_button_text || 'Tư vấn ngay'}
+                </a>
+              )}
+            </div>
           )}
         </div>
       )}
 
       {/* Dots */}
       {banners.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
           {banners.map((_, i) => (
             <button key={i} onClick={() => goTo(i)}
               className={`banner-dot transition-all ${i === current ? 'active' : ''}`} />
@@ -86,11 +181,11 @@ function HeroBanner() {
       {banners.length > 1 && (
         <>
           <button onClick={() => goTo((current - 1 + banners.length) % banners.length)}
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-20">
             <i className="fas fa-chevron-left text-gray-700 text-sm" />
           </button>
           <button onClick={() => goTo((current + 1) % banners.length)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-20">
             <i className="fas fa-chevron-right text-gray-700 text-sm" />
           </button>
         </>
@@ -185,18 +280,18 @@ function ProductCard({ product }) {
         {product.target_audience && (
           <span className={`absolute top-2 right-2 badge-tis text-[11px] ${product.target_audience === 'ent' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
             <i className={`fas ${product.target_audience === 'ent' ? 'fa-building' : 'fa-user'} text-[10px]`} />
-            {product.target_audience === 'ent' ? 'DN' : 'Cá nhân'}
+            {product.target_audience === 'ent' ? 'Doanh nghiệp' : 'Cá nhân'}
           </span>
         )}
       </div>
       <div className="product-card-body p-4 flex flex-col flex-1">
-        <h3 className="product-card-title font-bold text-gray-900 line-clamp-2 mb-2 group-hover:text-tis-red transition-colors leading-snug">
+        <h3 className="product-card-title font-bold text-gray-900 mb-2 group-hover:text-tis-red transition-colors leading-snug">
           <Link to={`/products/${product.id}`} className="text-gray-900 group-hover:text-tis-red text-decoration-none">
             {product.name}
           </Link>
         </h3>
         {product.short_description && (
-          <p className="product-card-desc text-xs text-gray-400 line-clamp-2 flex-1 mb-3">{product.short_description}</p>
+          <p className="product-card-desc text-xs text-gray-400 flex-1 mb-3">{product.short_description}</p>
         )}
         
         <div className="product-card-footer mt-auto">
@@ -232,7 +327,7 @@ function ProductCard({ product }) {
                 onClick={quickAddProductToCart}
                 style={{ borderColor: '#D71920', color: '#D71920' }}
               >
-                <i className="fas fa-shopping-cart me-1" />Thêm
+                <i className="fas fa-shopping-cart me-1" />Thêm giỏ hàng
               </button>
               <button
                 type="button"
@@ -259,7 +354,7 @@ function StatsStrip() {
     { to: 24, suffix: '/7', label: 'Hỗ trợ khách hàng' },
   ]
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-10 bg-white rounded-2xl shadow-tis-card p-6 border border-gray-100">
+    <div className="about-stats grid grid-cols-2 md:grid-cols-4 gap-0 mt-8">
       {stats.map((s, i) => (
         <div key={i} className="text-center">
           <div className="text-3xl font-bold text-tis-red">
@@ -329,13 +424,14 @@ export default function HomePage() {
       </section>
 
       {/* ── About Section ── */}
-      <section className="py-20 bg-white" id="about">
+      <section className="about-section py-20 bg-white" id="about">
         <div className="container mx-auto px-4 max-w-7xl">
-          <div className="grid lg:grid-cols-2 gap-12 items-start">
-            <div>
-              <div className="section-kicker">About TIS</div>
+          <div className="about-shell grid lg:grid-cols-[minmax(0,1.04fr)_minmax(420px,0.96fr)] gap-8 items-start">
+            <div className="about-copy">
+              <div className="section-kicker">About TIS </div>
               <h2 className="section-title mb-4">
-                Your <strong>T</strong>rustful <strong>I</strong>nsurance <strong>S</strong>pecialist
+                Your <br />
+                <span className="about-brand-letter">T</span>rustful <span className="about-brand-letter">I</span>nsurance <span className="about-brand-letter">S</span>pecialist
               </h2>
               <p className="text-gray-500 leading-relaxed">
                 TIS Broker đồng hành cùng doanh nghiệp và cá nhân trong tư vấn rủi ro, lựa chọn bảo hiểm, xử lý bồi thường và tối ưu chương trình bảo vệ.
@@ -343,17 +439,21 @@ export default function HomePage() {
               <StatsStrip />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="about-feature-grid grid sm:grid-cols-2 gap-4">
               {[
                 { icon: 'fa-user-shield',       title: 'Đặt lợi ích khách hàng lên trước', desc: 'Tư vấn độc lập, minh bạch quyền lợi và điều khoản để khách hàng chọn đúng giải pháp.' },
                 { icon: 'fa-scale-balanced',    title: 'Đồng hành khi phát sinh bồi thường', desc: 'Hỗ trợ hồ sơ, quy trình và trao đổi với các bên liên quan để bảo vệ quyền lợi hợp lệ.' },
                 { icon: 'fa-chart-line',        title: 'Phân tích rủi ro theo ngành', desc: 'Từ xây dựng, logistics, sản xuất đến chăm sóc sức khỏe, chương trình được thiết kế theo thực tế.' },
                 { icon: 'fa-headset',           title: 'Hỗ trợ liên tục', desc: 'Đội ngũ chuyên viên tiếp nhận tư vấn, đơn hàng và yêu cầu hỗ trợ trực tuyến tập trung.' },
               ].map((item, i) => (
-                <div key={i} className="card-tis p-5 hover:-translate-y-1 transition-transform duration-200">
-                  <i className={`fas ${item.icon} text-tis-red text-2xl mb-3`} />
-                  <h5 className="font-bold text-gray-900 text-sm mb-2">{item.title}</h5>
-                  <p className="text-gray-500 text-xs leading-relaxed">{item.desc}</p>
+                <div key={i} className="about-feature-card">
+                  <span className="about-feature-icon">
+                    <i className={`fas ${item.icon}`} />
+                  </span>
+                  <div>
+                    <h5 className="font-bold text-gray-900 text-sm mb-2">{item.title}</h5>
+                    <p className="text-gray-500 text-xs leading-relaxed">{item.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -484,7 +584,7 @@ export default function HomePage() {
                       <i className="far fa-calendar-alt text-tis-red" />
                       {item.created_at ? new Date(item.created_at).toLocaleDateString('vi-VN') : ''}
                     </div>
-                    <h3 className="font-bold text-gray-900 text-sm line-clamp-2 mb-2 group-hover:text-tis-red transition-colors">
+                    <h3 className="home-news-title font-bold text-gray-900 mb-2 group-hover:text-tis-red transition-colors">
                       {item.title}
                     </h3>
                     <p className="text-gray-500 text-xs line-clamp-2">{truncate(stripHtml(item.content), 100)}</p>

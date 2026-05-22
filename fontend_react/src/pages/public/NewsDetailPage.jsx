@@ -96,11 +96,11 @@ function InterestedProductCard({ product }) {
         )}
       </div>
       <div className="product-card-body p-4 flex flex-col flex-1">
-        <h3 className="product-card-title font-bold text-gray-900 line-clamp-2 mb-2 group-hover:text-tis-red transition-colors leading-snug">
+        <h3 className="product-card-title font-bold text-gray-900 mb-2 group-hover:text-tis-red transition-colors leading-snug">
           {product.name}
         </h3>
         {product.short_description && (
-          <p className="product-card-desc text-xs text-gray-400 line-clamp-2 flex-1 mb-3">{product.short_description}</p>
+          <p className="product-card-desc text-xs text-gray-400 flex-1 mb-3">{product.short_description}</p>
         )}
         <div className="product-card-footer mt-auto">
           <div className="price-tag">

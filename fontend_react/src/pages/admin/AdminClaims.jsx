@@ -28,6 +28,7 @@ export default function AdminClaims() {
   const [claims, setClaims] = useState([])
   const [staffList, setStaffList] = useState([])
   const [loading, setLoading] = useState(true)
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
 
@@ -82,6 +83,17 @@ export default function AdminClaims() {
     loadData()
   }, [])
 
+  const handleSearchSubmit = (e) => {
+    e.preventDefault()
+    setSearch(searchInput)
+  }
+
+  const handleResetSearch = () => {
+    setSearchInput('')
+    setSearch('')
+    setStatusFilter('all')
+  }
+
   const filteredClaims = claims.filter((item) => {
     // Status filter
     if (statusFilter !== 'all' && item.status !== statusFilter) return false
@@ -89,11 +101,11 @@ export default function AdminClaims() {
     // Search filter
     if (search) {
       const keyword = search.toLowerCase()
-      const code = (item.code || `#${item.id}`).toLowerCase()
-      const customer = (item.customer_name || '').toLowerCase()
-      const contact = (item.customer_phone || item.customer_email || '').toLowerCase()
-      const order = (item.order_code || '').toLowerCase()
-      const product = (item.product_name || '').toLowerCase()
+      const code = String(item.code || `#${item.id}`).toLowerCase()
+      const customer = String(item.customer_name || '').toLowerCase()
+      const contact = String(item.customer_phone || item.customer_email || '').toLowerCase()
+      const order = String(item.order_code || '').toLowerCase()
+      const product = String(item.product_name || '').toLowerCase()
       return (
         code.includes(keyword) ||
         customer.includes(keyword) ||
@@ -175,12 +187,12 @@ export default function AdminClaims() {
       </div>
 
       {/* Filters */}
-      <div className="admin-card mb-6 flex flex-wrap gap-4 items-center !p-4">
+      <form onSubmit={handleSearchSubmit} className="admin-card mb-6 flex flex-wrap gap-3 items-center !p-4">
         <div className="relative flex-grow min-w-[240px]">
           <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
           <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Tìm theo mã hồ sơ, tên, SĐT, mã đơn hàng..."
             className="input-tis pl-10 text-sm"
           />
@@ -197,7 +209,22 @@ export default function AdminClaims() {
             </option>
           ))}
         </select>
-      </div>
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-semibold shadow-sm transition shrink-0"
+          >
+            Tìm kiếm
+          </button>
+          <button
+            type="button"
+            onClick={handleResetSearch}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-semibold transition shrink-0"
+          >
+            Đặt lại
+          </button>
+        </div>
+      </form>
 
       {/* Claims Table */}
       <div className="admin-card overflow-hidden !p-0">

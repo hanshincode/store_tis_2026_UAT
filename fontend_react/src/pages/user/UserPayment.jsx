@@ -202,7 +202,7 @@ export default function UserPayment() {
                     <div key={i} className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                         <img
-                          src={getValidImageUrl(item.product_image || item.product?.image)}
+                          src={getValidImageUrl(item.image || item.product_image || item.product?.image)}
                           alt=""
                           className="w-full h-full object-cover"
                           onError={e => { e.target.src = 'https://placehold.co/100x100/f8f9fa/d71920?text=TIS' }}

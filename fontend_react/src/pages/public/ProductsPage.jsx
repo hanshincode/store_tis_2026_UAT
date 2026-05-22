@@ -91,18 +91,18 @@ function ProductCard({ product }) {
         {product.target_audience && (
           <span className={`absolute top-2 right-2 badge-tis text-[11px] ${product.target_audience === 'ent' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
             <i className={`fas ${product.target_audience === 'ent' ? 'fa-building' : 'fa-user'} text-[10px]`} />
-            {product.target_audience === 'ent' ? 'DN' : 'Cá nhân'}
+            {product.target_audience === 'ent' ? 'Doanh nghiệp' : 'Cá nhân'}
           </span>
         )}
       </div>
       <div className="product-card-body p-4 flex flex-col flex-1">
-        <h3 className="product-card-title font-bold text-gray-900 line-clamp-2 mb-2 group-hover:text-tis-red transition-colors leading-snug">
+        <h3 className="product-card-title font-bold text-gray-900 mb-2 group-hover:text-tis-red transition-colors leading-snug">
           <Link to={`/products/${product.id}`} className="text-gray-900 group-hover:text-tis-red text-decoration-none">
             {product.name}
           </Link>
         </h3>
         {product.short_description && (
-          <p className="product-card-desc text-xs text-gray-400 line-clamp-2 flex-1 mb-3">{product.short_description}</p>
+          <p className="product-card-desc text-xs text-gray-400 flex-1 mb-3">{product.short_description}</p>
         )}
         
         <div className="product-card-footer mt-auto">
@@ -138,7 +138,7 @@ function ProductCard({ product }) {
                 onClick={quickAddProductToCart}
                 style={{ borderColor: '#D71920', color: '#D71920' }}
               >
-                <i className="fas fa-shopping-cart me-1" />Thêm
+                <i className="fas fa-shopping-cart me-1" />Thêm giỏ hàng
               </button>
               <button
                 type="button"
@@ -237,7 +237,7 @@ export default function ProductsPage() {
         <div className="product-filter-panel bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-8 flex flex-wrap gap-4 items-center">
           {/* Search */}
           <form onSubmit={handleSearch} className="flex items-center gap-2 flex-1 min-w-[220px]">
-            <div className="relative flex-1">
+            <div className="product-search-field relative flex-1">
               <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
               <input
                 type="text"

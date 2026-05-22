@@ -1,12 +1,24 @@
 import { useState, useEffect } from 'react'
 import api, { fetchList, getValidImageUrl, getErrorMessage } from '@/lib/api'
 import { formatDateTime, normalizeList } from '@/lib/format'
+import RichTextEditor from '@/components/admin/RichTextEditor'
 import Swal from 'sweetalert2'
 import toast from 'react-hot-toast'
+
+// Strip HTML helper
+const stripHtml = (html = '') => {
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html')
+    return (doc.body.textContent || doc.body.innerText || '').replace(/\s+/g, ' ').trim()
+  } catch {
+    return ''
+  }
+}
 
 export default function AdminNews() {
   const [newsList, setNewsList] = useState([])
   const [loading, setLoading] = useState(true)
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -25,7 +37,11 @@ export default function AdminNews() {
       const sorted = normalizeList(data).sort(
         (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
       )
-      setNewsList(sorted)
+      const mapped = sorted.map(item => ({
+        ...item,
+        _plainText: stripHtml(item.content || '').toLowerCase()
+      }))
+      setNewsList(mapped)
     } catch (err) {
       toast.error('Không thể tải danh sách tin tức')
     } finally {
@@ -37,20 +53,13 @@ export default function AdminNews() {
     loadData()
   }, [])
 
-  // Strip HTML helper
-  const stripHtml = (html = '') => {
-    const doc = new DOMParser().parseFromString(html, 'text/html')
-    return (doc.body.textContent || doc.body.innerText || '').replace(/\s+/g, ' ').trim()
-  }
-
   // Filter
   const filtered = newsList.filter((item) => {
     if (!search) return true
     const keyword = search.toLowerCase()
-    const plainText = stripHtml(item.content || '').toLowerCase()
     return (
-      item.title?.toLowerCase().includes(keyword) ||
-      plainText.includes(keyword) ||
+      (item.title || '').toLowerCase().includes(keyword) ||
+      (item._plainText || '').includes(keyword) ||
       String(item.id).includes(keyword)
     )
   })
@@ -145,6 +154,16 @@ export default function AdminNews() {
     }
   }
 
+  const handleSearchSubmit = (e) => {
+    e.preventDefault()
+    setSearch(searchInput)
+  }
+
+  const handleResetSearch = () => {
+    setSearchInput('')
+    setSearch('')
+  }
+
   return (
     <div>
       {/* Header */}
@@ -159,17 +178,32 @@ export default function AdminNews() {
       </div>
 
       {/* Filter search */}
-      <div className="admin-card mb-6 !p-4">
-        <div className="relative">
+      <form onSubmit={handleSearchSubmit} className="admin-card mb-6 !p-4 flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-grow">
           <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
           <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Tìm kiếm tiêu đề hoặc nội dung bài viết..."
             className="input-tis pl-10 text-sm"
           />
         </div>
-      </div>
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-semibold shadow-sm transition shrink-0"
+          >
+            Tìm kiếm
+          </button>
+          <button
+            type="button"
+            onClick={handleResetSearch}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-semibold transition shrink-0"
+          >
+            Đặt lại
+          </button>
+        </div>
+      </form>
 
       {/* Grid list */}
       {loading ? (
@@ -291,15 +325,12 @@ export default function AdminNews() {
 
                 <div>
                   <label className="label-tis block text-sm font-semibold mb-1">
-                    Nội dung bài viết (Hỗ trợ định dạng HTML) <span className="text-red-500">*</span>
+                    Nội dung bài viết <span className="text-red-500">*</span>
                   </label>
-                  <textarea
-                    required
-                    rows={12}
+                  <RichTextEditor
                     value={form.content}
-                    onChange={(e) => setForm({ ...form, content: e.target.value })}
-                    placeholder="Nhập nội dung chi tiết bài viết dưới dạng văn bản hoặc mã HTML..."
-                    className="input-tis w-full font-mono text-sm"
+                    onChange={content => setForm({ ...form, content })}
+                    placeholder="Soạn nội dung tin tức, định dạng văn bản và chèn media tại đây..."
                   />
                 </div>
 

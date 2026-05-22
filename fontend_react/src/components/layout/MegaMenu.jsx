@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchList } from '@/lib/api'
 import { mediaUrl } from '@/lib/api'
-import { escapeHTML } from '@/lib/format'
 
 export default function MegaMenu() {
   const [categories, setCategories] = useState([])
@@ -57,9 +56,12 @@ export default function MegaMenu() {
           {/* Parent list */}
           <div className="product-cascade-parent flex flex-col gap-1">
             {categories.map((cat) => (
-              <button
+              <Link
                 key={cat.id}
+                to={`/category/${cat.id}`}
                 onMouseEnter={() => setActiveCategory(cat)}
+                onFocus={() => setActiveCategory(cat)}
+                onClick={() => setOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all w-full text-left ${
                   activeCategory?.id === cat.id
                     ? 'bg-white text-tis-red shadow-sm'
@@ -69,7 +71,7 @@ export default function MegaMenu() {
                 <span className="w-5 flex-shrink-0">{getCategoryIcon(cat)}</span>
                 <span className="flex-1 truncate">{cat.name}</span>
                 <i className="fas fa-arrow-right text-xs text-gray-300" />
-              </button>
+              </Link>
             ))}
           </div>
 
@@ -104,7 +106,8 @@ export default function MegaMenu() {
 
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <Link
-                    to={`/products?category=${activeCategory.id}`}
+                    to={`/category/${activeCategory.id}`}
+                    onClick={() => setOpen(false)}
                     className="inline-flex items-center gap-2 text-tis-red text-sm font-semibold hover:underline"
                   >
                     Xem tất cả {activeCategory.name} <i className="fas fa-arrow-right" />

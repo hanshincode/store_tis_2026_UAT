@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import api, { fetchList, getValidImageUrl, getErrorMessage } from '@/lib/api'
 import { formatDateTime, normalizeList } from '@/lib/format'
+import RichTextEditor from '@/components/admin/RichTextEditor'
 import Swal from 'sweetalert2'
 import toast from 'react-hot-toast'
 
@@ -469,14 +470,12 @@ export default function AdminSitePages() {
 
                 <div>
                   <label className="label-tis block text-sm font-semibold mb-1">
-                    Nội dung trang (Hỗ trợ định dạng HTML)
+                    Nội dung trang
                   </label>
-                  <textarea
-                    rows={10}
+                  <RichTextEditor
                     value={pageForm.content}
-                    onChange={(e) => setPageForm({ ...pageForm, content: e.target.value })}
-                    placeholder="Điền nội dung chi tiết bài viết (chấp nhận thẻ HTML)..."
-                    className="input-tis w-full font-mono text-sm"
+                    onChange={content => setPageForm({ ...pageForm, content })}
+                    placeholder="Soạn nội dung trang, thêm ảnh và định dạng bố cục tại đây..."
                   />
                 </div>
 

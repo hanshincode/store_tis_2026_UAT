@@ -176,70 +176,104 @@ export default function ContactPage() {
 
           {/* ── Right: Contact Form ── */}
           <div className="lg:col-span-3">
-            <div className="card-tis p-7 md:p-9">
-              <h2 className="text-lg font-bold text-gray-900 mb-1">
-                <i className="fas fa-paper-plane text-tis-red mr-2" />
-                Gửi yêu cầu tư vấn
-              </h2>
-              <p className="text-gray-400 text-sm mb-6">Điền thông tin bên dưới, chúng tôi sẽ phản hồi trong vòng 30 phút (giờ hành chính).</p>
+            <div className="card-tis p-7 md:p-9 relative overflow-hidden transition-all hover:shadow-xl duration-300">
+              {/* Premium top accent line */}
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#D71920] to-[#f54950]" />
+              
+              <div className="flex items-center gap-3.5 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#D71920]/10 to-[#f54950]/5 text-[#D71920] flex items-center justify-center flex-shrink-0 shadow-sm border border-[#D71920]/10">
+                  <i className="fas fa-paper-plane text-lg" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-extrabold text-gray-900 leading-tight">Gửi yêu cầu tư vấn</h2>
+                  <p className="text-xs text-gray-400 mt-1">Chuyên viên sẽ liên hệ với bạn sau</p>
+                </div>
+              </div>
+              
+              <div className="h-px bg-slate-100 my-5" />
 
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                 {/* Name */}
-                <div>
-                  <label className="label-tis">
-                    Họ và tên <span className="text-red-400">*</span>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
+                    Họ và tên <span className="text-[#D71920]">*</span>
                   </label>
-                  <input
-                    {...register('name')}
-                    className={`input-tis ${errors.name ? 'border-red-400' : ''}`}
-                    placeholder="Nguyễn Văn A"
-                  />
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
+                      <i className="far fa-user text-sm" />
+                    </span>
+                    <input
+                      {...register('name')}
+                      className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border ${errors.name ? 'border-red-400 focus:border-red-400 focus:ring-red-400/10' : 'border-slate-200 focus:border-[#D71920] focus:ring-[#D71920]/10'} rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-4 transition-all outline-none`}
+                      placeholder="Nguyễn Văn A"
+                    />
+                  </div>
                   {errors.name && (
-                    <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>
+                    <p className="text-red-500 text-xs mt-1 font-medium"><i className="fas fa-exclamation-circle mr-1" />{errors.name.message}</p>
                   )}
                 </div>
 
                 {/* Phone & Email Row */}
                 <div className="grid md:grid-cols-2 gap-5">
-                  <div>
-                    <label className="label-tis">
-                      Số điện thoại <span className="text-red-400">*</span>
+                  {/* Phone */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
+                      Số điện thoại <span className="text-[#D71920]">*</span>
                     </label>
-                    <input
-                      {...register('phone')}
-                      className={`input-tis ${errors.phone ? 'border-red-400' : ''}`}
-                      placeholder="09xx xxx xxx"
-                      inputMode="tel"
-                    />
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
+                        <i className="fas fa-phone-alt text-sm" />
+                      </span>
+                      <input
+                        {...register('phone')}
+                        className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border ${errors.phone ? 'border-red-400 focus:border-red-400 focus:ring-red-400/10' : 'border-slate-200 focus:border-[#D71920] focus:ring-[#D71920]/10'} rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-4 transition-all outline-none`}
+                        placeholder="09xx xxx xxx"
+                        inputMode="tel"
+                      />
+                    </div>
                     {errors.phone && (
-                      <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>
+                      <p className="text-red-500 text-xs mt-1 font-medium"><i className="fas fa-exclamation-circle mr-1" />{errors.phone.message}</p>
                     )}
                   </div>
-                  <div>
-                    <label className="label-tis">Email <span className="text-red-400">*</span></label>
-                    <input
-                      {...register('email')}
-                      className={`input-tis ${errors.email ? 'border-red-400' : ''}`}
-                      placeholder="email@gmail.com"
-                      type="email"
-                    />
+                  
+                  {/* Email */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
+                      Email <span className="text-[#D71920]">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
+                        <i className="far fa-envelope text-sm" />
+                      </span>
+                      <input
+                        {...register('email')}
+                        className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border ${errors.email ? 'border-red-400 focus:border-red-400 focus:ring-red-400/10' : 'border-slate-200 focus:border-[#D71920] focus:ring-[#D71920]/10'} rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-4 transition-all outline-none`}
+                        placeholder="email@gmail.com"
+                        type="email"
+                      />
+                    </div>
                     {errors.email && (
-                      <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
+                      <p className="text-red-500 text-xs mt-1 font-medium"><i className="fas fa-exclamation-circle mr-1" />{errors.email.message}</p>
                     )}
                   </div>
                 </div>
 
                 {/* Note */}
-                <div>
-                  <label className="label-tis">Nội dung tin nhắn</label>
-                  <textarea
-                    {...register('note')}
-                    className={`input-tis resize-none ${errors.note ? 'border-red-400' : ''}`}
-                    rows={5}
-                    placeholder="Mô tả yêu cầu bảo hiểm hoặc câu hỏi của bạn..."
-                  />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Nội dung tin nhắn</label>
+                  <div className="relative">
+                    <span className="absolute top-3 left-0 pl-3.5 flex items-start text-slate-400 pointer-events-none">
+                      <i className="far fa-edit text-sm" />
+                    </span>
+                    <textarea
+                      {...register('note')}
+                      className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border ${errors.note ? 'border-red-400 focus:border-red-400' : 'border-slate-200 focus:border-[#D71920] focus:ring-[#D71920]/10'} rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-4 transition-all outline-none resize-none`}
+                      rows={5}
+                      placeholder="Mô tả yêu cầu bảo hiểm hoặc câu hỏi của bạn..."
+                    />
+                  </div>
                   {errors.note && (
-                    <p className="text-red-500 text-xs mt-1">{errors.note.message}</p>
+                    <p className="text-red-500 text-xs mt-1 font-medium"><i className="fas fa-exclamation-circle mr-1" />{errors.note.message}</p>
                   )}
                 </div>
 
@@ -247,7 +281,7 @@ export default function ContactPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="btn-tis-danger w-full py-3.5 text-sm font-bold disabled:opacity-60"
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-[#D71920] to-[#f54950] text-white font-bold rounded-xl shadow-lg shadow-red-500/20 hover:shadow-red-500/35 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 transition-all duration-200 flex items-center justify-center gap-2 mt-4 text-sm cursor-pointer"
                 >
                   {submitting ? (
                     <>
@@ -260,10 +294,10 @@ export default function ContactPage() {
                   )}
                 </button>
 
-                <p className="text-xs text-gray-400 text-center">
+                <p className="text-xs text-slate-400 text-center mt-3">
                   <i className="fas fa-lock mr-1" />
                   Thông tin của bạn được bảo mật theo{' '}
-                  <Link to="/terms" className="text-tis-red hover:underline">chính sách bảo mật</Link>
+                  <Link to="/terms" className="text-[#D71920] hover:underline font-semibold">chính sách bảo mật</Link>
                 </p>
               </form>
             </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import api, { fetchList, getErrorMessage, mediaUrl } from '@/lib/api'
+import RichTextEditor from '@/components/admin/RichTextEditor'
 import Swal from 'sweetalert2'
 import toast from 'react-hot-toast'
 
@@ -486,9 +487,10 @@ export default function AdminCategories() {
                     <h5 className="font-semibold text-gray-800 text-xs uppercase tracking-wide">Lời giới thiệu</h5>
                     <p className="font-bold text-gray-900">{selectedCategory.intro_title}</p>
                     {selectedCategory.intro_description && (
-                      <p className="text-gray-500 text-xs mt-1 leading-relaxed whitespace-pre-line">
-                        {selectedCategory.intro_description}
-                      </p>
+                      <div
+                        className="rich-content text-gray-500 text-xs mt-1 leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: selectedCategory.intro_description }}
+                      />
                     )}
                   </div>
                 )}
@@ -643,16 +645,17 @@ export default function AdminCategories() {
 
       {/* TABS CONFIGURATION MODAL (FOR ADD/EDIT) */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 pt-8 overflow-y-auto animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl animate-slide-up my-6 flex flex-col max-h-[90vh]">
+        <div className="category-modal-backdrop fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 pt-8 overflow-y-auto animate-fade-in">
+          <div className="category-editor-modal bg-white rounded-2xl shadow-2xl w-full max-w-5xl animate-slide-up my-6 flex flex-col max-h-[92vh]">
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-white z-10 rounded-t-2xl">
+            <div className="category-editor-head flex items-center justify-between p-5 border-b sticky top-0 bg-white z-10 rounded-t-2xl">
               <div>
+                <span>{editing ? 'Quản trị danh mục' : 'Khởi tạo danh mục'}</span>
                 <h3 className="text-lg font-bold text-gray-900">
                   {editing ? `Chỉnh sửa danh mục: ${editing.name}` : 'Thêm danh mục bảo hiểm mới'}
                 </h3>
-                <p className="text-xs text-gray-400 mt-0.5">Vui lòng thiết lập đầy đủ cấu hình qua các Tab bên dưới</p>
+                <p className="text-xs text-gray-400 mt-0.5">Thiết lập nhận diện, nội dung landing page và dữ liệu biểu mẫu trong cùng một nơi.</p>
               </div>
               <button
                 type="button"
@@ -664,7 +667,7 @@ export default function AdminCategories() {
             </div>
 
             {/* Modal Tab Buttons */}
-            <div className="flex border-b bg-gray-50/50 px-5 gap-1.5 overflow-x-auto shrink-0 pt-2">
+            <div className="category-editor-tabs flex border-b bg-gray-50/50 px-5 gap-1.5 overflow-x-auto shrink-0 pt-2">
               <button
                 type="button"
                 onClick={() => setModalTab('basic')}
@@ -723,12 +726,17 @@ export default function AdminCategories() {
             </div>
 
             {/* Modal Body (Scrollable form contents) */}
-            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1 space-y-6">
+            <form onSubmit={handleSubmit} className="category-editor-body p-6 overflow-y-auto flex-1 space-y-6">
               
               {/* TAB 1: BASIC INFO */}
               {modalTab === 'basic' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="category-basic-panel space-y-5">
+                  <div className="category-form-section">
+                    <div className="category-section-head">
+                      <strong>Thông tin nền</strong>
+                      <p>Tên danh mục, đường dẫn và nhóm staff tư vấn.</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="label-tis">Tên danh mục bảo hiểm *</label>
                       <input
@@ -751,10 +759,10 @@ export default function AdminCategories() {
                         required
                       />
                     </div>
-                  </div>
+                    </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
                       <label className="label-tis">Nhóm chuyên ngành staff tư vấn</label>
                       <select
                         value={form.specialization_code}
@@ -765,12 +773,25 @@ export default function AdminCategories() {
                           <option key={key} value={key}>{val} ({key})</option>
                         ))}
                       </select>
+                      </div>
+                      <div className="category-provider-note">
+                        <i className="fas fa-building-shield" />
+                        <div>
+                          <strong>Đơn vị cung cấp khai báo ở Sản phẩm</strong>
+                          <p>Một danh mục có thể gom nhiều sản phẩm từ các nhà cung cấp khác nhau.</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div className="category-form-section">
+                    <div className="category-section-head">
+                      <strong>Hình ảnh danh mục</strong>
+                      <p>Icon dùng ở menu, banner dùng ở trang landing danh mục.</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                     {/* Icon Image */}
-                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                    <div className="category-upload-card p-4 bg-gray-50 rounded-xl border border-gray-200">
                       <label className="label-tis !mt-0">Icon đại diện (SVG/PNG)</label>
                       <input
                         type="file"
@@ -788,7 +809,7 @@ export default function AdminCategories() {
                     </div>
 
                     {/* Banner Image */}
-                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                    <div className="category-upload-card p-4 bg-gray-50 rounded-xl border border-gray-200">
                       <label className="label-tis !mt-0">Ảnh Banner giới thiệu</label>
                       <input
                         type="file"
@@ -803,6 +824,7 @@ export default function AdminCategories() {
                           <span className="text-xs text-gray-400 font-mono truncate">Xem trước ảnh bìa</span>
                         </div>
                       )}
+                    </div>
                     </div>
                   </div>
                 </div>
@@ -847,12 +869,10 @@ export default function AdminCategories() {
 
                   <div>
                     <label className="label-tis">Mô tả giới thiệu chi tiết (Intro Description)</label>
-                    <textarea
+                    <RichTextEditor
                       value={form.intro_description}
-                      onChange={e => setForm({ ...form, intro_description: e.target.value })}
-                      placeholder="Nhập nội dung chi tiết về gói bảo hiểm này để hiển thị trên Landing Page..."
-                      className="input-tis resize-none"
-                      rows={5}
+                      onChange={intro_description => setForm({ ...form, intro_description })}
+                      placeholder="Soạn nội dung giới thiệu cho trang danh mục tại đây..."
                     />
                   </div>
 
@@ -1176,7 +1196,7 @@ export default function AdminCategories() {
             </form>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-between p-5 border-t sticky bottom-0 bg-white rounded-b-2xl">
+            <div className="category-editor-footer flex items-center justify-between p-5 border-t sticky bottom-0 bg-white rounded-b-2xl">
               {/* Quick Tab validation errors or warnings */}
               <div className="text-xs text-gray-400 font-mono">
                 {modalTab === 'basic' && 'Bước 1/5: Tên, chuyên ngành & hình ảnh'}

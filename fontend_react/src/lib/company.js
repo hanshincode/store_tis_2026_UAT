@@ -8,20 +8,20 @@ export const COMPANY_CONTACT_CHANNELS = [
     label: 'Email',
     href: `mailto:${COMPANY_EMAIL}`,
     icon: 'fas fa-envelope',
-    className: 'hover:bg-red-600',
+    className: 'footer-social-email',
   },
   {
     key: 'linkedin',
     label: 'LinkedIn',
     href: COMPANY_LINKEDIN_URL,
     icon: 'fab fa-linkedin-in',
-    className: 'hover:bg-blue-700',
+    className: 'footer-social-linkedin',
   },
   {
     key: 'zalo',
     label: 'Zalo',
     href: COMPANY_ZALO_URL,
     icon: 'fas fa-comment-dots',
-    className: 'hover:bg-blue-500',
+    className: 'footer-social-chat',
   },
 ]

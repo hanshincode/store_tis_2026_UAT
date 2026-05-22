@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { CartProvider } from '@/context/CartContext'
@@ -9,61 +10,58 @@ import UserLayout     from '@/components/layout/UserLayout'
 import AdminLayout    from '@/components/layout/AdminLayout'
 import AuthLayout     from '@/components/layout/AuthLayout'
 
-// Public Pages
-import HomePage          from '@/pages/public/HomePage'
-import ProductsPage      from '@/pages/public/ProductsPage'
-import ProductDetailPage from '@/pages/public/ProductDetailPage'
-import NewsPage          from '@/pages/public/NewsPage'
-import NewsDetailPage    from '@/pages/public/NewsDetailPage'
-import CategoryPage      from '@/pages/public/CategoryPage'
-import ClaimsProcessPage from '@/pages/public/ClaimsProcessPage'
-import TermsPage         from '@/pages/public/TermsPage'
-import CmsPage           from '@/pages/public/CmsPage'
-import ContactPage       from '@/pages/public/ContactPage'
+// Route pages are loaded on demand so public sessions do not download admin screens.
+const HomePage = lazy(() => import('@/pages/public/HomePage'))
+const ProductsPage = lazy(() => import('@/pages/public/ProductsPage'))
+const ProductDetailPage = lazy(() => import('@/pages/public/ProductDetailPage'))
+const NewsPage = lazy(() => import('@/pages/public/NewsPage'))
+const NewsDetailPage = lazy(() => import('@/pages/public/NewsDetailPage'))
+const CategoryPage = lazy(() => import('@/pages/public/CategoryPage'))
+const ClaimsProcessPage = lazy(() => import('@/pages/public/ClaimsProcessPage'))
+const TermsPage = lazy(() => import('@/pages/public/TermsPage'))
+const CmsPage = lazy(() => import('@/pages/public/CmsPage'))
+const ContactPage = lazy(() => import('@/pages/public/ContactPage'))
 
-// Auth Pages
-import LoginPage              from '@/pages/auth/LoginPage'
-import AdminLoginPage         from '@/pages/auth/AdminLoginPage'
-import RegisterPage           from '@/pages/auth/RegisterPage'
-import ForgotPasswordPage     from '@/pages/auth/ForgotPasswordPage'
-import ResetPasswordPage      from '@/pages/auth/ResetPasswordPage'
-import VerifyEmailPage        from '@/pages/auth/VerifyEmailPage'
-import ForceChangePasswordPage from '@/pages/auth/ForceChangePasswordPage'
-import QuickFormPage          from '@/pages/auth/QuickFormPage'
+const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
+const AdminLoginPage = lazy(() => import('@/pages/auth/AdminLoginPage'))
+const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'))
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
+const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
+const VerifyEmailPage = lazy(() => import('@/pages/auth/VerifyEmailPage'))
+const ForceChangePasswordPage = lazy(() => import('@/pages/auth/ForceChangePasswordPage'))
+const QuickFormPage = lazy(() => import('@/pages/auth/QuickFormPage'))
 
-// User Pages
-import UserDashboard from '@/pages/user/UserDashboard'
-import UserOrders    from '@/pages/user/UserOrders'
-import UserCart      from '@/pages/user/UserCart'
-import UserPayment   from '@/pages/user/UserPayment'
-import UserChat      from '@/pages/user/UserChat'
-import UserClaims    from '@/pages/user/UserClaims'
+const UserDashboard = lazy(() => import('@/pages/user/UserDashboard'))
+const UserOrders = lazy(() => import('@/pages/user/UserOrders'))
+const UserCart = lazy(() => import('@/pages/user/UserCart'))
+const UserPayment = lazy(() => import('@/pages/user/UserPayment'))
+const UserChat = lazy(() => import('@/pages/user/UserChat'))
+const UserClaims = lazy(() => import('@/pages/user/UserClaims'))
 
-// Admin Pages
-import AdminDashboard              from '@/pages/admin/AdminDashboard'
-import AdminProducts               from '@/pages/admin/AdminProducts'
-import AdminCategories             from '@/pages/admin/AdminCategories'
-import AdminOrders                 from '@/pages/admin/AdminOrders'
-import AdminConsultations          from '@/pages/admin/AdminConsultations'
-import AdminChat                   from '@/pages/admin/AdminChat'
-import AdminAccounts               from '@/pages/admin/AdminAccounts'
-import AdminStaff                  from '@/pages/admin/AdminStaff'
-import AdminBanners                from '@/pages/admin/AdminBanners'
-import AdminNews                   from '@/pages/admin/AdminNews'
-import AdminClaims                 from '@/pages/admin/AdminClaims'
-import AdminNotifications          from '@/pages/admin/AdminNotifications'
-import AdminSitePages              from '@/pages/admin/AdminSitePages'
-import AdminProfile                from '@/pages/admin/AdminProfile'
-import AdminSystemLogs             from '@/pages/admin/AdminSystemLogs'
-import AdminEmailSettings          from '@/pages/admin/AdminEmailSettings'
-import AdminPaymentSettings        from '@/pages/admin/AdminPaymentSettings'
-import AdminSocialLogin            from '@/pages/admin/AdminSocialLogin'
-import AdminZaloOA                 from '@/pages/admin/AdminZaloOA'
-import AdminZaloOASettings         from '@/pages/admin/AdminZaloOASettings'
-import AdminEnterpriseEmployees    from '@/pages/admin/AdminEnterpriseEmployees'
-import AdminRegistrationTerms      from '@/pages/admin/AdminRegistrationTerms'
-import AdminCallRecordings         from '@/pages/admin/AdminCallRecordings'
-import AdminChatConnectionSettings from '@/pages/admin/AdminChatConnectionSettings'
+const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'))
+const AdminProducts = lazy(() => import('@/pages/admin/AdminProducts'))
+const AdminCategories = lazy(() => import('@/pages/admin/AdminCategories'))
+const AdminOrders = lazy(() => import('@/pages/admin/AdminOrders'))
+const AdminConsultations = lazy(() => import('@/pages/admin/AdminConsultations'))
+const AdminChat = lazy(() => import('@/pages/admin/AdminChat'))
+const AdminAccounts = lazy(() => import('@/pages/admin/AdminAccounts'))
+const AdminStaff = lazy(() => import('@/pages/admin/AdminStaff'))
+const AdminBanners = lazy(() => import('@/pages/admin/AdminBanners'))
+const AdminNews = lazy(() => import('@/pages/admin/AdminNews'))
+const AdminClaims = lazy(() => import('@/pages/admin/AdminClaims'))
+const AdminNotifications = lazy(() => import('@/pages/admin/AdminNotifications'))
+const AdminSitePages = lazy(() => import('@/pages/admin/AdminSitePages'))
+const AdminProfile = lazy(() => import('@/pages/admin/AdminProfile'))
+const AdminSystemLogs = lazy(() => import('@/pages/admin/AdminSystemLogs'))
+const AdminEmailSettings = lazy(() => import('@/pages/admin/AdminEmailSettings'))
+const AdminPaymentSettings = lazy(() => import('@/pages/admin/AdminPaymentSettings'))
+const AdminSocialLogin = lazy(() => import('@/pages/admin/AdminSocialLogin'))
+const AdminZaloOA = lazy(() => import('@/pages/admin/AdminZaloOA'))
+const AdminZaloOASettings = lazy(() => import('@/pages/admin/AdminZaloOASettings'))
+const AdminEnterpriseEmployees = lazy(() => import('@/pages/admin/AdminEnterpriseEmployees'))
+const AdminRegistrationTerms = lazy(() => import('@/pages/admin/AdminRegistrationTerms'))
+const AdminCallRecordings = lazy(() => import('@/pages/admin/AdminCallRecordings'))
+const AdminChatConnectionSettings = lazy(() => import('@/pages/admin/AdminChatConnectionSettings'))
 
 // ── Route Guards ──────────────────────────────────────────────────────────
 function RequireAuth({ children }) {
@@ -89,10 +87,38 @@ function RequireGuest({ children }) {
   return isAuthenticated ? <Navigate to="/" replace /> : children
 }
 
+function ScrollToRouteTop() {
+  const location = useLocation()
+
+  useEffect(() => {
+    const scrollRoute = () => {
+      if (location.hash) {
+        const target = document.getElementById(decodeURIComponent(location.hash.slice(1)))
+        if (target) {
+          target.scrollIntoView()
+          return true
+        }
+      }
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+      return !location.hash
+    }
+
+    const timers = [
+      window.setTimeout(scrollRoute, 0),
+      ...(location.hash ? [window.setTimeout(scrollRoute, 240)] : []),
+    ]
+
+    return () => timers.forEach(timer => window.clearTimeout(timer))
+  }, [location.pathname, location.search, location.hash])
+
+  return null
+}
+
 // ── App ───────────────────────────────────────────────────────────────────
 function AppRoutes() {
   return (
-    <Routes>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><div className="spinner-tis" /></div>}>
+      <Routes>
       {/* ── Public Routes ── */}
       <Route element={<PublicLayout />}>
         <Route path="/"                   element={<HomePage />} />
@@ -159,7 +185,8 @@ function AppRoutes() {
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   )
 }
 
@@ -168,6 +195,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <CartProvider>
+          <ScrollToRouteTop />
           <AppRoutes />
           <Toaster
             position="top-right"

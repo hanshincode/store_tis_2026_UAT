@@ -24,6 +24,17 @@ export default function AdminZaloOASettings() {
     webhook_secret: '',
   })
 
+  const [showSecrets, setShowSecrets] = useState({
+    app_secret: false,
+    access_token: false,
+    refresh_token: false,
+    webhook_secret: false,
+  })
+
+  const toggleSecretVisibility = (field) => {
+    setShowSecrets((prev) => ({ ...prev, [field]: !prev[field] }))
+  }
+
   const loadSettings = async () => {
     setLoading(true)
     try {
@@ -96,42 +107,59 @@ export default function AdminZaloOASettings() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="spinner-tis" />
+      <div className="flex items-center justify-center min-h-[450px]">
+        <div className="relative w-12 h-12">
+          <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
+          <div className="absolute inset-0 rounded-full border-4 border-t-[#D71920] animate-spin"></div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      {/* Title */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <i className="fas fa-comment-dots text-blue-600" /> Cấu hình Zalo Official Account (OA)
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Thiết lập kết nối kỹ thuật Zalo OA để gửi tin nhắn, đồng bộ hội thoại và CSKH trực tiếp từ hệ thống
-          </p>
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      {/* Premium Header Banner */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-[#D71920]/45 rounded-2xl p-6 md:p-8 shadow-xl text-white">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#D71920]/10 rounded-full blur-2xl -ml-16 -mb-16"></div>
+        
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4 z-10">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="px-2.5 py-0.5 bg-[#D71920]/20 border border-[#D71920]/35 text-xs text-red-200 font-semibold tracking-wider rounded-full uppercase">
+                Zalo API Integration
+              </span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
+              <i className="fas fa-comment-dots text-red-500" /> Cấu hình Zalo Official Account (OA)
+            </h1>
+            <p className="text-slate-300 text-sm mt-1 max-w-2xl">
+              Thiết lập kết nối kỹ thuật Zalo OA để gửi tin nhắn, đồng bộ hội thoại và CSKH trực tiếp từ hệ thống.
+            </p>
+          </div>
+          <button
+            onClick={loadSettings}
+            className="self-start md:self-auto px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg text-white text-sm font-semibold flex items-center gap-1.5 transition duration-300 shadow-md backdrop-blur-sm"
+          >
+            <i className="fas fa-sync-alt" /> Làm mới
+          </button>
         </div>
-        <button
-          onClick={loadSettings}
-          className="px-3 py-1.5 border border-gray-300 rounded bg-white text-gray-700 text-sm hover:bg-gray-50 flex items-center gap-1 transition"
-        >
-          <i className="fas fa-sync-alt" /> Làm mới
-        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Form */}
-        <div className="lg:col-span-2 admin-card p-6 bg-white shadow-sm rounded-xl">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b">
-            Tham số kết nối Zalo API
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="lg:col-span-2 bg-white border border-slate-100 shadow-sm rounded-2xl p-6 md:p-8 space-y-6">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <i className="fas fa-plug text-[#D71920]" /> Tham số kết nối Zalo API
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">Cung cấp các thông tin định danh và bảo mật từ trang quản trị ứng dụng Zalo Developer.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="label-tis block text-sm font-semibold mb-1">
+                <label className="label-tis block text-sm font-semibold text-slate-700 mb-1.5">
                   Tên cấu hình
                 </label>
                 <input
@@ -139,13 +167,13 @@ export default function AdminZaloOASettings() {
                   value={setting.name}
                   onChange={(e) => setSetting({ ...setting, name: e.target.value })}
                   placeholder="Zalo OA"
-                  className="input-tis w-full"
+                  className="input-tis w-full focus:ring-[#D71920]/10 focus:border-[#D71920]"
                   required
                 />
               </div>
 
               <div>
-                <label className="label-tis block text-sm font-semibold mb-1">
+                <label className="label-tis block text-sm font-semibold text-slate-700 mb-1.5">
                   Zalo OA ID <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -153,15 +181,15 @@ export default function AdminZaloOASettings() {
                   value={setting.oa_id}
                   onChange={(e) => setSetting({ ...setting, oa_id: e.target.value })}
                   placeholder="Nhập ID Zalo OA của bạn"
-                  className="input-tis w-full"
+                  className="input-tis w-full focus:ring-[#D71920]/10 focus:border-[#D71920]"
                   required
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="label-tis block text-sm font-semibold mb-1">
+                <label className="label-tis block text-sm font-semibold text-slate-700 mb-1.5">
                   App ID Zalo Developer <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -169,117 +197,179 @@ export default function AdminZaloOASettings() {
                   value={setting.app_id}
                   onChange={(e) => setSetting({ ...setting, app_id: e.target.value })}
                   placeholder="Nhập ID ứng dụng Zalo"
-                  className="input-tis w-full font-mono"
+                  className="input-tis w-full font-mono focus:ring-[#D71920]/10 focus:border-[#D71920]"
                   required
                 />
               </div>
 
               <div>
-                <label className="label-tis block text-sm font-semibold mb-1">
+                <label className="label-tis block text-sm font-semibold text-slate-700 mb-1.5">
                   App Secret (Khóa bí mật ứng dụng)
                 </label>
-                <input
-                  type="password"
-                  value={secrets.app_secret}
-                  onChange={(e) => setSecrets({ ...secrets, app_secret: e.target.value })}
-                  placeholder="Để trống nếu không thay đổi"
-                  className="input-tis w-full"
-                />
+                <div className="relative">
+                  <input
+                    type={showSecrets.app_secret ? 'text' : 'password'}
+                    value={secrets.app_secret}
+                    onChange={(e) => setSecrets({ ...secrets, app_secret: e.target.value })}
+                    placeholder="Để trống nếu không thay đổi"
+                    className="input-tis w-full pr-10 focus:ring-[#D71920]/10 focus:border-[#D71920]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggleSecretVisibility('app_secret')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+                  >
+                    <i className={`far ${showSecrets.app_secret ? 'fa-eye-slash' : 'fa-eye'}`} />
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="label-tis block text-sm font-semibold mb-1">
+                <label className="label-tis block text-sm font-semibold text-slate-700 mb-1.5">
                   Access Token mới
                 </label>
-                <input
-                  type="password"
-                  value={secrets.access_token}
-                  onChange={(e) => setSecrets({ ...secrets, access_token: e.target.value })}
-                  placeholder="Nhập access token mới nếu cần cập nhật thủ công"
-                  className="input-tis w-full font-mono"
-                />
+                <div className="relative">
+                  <input
+                    type={showSecrets.access_token ? 'text' : 'password'}
+                    value={secrets.access_token}
+                    onChange={(e) => setSecrets({ ...secrets, access_token: e.target.value })}
+                    placeholder="Nhập access token mới nếu cần cập nhật thủ công"
+                    className="input-tis w-full pr-10 font-mono text-sm focus:ring-[#D71920]/10 focus:border-[#D71920]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggleSecretVisibility('access_token')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+                  >
+                    <i className={`far ${showSecrets.access_token ? 'fa-eye-slash' : 'fa-eye'}`} />
+                  </button>
+                </div>
               </div>
 
               <div>
-                <label className="label-tis block text-sm font-semibold mb-1">
+                <label className="label-tis block text-sm font-semibold text-slate-700 mb-1.5">
                   Refresh Token mới
                 </label>
-                <input
-                  type="password"
-                  value={secrets.refresh_token}
-                  onChange={(e) => setSecrets({ ...secrets, refresh_token: e.target.value })}
-                  placeholder="Nhập refresh token mới để tự động gia hạn access token"
-                  className="input-tis w-full font-mono"
-                />
+                <div className="relative">
+                  <input
+                    type={showSecrets.refresh_token ? 'text' : 'password'}
+                    value={secrets.refresh_token}
+                    onChange={(e) => setSecrets({ ...secrets, refresh_token: e.target.value })}
+                    placeholder="Nhập refresh token mới để tự động gia hạn"
+                    className="input-tis w-full pr-10 font-mono text-sm focus:ring-[#D71920]/10 focus:border-[#D71920]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggleSecretVisibility('refresh_token')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+                  >
+                    <i className={`far ${showSecrets.refresh_token ? 'fa-eye-slash' : 'fa-eye'}`} />
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="label-tis block text-sm font-semibold mb-1">
+                <label className="label-tis block text-sm font-semibold text-slate-700 mb-1.5">
                   Webhook Secret (Khóa xác thực Webhook)
                 </label>
-                <input
-                  type="password"
-                  value={secrets.webhook_secret}
-                  onChange={(e) => setSecrets({ ...secrets, webhook_secret: e.target.value })}
-                  placeholder="Nhập khóa webhook để bảo mật cuộc gọi nhận tin nhắn"
-                  className="input-tis w-full"
-                />
+                <div className="relative">
+                  <input
+                    type={showSecrets.webhook_secret ? 'text' : 'password'}
+                    value={secrets.webhook_secret}
+                    onChange={(e) => setSecrets({ ...secrets, webhook_secret: e.target.value })}
+                    placeholder="Nhập khóa webhook nhận tin nhắn"
+                    className="input-tis w-full pr-10 focus:ring-[#D71920]/10 focus:border-[#D71920]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggleSecretVisibility('webhook_secret')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+                  >
+                    <i className={`far ${showSecrets.webhook_secret ? 'fa-eye-slash' : 'fa-eye'}`} />
+                  </button>
+                </div>
               </div>
 
               <div>
-                <label className="label-tis block text-sm font-semibold mb-1">
-                  Đường dẫn Webhook nhận tin nhắn (Callback URL)
+                <label className="label-tis block text-sm font-semibold text-slate-700 mb-1.5">
+                  Webhook Callback URL
                 </label>
-                <input
-                  type="text"
-                  value={setting.oa_callback_url}
-                  onChange={(e) => setSetting({ ...setting, oa_callback_url: e.target.value })}
-                  placeholder="https://store.tisbroker.com/api/zalo/webhook/"
-                  className="input-tis w-full bg-gray-50 text-gray-500 font-mono text-xs"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    readOnly
+                    value={setting.oa_callback_url}
+                    onClick={(e) => {
+                      e.target.select()
+                      navigator.clipboard.writeText(setting.oa_callback_url)
+                      toast.success('Đã sao chép Webhook URL')
+                    }}
+                    placeholder="https://store.tisbroker.com/api/zalo/webhook/"
+                    className="input-tis w-full bg-slate-50 text-slate-500 font-mono text-xs cursor-pointer hover:bg-slate-100 transition"
+                    title="Click để sao chép"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
+                    <i className="far fa-copy" />
+                  </span>
+                </div>
               </div>
             </div>
 
             <div>
-              <label className="label-tis block text-sm font-semibold mb-1">
+              <label className="label-tis block text-sm font-semibold text-slate-700 mb-1.5">
                 Zalo Login Callback URL
               </label>
-              <input
-                type="text"
-                value={setting.login_callback_url}
-                onChange={(e) => setSetting({ ...setting, login_callback_url: e.target.value })}
-                placeholder="https://store.tisbroker.com/accounts/zalo/login/callback/"
-                className="input-tis w-full bg-gray-50 text-gray-500 font-mono text-xs"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  readOnly
+                  value={setting.login_callback_url}
+                  onClick={(e) => {
+                    e.target.select()
+                    navigator.clipboard.writeText(setting.login_callback_url)
+                    toast.success('Đã sao chép Callback URL')
+                  }}
+                  placeholder="https://store.tisbroker.com/accounts/zalo/login/callback/"
+                  className="input-tis w-full bg-slate-50 text-slate-500 font-mono text-xs cursor-pointer hover:bg-slate-100 transition"
+                  title="Click để sao chép"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
+                  <i className="far fa-copy" />
+                </span>
+              </div>
             </div>
 
             <div className="flex items-center pt-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={setting.is_active}
-                  onChange={(e) => setSetting({ ...setting, is_active: e.target.checked })}
-                  className="rounded text-red-500 focus:ring-red-500 h-4.5 w-4.5"
-                />
-                <span className="text-sm text-gray-700 font-semibold select-none">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <div className="relative flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={setting.is_active}
+                    onChange={(e) => setSetting({ ...setting, is_active: e.target.checked })}
+                    className="sr-only peer"
+                    id="is_active_toggle"
+                  />
+                  <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D71920]"></div>
+                </div>
+                <span className="text-sm text-slate-700 font-semibold select-none group-hover:text-slate-900 transition">
                   Kích hoạt tích hợp Zalo OA trên hệ thống
                 </span>
               </label>
             </div>
 
-            <div className="flex items-center gap-3 pt-4 border-t">
+            <div className="flex items-center gap-3 pt-5 border-t border-slate-100">
               <button
                 type="submit"
                 disabled={saving}
-                className="btn-tis-danger px-6 py-2.5 rounded-lg flex items-center justify-center gap-2 text-sm"
+                className="bg-gradient-to-r from-[#D71920] to-[#f54950] text-white hover:opacity-90 active:scale-95 transition-all duration-200 px-6 py-2.5 rounded-lg flex items-center justify-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg disabled:opacity-50"
               >
                 {saving ? (
                   <>
-                    <div className="spinner-tis !w-4 !h-4 !border-2 !border-white" />
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     Đang lưu...
                   </>
                 ) : (
@@ -294,67 +384,70 @@ export default function AdminZaloOASettings() {
 
         {/* Right Info Summary */}
         <div className="space-y-6">
-          <div className="admin-card p-6 bg-white shadow-sm rounded-xl">
-            <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b">
-              Trạng thái Zalo OA
+          <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-6 space-y-4">
+            <h3 className="text-lg font-bold text-slate-800 pb-2 border-b border-slate-100 flex items-center gap-2">
+              <i className="fas fa-info-circle text-slate-400" /> Trạng thái Zalo OA
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-3.5">
               <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500">Tình trạng kết nối:</span>
+                <span className="text-slate-500">Tình trạng kết nối:</span>
                 {isConnected ? (
-                  <span className="badge-tis bg-green-100 text-green-800 border border-green-200 text-xs px-2 py-0.5 rounded font-semibold flex items-center gap-1">
-                    <i className="fas fa-check-circle" /> Đang kết nối
+                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Đang kết nối
                   </span>
                 ) : (
-                  <span className="badge-tis bg-gray-100 text-gray-600 border border-gray-200 text-xs px-2 py-0.5 rounded font-semibold flex items-center gap-1">
-                    <i className="fas fa-unlink" /> Chưa kết nối
+                  <span className="bg-slate-50 text-slate-600 border border-slate-200 text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> Chưa kết nối
                   </span>
                 )}
               </div>
 
               <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500">Tên OA:</span>
-                <span className="font-semibold text-gray-800">
+                <span className="text-slate-500">Tên cấu hình:</span>
+                <span className="font-bold text-slate-800">
                   {setting.name || '--'}
                 </span>
               </div>
 
               <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500">OA ID:</span>
-                <span className="font-semibold text-gray-800 font-mono text-xs">
+                <span className="text-slate-500">OA ID:</span>
+                <span className="font-semibold text-slate-700 font-mono text-xs bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
                   {setting.oa_id || '--'}
                 </span>
               </div>
 
               <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500">App ID:</span>
-                <span className="font-semibold text-gray-800 font-mono text-xs">
+                <span className="text-slate-500">App ID:</span>
+                <span className="font-semibold text-slate-700 font-mono text-xs bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
                   {setting.app_id || '--'}
                 </span>
               </div>
 
               <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500">Cấu hình Zalo:</span>
-                <span className="font-semibold text-gray-800">
-                  {setting.is_active ? 'Đang kích hoạt' : 'Đang tạm tắt'}
+                <span className="text-slate-500">Trạng thái cấu hình:</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${setting.is_active ? 'bg-green-50 text-green-700' : 'bg-rose-50 text-rose-700'}`}>
+                  {setting.is_active ? 'Đang bật' : 'Đang tắt'}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="admin-card p-6 bg-blue-50/50 border border-blue-100 rounded-xl">
-            <h4 className="text-sm font-bold text-blue-800 flex items-center gap-1.5 mb-2">
-              <i className="fas fa-lightbulb" /> Cách lấy Token Zalo OA
+          <div className="bg-gradient-to-br from-blue-50/70 to-indigo-50/30 border border-blue-100 rounded-2xl p-6 space-y-3 shadow-sm">
+            <h4 className="text-sm font-bold text-blue-900 flex items-center gap-2">
+              <i className="fas fa-lightbulb text-amber-500" /> Cách lấy Token Zalo OA
             </h4>
-            <div className="text-xs text-blue-700 space-y-2 leading-relaxed">
-              <p>
-                1. Truy cập <strong>Zalo Developer Portal</strong> và tạo một ứng dụng liên kết với Zalo OA của bạn.
+            <div className="text-xs text-slate-600 space-y-2 leading-relaxed">
+              <p className="flex gap-1.5">
+                <span className="font-bold text-blue-900">1.</span>
+                <span>Truy cập <strong>Zalo Developer Portal</strong> và tạo ứng dụng liên kết với Zalo OA của doanh nghiệp.</span>
               </p>
-              <p>
-                2. Cấu hình các quyền (scope) cần thiết như: <code>oa.chat</code>, <code>oa.cskh</code>.
+              <p className="flex gap-1.5">
+                <span className="font-bold text-blue-900">2.</span>
+                <span>Cấu hình các quyền (scope) cần thiết như: <code>oa.chat</code>, <code>oa.cskh</code> trong mục API.</span>
               </p>
-              <p>
-                3. Sử dụng công cụ tạo Token trực tuyến của Zalo để lấy <strong>Access Token</strong> và <strong>Refresh Token</strong> ban đầu rồi nhập vào các ô tương ứng ở bên trái để kích hoạt.
+              <p className="flex gap-1.5">
+                <span className="font-bold text-blue-900">3.</span>
+                <span>Sử dụng công cụ tạo Token trực tuyến của Zalo để lấy <strong>Access Token</strong> và <strong>Refresh Token</strong> ban đầu rồi nhập vào các ô tương ứng ở bên trái để kích hoạt.</span>
               </p>
             </div>
           </div>

@@ -4,6 +4,7 @@ import { formatDateTime } from '@/lib/format'
 import Swal from 'sweetalert2'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/context/AuthContext'
+import PasswordField from '@/components/ui/PasswordField'
 
 export default function AdminProfile() {
   const { logout } = useAuth()
@@ -466,8 +467,7 @@ export default function AdminProfile() {
             <form onSubmit={handlePasswordSubmit} className="space-y-4">
               <div>
                 <label className="label-tis block text-sm font-semibold mb-1">Mật khẩu hiện tại</label>
-                <input
-                  type="password"
+                <PasswordField
                   required
                   value={passwords.old}
                   onChange={(e) => setPasswords({ ...passwords, old: e.target.value })}
@@ -479,8 +479,7 @@ export default function AdminProfile() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="label-tis block text-sm font-semibold mb-1">Mật khẩu mới</label>
-                  <input
-                    type="password"
+                  <PasswordField
                     required
                     value={passwords.new}
                     onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
@@ -491,8 +490,7 @@ export default function AdminProfile() {
 
                 <div>
                   <label className="label-tis block text-sm font-semibold mb-1">Xác nhận mật khẩu mới</label>
-                  <input
-                    type="password"
+                  <PasswordField
                     required
                     value={passwords.confirm}
                     onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}

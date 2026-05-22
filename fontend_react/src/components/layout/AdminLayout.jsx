@@ -89,7 +89,7 @@ export default function AdminLayout() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="admin-app-shell bg-gray-100 flex">
       {/* ── Sidebar ──────────────────────────────────────────────── */}
       {/* Mobile backdrop */}
       {mobileSidebarOpen && (
@@ -98,25 +98,32 @@ export default function AdminLayout() {
       )}
 
       <aside className={`
-        fixed lg:relative z-50 lg:z-auto
+        fixed lg:sticky top-0 left-0 z-50 lg:z-auto
         h-screen flex flex-col
-        bg-gray-900 text-white
+        bg-white text-gray-800 border-r border-gray-200
         transition-all duration-300 ease-in-out
         ${sidebarOpen ? 'w-64' : 'w-16'}
         ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between px-4 py-5 border-b border-white/10">
-          {sidebarOpen && (
-            <Link to="/admin" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-tis-red rounded-lg flex items-center justify-center">
-                <i className="fas fa-shield-halved text-white text-sm" />
-              </div>
-              <span className="font-bold text-sm text-white">TIS Admin</span>
+        <div className={`admin-sidebar-brand ${sidebarOpen ? '' : 'is-collapsed'}`}>
+          {sidebarOpen ? (
+            <Link to="/admin" className="admin-brand-link">
+              <span className="admin-brand-logo-frame">
+                <img src="/images/logo.png" alt="TIS Logo" className="admin-brand-logo" onError={(e) => { e.target.onerror = null; e.target.src = '/favicon.svg' }} />
+              </span>
+              <span className="admin-brand-copy">
+                <strong>TIS Broker</strong>
+                <small>Quản trị hệ thống</small>
+              </span>
+            </Link>
+          ) : (
+            <Link to="/admin" className="admin-brand-mark">
+              <img src="/images/logo.png" alt="TIS" onError={(e) => { e.target.onerror = null; e.target.src = '/favicon.svg' }} />
             </Link>
           )}
           <button onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors ml-auto">
+            className="admin-sidebar-toggle">
             <i className={`fas ${sidebarOpen ? 'fa-chevron-left' : 'fa-bars'} text-sm`} />
           </button>
         </div>
@@ -125,7 +132,7 @@ export default function AdminLayout() {
         <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5">
           {visibleNav.map((item, idx) => {
             if (item.divider) return (
-              <hr key={idx} className="border-white/10 my-3 mx-2" />
+              <hr key={idx} className="border-gray-200 my-3 mx-2" />
             )
             const badgeCount = badges[item.path] || 0
             return (
@@ -151,7 +158,7 @@ export default function AdminLayout() {
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="border-t border-white/10 p-3">
+        <div className="border-t border-gray-200 p-3">
           {user?.role !== 'claim' && (
             <NavLink to="/admin/profile"
               className={({ isActive }) => `admin-nav-link mb-1 ${isActive ? 'active' : ''} ${!sidebarOpen ? 'justify-center px-0' : ''}`}
@@ -161,7 +168,7 @@ export default function AdminLayout() {
             </NavLink>
           )}
           <button onClick={logout}
-            className={`admin-nav-link w-full text-red-400 hover:text-red-300 hover:bg-red-500/10 ${!sidebarOpen ? 'justify-center px-0' : ''}`}
+            className={`admin-nav-link w-full text-red-500 hover:text-red-600 hover:bg-red-50 ${!sidebarOpen ? 'justify-center px-0' : ''}`}
             title={!sidebarOpen ? 'Đăng xuất' : undefined}
           >
             <i className="fas fa-sign-out-alt w-4 text-center flex-shrink-0" />
@@ -171,9 +178,9 @@ export default function AdminLayout() {
       </aside>
 
       {/* ── Main Content ──────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="admin-workspace flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Topbar */}
-        <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 flex items-center gap-3 md:gap-4 sticky top-0 z-30 shadow-sm">
+        <header className="admin-topbar sticky top-0 z-30">
           <button
             onClick={() => setMobileSidebarOpen(true)}
             className="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100"
@@ -181,21 +188,31 @@ export default function AdminLayout() {
             <i className="fas fa-bars" />
           </button>
 
-          <div className="flex-1" />
-
-          <Link to="/" target="_blank"
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-tis-red transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50">
-            <i className="fas fa-external-link-alt text-xs" />
-            <span className="hidden sm:inline">Xem trang web</span>
-          </Link>
-
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-tis-red text-white flex items-center justify-center text-xs font-bold">
-              <img src={avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+          <div className="admin-topbar-title hidden lg:flex">
+            <span className="admin-topbar-dot" />
+            <div>
+              <strong>Admin Console</strong>
+              <span>TIS Insurance Broker</span>
             </div>
-            <div className="hidden md:block">
-              <p className="text-xs font-semibold text-gray-800">{fullName}</p>
-              <p className="text-[11px] text-gray-400 capitalize">{user?.role}</p>
+          </div>
+
+          <div className="flex-1 lg:hidden" />
+
+          <div className="admin-topbar-actions">
+            <Link to="/" target="_blank"
+              className="admin-site-link">
+              <i className="fas fa-arrow-up-right-from-square text-xs" />
+              <span className="hidden sm:inline">Xem trang web</span>
+            </Link>
+
+            <div className="admin-topbar-user">
+              <div className="admin-topbar-avatar">
+                <img src={avatarUrl} alt="" />
+              </div>
+              <div className="hidden md:block min-w-0">
+                <p>{fullName}</p>
+                <span>{user?.role}</span>
+              </div>
             </div>
           </div>
         </header>

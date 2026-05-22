@@ -45,16 +45,15 @@ export default function AdminCallRecordings() {
 
   const handleResetSearch = () => {
     setSearch('')
-    // We cannot immediately query since state hasn't updated yet, so we load using empty query.
     setLoading(true)
-    api.all([
+    Promise.all([
       api.get('/call-recordings/'),
       api.get('/call-recordings/stats/')
-    ]).then(api.spread((recordingsRes, statsRes) => {
+    ]).then(([recordingsRes, statsRes]) => {
       const recordingsData = recordingsRes.data
       setRecordings(Array.isArray(recordingsData) ? recordingsData : (recordingsData.results || []))
       setStats(statsRes.data || { total: 0, total_duration_seconds: 0, total_size: 0 })
-    })).catch(err => {
+    }).catch(err => {
       toast.error(getErrorMessage(err, 'Không thể tải danh sách bản ghi cuộc gọi'))
     }).finally(() => {
       setLoading(false)
@@ -105,64 +104,52 @@ export default function AdminCallRecordings() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      {/* Title */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="admin-inbox-page call-recordings-page space-y-5">
+      <div className="admin-inbox-hero">
         <div>
-          <span className="text-xs font-semibold text-red-500 uppercase tracking-wider">Lịch sử cuộc gọi</span>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2 mt-0.5">
-            <i className="fas fa-phone-volume text-blue-600 animate-pulse" /> Ghi âm cuộc gọi
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <span className="admin-page-kicker">Lịch sử cuộc gọi</span>
+          <h1>Ghi âm cuộc gọi</h1>
+          <p>
             Xem và nghe lại ghi âm các cuộc gọi hỗ trợ, tư vấn khách hàng trên hệ thống.
           </p>
         </div>
         <button
           onClick={loadData}
           disabled={loading}
-          className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 text-sm hover:bg-gray-50 font-medium flex items-center gap-1.5 transition self-start sm:self-auto shadow-sm"
+          className="btn-tis btn-tis-ghost text-sm self-start sm:self-auto"
         >
           <i className={`fas fa-sync-alt ${loading ? 'fa-spin' : ''}`} /> Làm mới
         </button>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="admin-card p-6 bg-white shadow-sm rounded-xl flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 text-lg font-bold">
-            <i className="fas fa-microphone" />
-          </div>
-          <div>
-            <span className="text-xs text-gray-400 block font-medium">Tổng số cuộc gọi</span>
-            <strong className="text-2xl text-gray-800">{Number(stats.total || 0).toLocaleString('vi-VN')}</strong>
-          </div>
+      <div className="chat-overview">
+        <div className="admin-inbox-metric is-live">
+          <span>Tổng số cuộc gọi</span>
+          <strong>{Number(stats.total || 0).toLocaleString('vi-VN')}</strong>
+          <small>File ghi âm đang lưu trong hệ thống</small>
         </div>
 
-        <div className="admin-card p-6 bg-white shadow-sm rounded-xl flex items-center gap-4">
-          <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center text-green-600 text-lg font-bold">
-            <i className="fas fa-clock" />
-          </div>
-          <div>
-            <span className="text-xs text-gray-400 block font-medium">Tổng thời lượng ghi âm</span>
-            <strong className="text-2xl text-gray-800">{formatCallDurationText(stats.total_duration_seconds || 0)}</strong>
-          </div>
+        <div className="admin-inbox-metric">
+          <span>Tổng thời lượng ghi âm</span>
+          <strong>{formatCallDurationText(stats.total_duration_seconds || 0)}</strong>
+          <small>Thời gian hỗ trợ có bản ghi</small>
         </div>
 
-        <div className="admin-card p-6 bg-white shadow-sm rounded-xl flex items-center gap-4">
-          <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 text-lg font-bold">
-            <i className="fas fa-hdd" />
-          </div>
-          <div>
-            <span className="text-xs text-gray-400 block font-medium">Tổng dung lượng lưu trữ</span>
-            <strong className="text-2xl text-gray-800">{formatFileSize(stats.total_size || 0)}</strong>
-          </div>
+        <div className="admin-inbox-metric is-muted">
+          <span>Tổng dung lượng lưu trữ</span>
+          <strong>{formatFileSize(stats.total_size || 0)}</strong>
+          <small>Dung lượng media cuộc gọi</small>
         </div>
       </div>
 
       {/* Search Filter and Table */}
-      <div className="admin-card bg-white shadow-sm rounded-xl overflow-hidden border border-gray-100">
-        <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <h2 className="text-sm font-bold text-gray-800">Danh sách file ghi âm</h2>
+      <div className="admin-card consultation-table-card">
+        <div className="consultation-table-head flex-col sm:flex-row !items-start sm:!items-center">
+          <div>
+            <h2>Danh sách file ghi âm</h2>
+            <p>Tìm nhanh theo khách hàng hoặc số điện thoại trước khi nghe lại bản ghi.</p>
+          </div>
           <form onSubmit={handleSearchSubmit} className="flex gap-2 w-full sm:w-auto max-w-md">
             <input
               type="text"

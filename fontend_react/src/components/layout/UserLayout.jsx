@@ -1,5 +1,7 @@
 import { Outlet, NavLink } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+import Header from '@/components/layout/Header'
+import Footer from '@/components/layout/Footer'
 
 const USER_NAV = [
   { to: '/user',        label: 'Hồ sơ',        icon: 'fa-user',         exact: true },
@@ -13,9 +15,11 @@ export default function UserLayout() {
   const { user, logout } = useAuth()
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-[72px]">
-      <div className="container mx-auto px-4 max-w-6xl py-5 md:py-8 flex flex-col md:flex-row gap-5 md:gap-8">
-        <nav className="user-mobile-nav md:hidden">
+    <>
+      <Header />
+      <div className="user-shell min-h-screen bg-gray-50 pt-[72px]">
+        <div className="user-shell-inner container mx-auto px-4 max-w-6xl py-5 md:py-8">
+        <nav className="user-mobile-nav" aria-label="Điều hướng tài khoản khách hàng">
           {USER_NAV.map(item => (
             <NavLink
               key={item.to}
@@ -32,14 +36,14 @@ export default function UserLayout() {
         </nav>
 
         {/* Sidebar */}
-        <aside className="w-64 flex-shrink-0 hidden md:block">
+        <aside className="user-desktop-sidebar w-64 flex-shrink-0">
           <div className="card-tis p-4 sticky top-24">
             {/* User Info */}
             <div className="flex items-center gap-3 mb-6 p-3 bg-red-50 rounded-xl">
               <div className="w-10 h-10 rounded-full bg-tis-red text-white flex items-center justify-center font-bold">
                 {(user?.first_name || 'U')[0].toUpperCase()}
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="font-semibold text-sm text-gray-800 truncate">{user?.last_name} {user?.first_name}</p>
                 <p className="text-xs text-gray-400">Khách hàng</p>
               </div>
@@ -79,10 +83,12 @@ export default function UserLayout() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0">
+        <main className="user-shell-main flex-1 min-w-0">
           <Outlet />
         </main>
+        </div>
       </div>
-    </div>
+      <Footer />
+    </>
   )
 }

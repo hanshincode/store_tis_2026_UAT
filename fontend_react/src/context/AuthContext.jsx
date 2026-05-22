@@ -20,9 +20,11 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  // Login via phone + password
-  const login = useCallback(async (phone, password) => {
-    const { data } = await api.post('/token/', { phone, password })
+  // Login via phone + password (supports optional scope)
+  const login = useCallback(async (phone, password, scope = '') => {
+    const payload = { phone, password }
+    if (scope) payload.scope = scope
+    const { data } = await api.post('/login/', payload)
     saveTokens(data.access, data.refresh)
     const me = await fetchMe()
     return me

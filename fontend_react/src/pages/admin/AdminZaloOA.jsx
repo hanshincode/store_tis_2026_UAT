@@ -179,61 +179,56 @@ export default function AdminZaloOA() {
   const canAssign = currentAdminUser?.is_superuser || ['admin', 'super_admin', 'leader'].includes(currentAdminUser?.role)
 
   return (
-    <div className="p-4 max-w-7xl mx-auto space-y-4">
-      {/* Hero section */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+    <div className="admin-inbox-page admin-zalo-page p-0 lg:h-[calc(100vh-120px)] flex flex-col overflow-hidden space-y-4 max-w-7xl mx-auto">
+      {/* Compact Header Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between pb-3 border-b border-gray-100 gap-3 shrink-0">
         <div>
-          <span className="text-xs font-semibold text-red-500 uppercase tracking-wider">Khách hàng & Support</span>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2 mt-0.5">
+          <span className="admin-page-kicker">Kênh Zalo OA</span>
+          <h1 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
             <i className="fas fa-comment-dots text-blue-600" /> Tin nhắn Zalo OA
           </h1>
-          <p className="text-gray-500 text-xs mt-1">
-            Nhận hội thoại Zalo và hỗ trợ khách hàng trực tiếp ngay trong hệ thống TIS.
-          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link
-            to="/admin/zalo-oa-settings"
-            className="px-4 py-2 border border-gray-200 rounded-full bg-white text-gray-700 text-xs hover:bg-gray-50 font-medium flex items-center gap-1.5 transition"
-          >
-            <i className="fas fa-plug text-gray-400" /> Cấu hình OA
-          </Link>
-          <button
-            onClick={loadData}
-            disabled={loading}
-            className="px-4 py-2 bg-red-50 hover:bg-red-100 text-tis-red rounded-full text-xs font-medium flex items-center gap-1.5 transition"
-          >
-            <i className={`fas fa-rotate ${loading ? 'fa-spin' : ''}`} /> Làm mới
-          </button>
-        </div>
-      </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
-          <span className="text-xs text-gray-400">Tổng hội thoại</span>
-          <strong className="text-xl text-gray-800 mt-1">{totalCount}</strong>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
-          <span className="text-xs text-gray-400">Chưa gắn staff</span>
-          <strong className="text-xl text-amber-600 mt-1">{unassignedCount}</strong>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
-          <span className="text-xs text-gray-400">Cần tạo account</span>
-          <strong className="text-xl text-red-600 mt-1">{creatableCount}</strong>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
-          <span className="text-xs text-gray-400">Hội thoại đang chọn</span>
-          <strong className="text-sm font-semibold text-blue-600 truncate mt-1.5" title={activeName}>
-            {activeName}
-          </strong>
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          {/* Compact stats */}
+          <div className="flex items-center gap-6 text-xs text-gray-500 bg-white border border-gray-100 px-4 py-2 rounded-xl shadow-xs">
+            <div className="flex items-center gap-1.5" title="Tổng hội thoại">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              Tổng: <strong className="text-gray-800 font-bold">{totalCount}</strong>
+            </div>
+            <div className="flex items-center gap-1.5 border-l border-gray-200 pl-4" title="Chưa gắn nhân viên">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              Chưa gắn: <strong className="text-gray-800 font-bold">{unassignedCount}</strong>
+            </div>
+            <div className="flex items-center gap-1.5 border-l border-gray-200 pl-4" title="Cần tạo tài khoản khách hàng">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              Cần account: <strong className="text-gray-800 font-bold">{creatableCount}</strong>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2">
+            <Link
+              to="/admin/zalo-oa-settings"
+              className="px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-700 text-xs hover:bg-gray-50 font-semibold flex items-center gap-1.5 transition shadow-sm"
+            >
+              <i className="fas fa-plug text-gray-400" /> Cấu hình OA
+            </Link>
+            <button
+              onClick={loadData}
+              disabled={loading}
+              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-tis-red rounded-lg text-xs font-semibold flex items-center gap-1.5 transition border border-red-100 shadow-sm"
+            >
+              <i className={`fas fa-rotate ${loading ? 'fa-spin' : ''}`} /> Làm mới
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-280px)] min-h-[500px]">
+      <div className="admin-chat-workspace zalo-workspace flex-1 min-h-0 lg:h-full grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Sidebar */}
-        <aside className="lg:col-span-4 bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
+        <aside className="admin-chat-sidebar lg:col-span-4 bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="text-sm font-bold text-gray-800">Danh sách chat Zalo</h2>
             <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full font-medium">
@@ -242,7 +237,7 @@ export default function AdminZaloOA() {
           </div>
 
           {/* Search and Filters */}
-          <div className="p-3 bg-gray-50/50 space-y-2 border-b border-gray-100">
+          <div className="chat-list-tools p-3 bg-gray-50/50 space-y-2 border-b border-gray-100">
             <div className="relative">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <i className="fas fa-search text-gray-400 text-xs" />
@@ -287,7 +282,7 @@ export default function AdminZaloOA() {
           </div>
 
           {/* List items */}
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-100 p-2 space-y-1">
+          <div className="chat-thread-list flex-1 overflow-y-auto divide-y divide-gray-100 p-2 space-y-1">
             {loading ? (
               <div className="flex flex-col items-center justify-center h-full py-10 space-y-2">
                 <div className="spinner-tis" />
@@ -309,29 +304,38 @@ export default function AdminZaloOA() {
                   <button
                     key={item.id}
                     onClick={() => handleSelectConversation(item)}
-                    className={`w-full flex items-start gap-3 p-2.5 rounded-lg text-left transition ${
-                      isActive ? 'bg-red-50 border border-red-100 shadow-sm' : 'hover:bg-gray-50 border border-transparent'
+                    className={`chat-thread-card w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all duration-200 border relative overflow-hidden ${
+                      isActive 
+                        ? 'bg-red-50/70 border-red-100/80 shadow-sm pl-4' 
+                        : 'hover:bg-gray-50/80 border-gray-100 bg-white'
                     }`}
                   >
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 ${
-                      isActive ? 'bg-red-500' : 'bg-blue-500'
-                    }`}>
-                      {customerName.charAt(0).toUpperCase()}
+                    {isActive && (
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#D71920] rounded-r" />
+                    )}
+                    <div className="relative shrink-0">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm bg-gradient-to-tr ${
+                        isActive 
+                          ? 'from-[#D71920] to-[#f54950]' 
+                          : 'from-blue-500 to-indigo-600'
+                      }`}>
+                        {customerName.charAt(0).toUpperCase()}
+                      </div>
                     </div>
-                    <div className="min-width-0 flex-1">
+                    <div className="min-w-0 flex-1">
                       <div className="flex justify-between items-baseline">
                         <h4 className="text-xs font-bold text-gray-800 truncate pr-2">{customerName}</h4>
-                        <span className="text-[10px] text-gray-400 shrink-0">
+                        <span className="text-[10px] text-gray-400 shrink-0 font-medium">
                           {item.last_message?.time || ''}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-500 truncate mt-0.5">{lastMsg}</p>
-                      <div className="flex items-center justify-between gap-2 mt-1">
-                        <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                          <i className="fas fa-user-tie text-[9px]" /> {staffName}
+                      <p className="text-xs text-gray-500 truncate mt-1 font-medium">{lastMsg}</p>
+                      <div className="flex items-center justify-between gap-2 mt-2">
+                        <span className="text-[10px] text-gray-400 flex items-center gap-1 font-medium bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5">
+                          <i className="fas fa-user-tie text-[9px] text-gray-400" /> {staffName}
                         </span>
                         {hasNoAccount && (
-                          <span className="bg-red-100 text-red-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase shrink-0">
+                          <span className="bg-red-50 text-red-700 border border-red-100 text-[8px] px-1.5 py-0.5 rounded font-bold uppercase shrink-0">
                             Cần account
                           </span>
                         )}
@@ -345,11 +349,11 @@ export default function AdminZaloOA() {
         </aside>
 
         {/* Chat view */}
-        <section className="lg:col-span-8 bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
+        <section className="admin-chat-panel lg:col-span-8 bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
           {activeConv ? (
             <>
               {/* Header */}
-              <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-50/50">
+              <div className="chat-panel-head p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-50/50">
                 <div>
                   <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
                     {activeConv.customer_name || activeConv.zalo_display_name || 'Khách Zalo'}
@@ -406,7 +410,7 @@ export default function AdminZaloOA() {
               {/* Messages area */}
               <div
                 ref={messageBoxRef}
-                className="flex-1 p-4 overflow-y-auto bg-gray-50 space-y-4 flex flex-col"
+                className="chat-message-canvas flex-1 p-4 overflow-y-auto bg-gray-50 space-y-4 flex flex-col"
               >
                 {loadingMessages ? (
                   <div className="flex flex-col items-center justify-center h-full space-y-2">
@@ -426,15 +430,15 @@ export default function AdminZaloOA() {
                         key={msg.id || index}
                         className={`flex flex-col max-w-[75%] ${isStaff ? 'self-end items-end' : 'self-start items-start'}`}
                       >
-                        <span className="text-[10px] text-gray-400 mb-0.5 px-1">{sender}</span>
-                        <div className={`p-2.5 rounded-xl shadow-sm ${
+                        <span className="text-[10px] text-gray-400 mb-1 px-1 font-medium">{sender}</span>
+                        <div className={`p-3 rounded-2xl shadow-sm leading-relaxed text-xs transition-all ${
                           isStaff
-                            ? 'bg-blue-600 text-white rounded-tr-none'
-                            : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
+                            ? 'bg-gradient-to-tr from-[#D71920] to-[#f54950] text-white rounded-tr-none'
+                            : 'bg-white text-[#1a1a2e] border border-gray-100 rounded-tl-none'
                         }`}>
-                          <p className="text-xs whitespace-pre-wrap leading-relaxed">{msg.message || '[Tập tin]'}</p>
+                          <p className="whitespace-pre-wrap leading-relaxed">{msg.message || '[Tập tin]'}</p>
                         </div>
-                        <span className="text-[9px] text-gray-400 mt-1 px-1">{msg.created_at || ''}</span>
+                        <span className="text-[9px] text-gray-400 mt-1.5 px-1 font-medium">{msg.created_at || ''}</span>
                       </div>
                     )
                   })
@@ -442,7 +446,7 @@ export default function AdminZaloOA() {
               </div>
 
               {/* Input section */}
-              <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-100 bg-white flex gap-2 items-center">
+              <form onSubmit={handleSendMessage} className="chat-composer p-3 border-t border-gray-100 bg-white flex gap-2 items-center">
                 <input
                   type="text"
                   placeholder="Nhập tin nhắn phản hồi qua Zalo OA..."

@@ -1,22 +1,54 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuth } from '@/context/AuthContext'
-import { clearTokens } from '@/lib/auth'
+import { clearTokens, saveTokens } from '@/lib/auth'
 import Swal from 'sweetalert2'
 import api from '@/lib/api'
 
 const schema = z.object({
-  phone: z.string().regex(/^(\+84|84|0)(3|5|7|8|9)[0-9]{8}$/, 'Số điện thoại không đúng định dạng Việt Nam'),
+  phone: z.string().min(1, 'Vui lòng nhập tài khoản (Email, SĐT hoặc Username)'),
   password: z.string().min(1, 'Vui lòng nhập mật khẩu'),
 })
 
 export default function AdminLoginPage() {
-  const { login } = useAuth()
+  const { login, fetchMe } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [showPass, setShowPass] = useState(false)
+
+  // Handle Outlook callback (access + refresh in URL)
+  useEffect(() => {
+    const access = searchParams.get('access')
+    const refresh = searchParams.get('refresh')
+    if (access && refresh) {
+      saveTokens(access, refresh)
+      fetchMe().then((user) => {
+        const INTERNAL_ROLES = ['super_admin', 'admin', 'leader', 'staff', 'claim']
+        if (!INTERNAL_ROLES.includes(user?.role)) {
+          clearTokens()
+          Swal.fire({
+            icon: 'warning',
+            title: 'Không có quyền truy cập',
+            text: 'Trang này chỉ dành cho Admin/Staff.',
+            confirmButtonColor: '#D71920',
+          })
+          return
+        }
+        navigate('/admin', { replace: true })
+      }).catch(() => {
+        clearTokens()
+        Swal.fire({
+          icon: 'error',
+          title: 'Thất bại',
+          text: 'Không thể lấy thông tin tài khoản.',
+          confirmButtonColor: '#D71920',
+        })
+      })
+    }
+  }, [searchParams, fetchMe, navigate])
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
@@ -24,7 +56,7 @@ export default function AdminLoginPage() {
 
   const onSubmit = async (data) => {
     try {
-      const user = await login(data.phone, data.password)
+      const user = await login(data.phone, data.password, 'internal')
       if (!user) throw new Error('Đăng nhập thất bại')
 
       const INTERNAL_ROLES = ['super_admin', 'admin', 'leader', 'staff', 'claim']
@@ -79,16 +111,15 @@ export default function AdminLoginPage() {
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="mb-3 text-left">
-          <label className="fw-bold small mb-1">Số điện thoại</label>
+          <label className="fw-bold small mb-1">Tài khoản</label>
           <div className="input-group">
             <span className="input-group-text"><i className="fas fa-user-shield text-muted" /></span>
             <input
               {...register('phone')}
-              type="tel"
+              type="text"
               className="form-control border-start-0 ps-0"
-              placeholder="Nhập số điện thoại nội bộ"
-              inputMode="tel"
-              autoComplete="tel"
+              placeholder="Email, SĐT hoặc Username nội bộ"
+              autoComplete="username"
             />
           </div>
           {errors.phone && <p className="mt-1 text-xs text-red-500 text-left">{errors.phone.message}</p>}

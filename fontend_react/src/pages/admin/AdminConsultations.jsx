@@ -127,13 +127,17 @@ export default function AdminConsultations() {
   }
 
   const isLeader = currentAdminUser?.role === 'leader'
+  const activeConsultations = consultations.filter(item => item.status !== 'archived')
+  const waitingConsultations = activeConsultations.filter(item => !(item.processor || item.assigned_staff || item.processor_name || item.assigned_staff_name))
+  const handledConsultations = activeConsultations.length - waitingConsultations.length
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="admin-inbox-page space-y-5">
+      <div className="admin-inbox-hero consultation-hero">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý tư vấn</h1>
-          <p className="text-sm text-gray-500">Tiếp nhận và phân công khách hàng yêu cầu tư vấn</p>
+          <span className="admin-page-kicker">Tiếp nhận khách hàng</span>
+          <h1>Quản lý tư vấn</h1>
+          <p>Tiếp nhận, phân công và chuyển nhanh yêu cầu khách hàng sang hội thoại xử lý.</p>
         </div>
         <button
           onClick={openCreateModal}
@@ -144,7 +148,37 @@ export default function AdminConsultations() {
         </button>
       </div>
 
-      <div className="admin-card">
+      <div className="consultation-metrics">
+        <div className="admin-inbox-metric">
+          <span>Tổng yêu cầu</span>
+          <strong>{consultations.length}</strong>
+          <small>Đang theo dõi trong hệ thống</small>
+        </div>
+        <div className="admin-inbox-metric is-alert">
+          <span>Chờ tiếp nhận</span>
+          <strong>{waitingConsultations.length}</strong>
+          <small>Cần nhân sự xử lý</small>
+        </div>
+        <div className="admin-inbox-metric is-live">
+          <span>Đang xử lý</span>
+          <strong>{handledConsultations}</strong>
+          <small>Có người phụ trách</small>
+        </div>
+        <div className="admin-inbox-metric">
+          <span>Danh mục hỗ trợ</span>
+          <strong>{categories.length}</strong>
+          <small>Sẵn sàng tạo form nhanh</small>
+        </div>
+      </div>
+
+      <div className="admin-card consultation-table-card">
+        <div className="consultation-table-head">
+          <div>
+            <h2>Danh sách yêu cầu</h2>
+            <p>Ưu tiên yêu cầu mới và chuyển thẳng sang chat khi đã có người phụ trách.</p>
+          </div>
+          <span>{activeConsultations.length} yêu cầu hoạt động</span>
+        </div>
         {loading ? (
           <div className="flex justify-center items-center py-20">
             <i className="fas fa-spinner fa-spin text-3xl text-tis-red" />
@@ -184,10 +218,15 @@ export default function AdminConsultations() {
                   }
 
                   return (
-                    <tr key={item.id} className="hover:bg-gray-50 border-b last:border-b-0">
+                    <tr key={item.id} className="consultation-row border-b last:border-b-0">
                       <td className="p-4">
-                        <div className="font-semibold text-gray-900">{item.customer_name || 'Khách hàng'}</div>
-                        <div className="text-xs text-gray-400">#{item.id}</div>
+                        <div className="consultation-customer">
+                          <span>{(item.customer_name || 'K').charAt(0).toUpperCase()}</span>
+                          <div>
+                            <div className="font-semibold text-gray-900">{item.customer_name || 'Khách hàng'}</div>
+                            <div className="text-xs text-gray-400">Yêu cầu #{item.id}</div>
+                          </div>
+                        </div>
                       </td>
                       <td className="p-4 text-sm text-gray-600">
                         <div>{item.customer_contact || '-'}</div>
@@ -212,7 +251,7 @@ export default function AdminConsultations() {
                         )}
                       </td>
                       <td className="p-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass}`}>
+                        <span className={`consultation-status px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass}`}>
                           {statusText}
                         </span>
                       </td>
@@ -221,7 +260,7 @@ export default function AdminConsultations() {
                           {hasHandler ? (
                             <button
                               onClick={() => navigate(`/admin/chat?id=${item.id}`)}
-                              className="btn-tis bg-green-500 text-white hover:bg-green-600 text-xs px-3 py-1.5 rounded-full"
+                              className="btn-tis consultation-chat-action text-xs px-3 py-1.5"
                             >
                               <i className="fab fa-facebook-messenger mr-1" />
                               Chat
@@ -243,7 +282,7 @@ export default function AdminConsultations() {
                               <select
                                 value={item.assigned_staff || ''}
                                 onChange={(e) => handleAssignStaff(item.id, e.target.value)}
-                                className="input-tis text-xs py-1 px-2 pr-8 w-36 rounded-l-full border-r-0 focus:ring-0"
+                                className="input-tis consultation-staff-select text-xs py-1 px-2 pr-8 w-36 rounded-l-full border-r-0 focus:ring-0"
                               >
                                 <option value="">Giao nhân viên...</option>
                                 {staffList.map(staff => (

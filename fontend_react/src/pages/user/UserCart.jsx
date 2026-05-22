@@ -160,7 +160,7 @@ export default function UserCart() {
               {/* Product Image */}
               <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
                 <img
-                  src={getValidImageUrl(item.product_image || item.product?.image)}
+                  src={getValidImageUrl(item.image || item.product_image || item.product?.image)}
                   alt={item.product_name || 'Sản phẩm'}
                   className="w-full h-full object-cover"
                   onError={e => { e.target.src = 'https://placehold.co/200x200/f8f9fa/d71920?text=TIS' }}

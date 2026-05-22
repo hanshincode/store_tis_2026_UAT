@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import api, { fetchList, getErrorMessage } from '@/lib/api'
 import Swal from 'sweetalert2'
 import toast from 'react-hot-toast'
+import PasswordField from '@/components/ui/PasswordField'
 
 export default function AdminStaff() {
   const [staffUsers, setStaffUsers] = useState([])
@@ -317,8 +318,7 @@ export default function AdminStaff() {
                 </div>
                 <div>
                   <label className="label-tis">Mật khẩu</label>
-                  <input
-                    type="password"
+                  <PasswordField
                     value={addForm.password}
                     onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}
                     placeholder="******"

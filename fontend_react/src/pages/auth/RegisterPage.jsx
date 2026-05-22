@@ -193,28 +193,38 @@ export default function RegisterPage() {
         title: terms.title || 'Điều khoản đăng ký tài khoản',
         html: `
           <div class="registration-terms-shell text-start">
-            <div class="d-flex justify-content-between gap-3 mb-2 small text-muted">
-              <span>Phiên bản: <strong>${escapeHTML(terms.version || '1.0')}</strong></span>
-              <span>Cập nhật: ${escapeHTML(formatVietnamDateTime(terms.updated_at))}</span>
+            <div class="registration-terms-meta">
+              <span><i class="fas fa-file-contract"></i> Phiên bản <strong>${escapeHTML(terms.version || '1.0')}</strong></span>
+              <span><i class="fas fa-clock"></i> Cập nhật ${escapeHTML(formatVietnamDateTime(terms.updated_at))}</span>
             </div>
-            <div id="registration-scroll-hint" class="alert alert-warning py-2 small mb-3">
-              Vui lòng kéo xuống cuối điều khoản để mở phần chấp nhận và ký xác nhận.
+            <div id="registration-scroll-hint" class="registration-scroll-hint">
+              <i class="fas fa-arrow-down"></i>
+              <span>Đọc hết nội dung điều khoản để mở phần chấp nhận và ký xác nhận.</span>
             </div>
-            <div id="registration-terms-content" class="registration-terms-content">
-              ${sanitizeRegistrationTermsHtml(terms.content || '<p>Điều khoản đăng ký đang được cập nhật.</p>')}
+            <div class="registration-terms-reader">
+              <div id="registration-terms-content" class="registration-terms-content rich-content">
+                ${sanitizeRegistrationTermsHtml(terms.content || '<p>Điều khoản đăng ký đang được cập nhật.</p>')}
+              </div>
             </div>
             <div id="registration-accept-wrap" class="registration-accept-wrap d-none">
               <label class="registration-accept-line">
                 <input type="checkbox" id="registration-accept">
-                <span>Tôi chấp nhận toàn bộ điều khoản trên</span>
+                <span>
+                  <strong>Tôi đã đọc và chấp nhận điều khoản</strong>
+                  <small>Xác nhận nội dung trên trước khi hoàn tất đăng ký tài khoản.</small>
+                </span>
               </label>
-              <div class="mt-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <strong>Ký xác nhận trực tiếp</strong>
-                  <button type="button" class="btn btn-sm btn-light border" id="registration-clear-signature">Ký lại</button>
+              <div class="registration-signature-wrap">
+                <div class="registration-signature-head">
+                  <div>
+                    <strong>Ký xác nhận</strong>
+                    <small>Dùng chuột hoặc ngón tay ký vào khung.</small>
+                  </div>
+                  <button type="button" id="registration-clear-signature">
+                    <i class="fas fa-eraser"></i> Ký lại
+                  </button>
                 </div>
                 <canvas id="registration-signature-canvas" class="registration-signature-canvas"></canvas>
-                <div class="form-text">Dùng chuột hoặc ngón tay để ký trong khung này.</div>
               </div>
             </div>
           </div>
@@ -227,7 +237,13 @@ export default function RegisterPage() {
         confirmButtonColor: '#D71920',
         allowOutsideClick: false,
         focusConfirm: false,
-        customClass: { popup: 'registration-terms-dialog' },
+        customClass: {
+          popup: 'registration-terms-dialog',
+          title: 'registration-terms-title',
+          actions: 'registration-terms-actions',
+          confirmButton: 'registration-terms-confirm',
+          cancelButton: 'registration-terms-cancel',
+        },
         didOpen: () => {
           const popup = Swal.getPopup()
           const confirmButton = Swal.getConfirmButton()
@@ -249,7 +265,8 @@ export default function RegisterPage() {
           }
           const revealAccept = () => {
             acceptWrap.classList.remove('d-none')
-            hint.textContent = 'Bạn có thể chấp nhận điều khoản và ký xác nhận bên dưới.'
+            hint.classList.add('is-ready')
+            hint.innerHTML = '<i class="fas fa-check"></i><span>Bạn có thể chấp nhận điều khoản và ký xác nhận bên dưới.</span>'
             requestAnimationFrame(() => resizeCanvas({ clearSignature: !canvasReady }))
           }
           const checkScroll = () => {
@@ -382,17 +399,49 @@ export default function RegisterPage() {
       await Swal.fire({
         icon: 'success',
         title: 'Đăng ký thành công!',
-        text: 'Vui lòng kiểm tra điện thoại để nhận mã xác thực.',
+        text: 'Vui lòng kiểm tra email để nhận mã xác thực hoặc click vào liên kết được gửi tới email.',
         confirmButtonColor: '#D71920',
       })
-      navigate(`/verify-email?phone=${encodeURIComponent(payload.phone)}`)
+      navigate(`/verify-email?email=${encodeURIComponent(payload.email)}&phone=${encodeURIComponent(payload.phone)}`)
     } catch (err) {
+      let errorMessage = 'Đăng ký thất bại. Vui lòng thử lại sau.'; // Tin nhắn mặc định
+
+      if (err.response && err.response.data) {
+        const data = err.response.data;
+
+        if (data.detail) {
+          // Bắt chuẩn lỗi 'detail'
+          errorMessage = data.detail;
+        } else if (data.message) {
+          // Bắt chuẩn lỗi 'message'
+          errorMessage = data.message;
+        } else if (typeof data === 'object') {
+          // Xử lý lỗi trả về theo từng field (ví dụ: {"username": ["Đã tồn tại"]})
+          // Gom tất cả các mảng lỗi lại thành một mảng duy nhất và nối bằng dấu xuống dòng
+          const errorValues = Object.values(data).flat();
+          if (errorValues.length > 0 && typeof errorValues[0] === 'string') {
+            errorMessage = errorValues.join('\n');
+          }
+        } else if (typeof data === 'string') {
+          // Trường hợp backend trả thẳng về một chuỗi text
+          errorMessage = data;
+        }
+      } else if (err.message) {
+        // Xử lý lỗi không có response (lỗi mạng, server sập, v.v.)
+        if (err.message === 'Network Error') {
+          errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng.';
+        } else {
+          // Bạn có thể giữ lại err.message hoặc ghi đè bằng tiếng Việt
+          errorMessage = 'Đã có lỗi hệ thống xảy ra. Vui lòng thử lại.'; 
+        }
+      }
+
       Swal.fire({
         icon: 'error',
         title: 'Đăng ký thất bại',
-        text: err.response?.data?.detail || err.message || 'Đăng ký thất bại. Vui lòng thử lại.',
+        text: errorMessage,
         confirmButtonColor: '#D71920'
-      })
+      });
     }
   }
 

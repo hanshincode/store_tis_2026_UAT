@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import api, { getErrorMessage } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { formatDate } from '@/lib/format'
+import PasswordField from '@/components/ui/PasswordField'
 import toast from 'react-hot-toast'
 import Swal from 'sweetalert2'
 
@@ -87,8 +88,8 @@ export default function UserDashboard() {
     }
     setChangingPassword(true)
     try {
-      await api.post('/change-password/', {
-        old_password: passwordForm.old_password,
+      await api.post('/users/set_password/', {
+        current_password: passwordForm.old_password,
         new_password: passwordForm.new_password,
       })
       toast.success('Đổi mật khẩu thành công!')
@@ -269,8 +270,7 @@ export default function UserDashboard() {
           <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
             <div>
               <label className="label-tis">Mật khẩu hiện tại</label>
-              <input
-                type="password"
+              <PasswordField
                 value={passwordForm.old_password}
                 onChange={e => setPasswordForm(f => ({ ...f, old_password: e.target.value }))}
                 className="input-tis"
@@ -280,8 +280,7 @@ export default function UserDashboard() {
             </div>
             <div>
               <label className="label-tis">Mật khẩu mới</label>
-              <input
-                type="password"
+              <PasswordField
                 value={passwordForm.new_password}
                 onChange={e => setPasswordForm(f => ({ ...f, new_password: e.target.value }))}
                 className="input-tis"
@@ -292,8 +291,7 @@ export default function UserDashboard() {
             </div>
             <div>
               <label className="label-tis">Xác nhận mật khẩu mới</label>
-              <input
-                type="password"
+              <PasswordField
                 value={passwordForm.confirm_password}
                 onChange={e => setPasswordForm(f => ({ ...f, confirm_password: e.target.value }))}
                 className="input-tis"

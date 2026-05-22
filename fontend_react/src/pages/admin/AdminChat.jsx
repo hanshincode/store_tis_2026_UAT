@@ -611,8 +611,15 @@ export default function AdminChat() {
     return msg || ''
   }
 
+  const liveCustomerCount = conversations.filter(item => item.status !== 'archived').length
+  const archivedCustomerCount = conversations.length - liveCustomerCount
+  const activeChatName = activeConv?.customer_name
+    || activeRoom?.name
+    || (activeRoom?.member_names || []).map(member => member.name).join(', ')
+    || 'Chưa chọn'
+
   return (
-    <div className="p-4 max-w-7xl mx-auto space-y-4">
+    <div className="admin-inbox-page admin-chat-page lg:h-[calc(100vh-120px)] flex flex-col overflow-hidden space-y-4">
       {/* Hidden File Input */}
       <input
         type="file"
@@ -622,12 +629,40 @@ export default function AdminChat() {
         accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
       />
 
+      <div className="admin-inbox-hero admin-chat-hero shrink-0">
+        <div>
+          <span className="admin-page-kicker">Hộp thoại hỗ trợ</span>
+          <h1 className="flex flex-wrap items-center gap-2">
+            Chat realtime
+            <span className={`chat-presence is-${connStatus} scale-90`}>
+              <i /> {connStatus === 'online' ? 'Kết nối trực tuyến' : connStatus === 'connecting' ? 'Đang kết nối' : 'Ngoại tuyến'}
+            </span>
+          </h1>
+          <p>Theo dõi hội thoại khách hàng và trao đổi nội bộ trong cùng workspace xử lý.</p>
+        </div>
+
+        <div className="admin-chat-hero-stats flex items-center gap-6 text-xs text-gray-500 bg-white border border-gray-100 px-4 py-2 rounded-xl shadow-xs shrink-0">
+          <div className="flex items-center gap-1.5" title="Hội thoại khách đang hoạt động">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            Khách: <strong className="text-gray-800 font-bold">{liveCustomerCount}</strong>
+          </div>
+          <div className="flex items-center gap-1.5 border-l border-gray-200 pl-4" title="Phòng trao đổi nội bộ">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            Nội bộ: <strong className="text-gray-800 font-bold">{internalRooms.length}</strong>
+          </div>
+          <div className="flex items-center gap-1.5 border-l border-gray-200 pl-4" title="Hội thoại đã lưu trữ">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+            Lưu trữ: <strong className="text-gray-800 font-bold">{archivedCustomerCount}</strong>
+          </div>
+        </div>
+      </div>
+
       {/* Workspace wrapper */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-140px)] min-h-[550px]">
+      <div className="admin-chat-workspace flex-1 min-h-0 lg:h-full grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Left Sidebar */}
-        <aside className="lg:col-span-4 bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
+        <aside className="admin-chat-sidebar lg:col-span-4 bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
           {/* Mode Switcher */}
-          <div className="p-3 border-b border-gray-100 flex gap-2 bg-gray-50/50">
+          <div className="chat-mode-switch p-3 border-b border-gray-100 flex gap-2 bg-gray-50/50">
             <button
               onClick={() => setChatMode('customer')}
               className={`flex-1 py-1.5 text-center text-xs font-bold rounded-lg transition ${
@@ -647,7 +682,7 @@ export default function AdminChat() {
           </div>
 
           {/* Search bar */}
-          <div className="p-3 bg-white space-y-2 border-b border-gray-100">
+          <div className="chat-list-tools p-3 bg-white space-y-2 border-b border-gray-100">
             <div className="relative">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <i className="fas fa-search text-gray-400 text-xs" />
@@ -710,7 +745,7 @@ export default function AdminChat() {
           </div>
 
           {/* List items */}
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-100 p-2 space-y-1 bg-gray-50/20">
+          <div className="chat-thread-list flex-1 overflow-y-auto divide-y divide-gray-100 p-2 space-y-1 bg-gray-50/20">
             {loadingList ? (
               <div className="flex flex-col items-center justify-center h-full py-10 space-y-2">
                 <div className="spinner-tis" />
@@ -732,30 +767,44 @@ export default function AdminChat() {
                     <button
                       key={item.id}
                       onClick={() => handleSelectConversation(item)}
-                      className={`w-full flex items-start gap-3 p-2.5 rounded-lg text-left transition border ${
-                        isActive ? 'bg-red-50 border-red-100 shadow-sm' : 'hover:bg-gray-50 border-transparent bg-white'
+                      className={`chat-thread-card w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all duration-200 border relative overflow-hidden ${
+                        isActive 
+                          ? 'bg-red-50/70 border-red-100/80 shadow-sm pl-4' 
+                          : 'hover:bg-gray-50/80 border-gray-100 bg-white'
                       }`}
                     >
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 ${
-                        isActive ? 'bg-red-500' : 'bg-blue-500'
-                      }`}>
-                        {title.charAt(0).toUpperCase()}
+                      {isActive && (
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#D71920] rounded-r" />
+                      )}
+                      <div className="relative shrink-0">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm ${
+                          isActive 
+                            ? 'bg-gradient-to-tr from-[#D71920] to-[#f54950]' 
+                            : isMember 
+                              ? 'bg-gradient-to-tr from-blue-500 to-indigo-600' 
+                              : 'bg-gradient-to-tr from-slate-400 to-slate-500'
+                        }`}>
+                          {title.charAt(0).toUpperCase()}
+                        </div>
+                        {isActive && connStatus === 'online' && (
+                          <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-white bg-green-500 animate-pulse" />
+                        )}
                       </div>
-                      <div className="min-width-0 flex-1">
+                      <div className="min-w-0 flex-1">
                         <div className="flex justify-between items-baseline">
-                          <h4 className="text-xs font-bold text-gray-800 truncate pr-2 flex items-center gap-1">
+                          <h4 className="text-xs font-bold text-gray-800 truncate pr-2 flex items-center gap-1.5">
                             {title}
                             {isMember ? (
-                              <span className="bg-blue-100 text-blue-800 text-[8px] px-1 py-0.2 rounded font-semibold scale-90">TV</span>
+                              <span className="bg-blue-50 text-blue-700 border border-blue-100 text-[8px] px-1 py-0.2 rounded font-bold">TV</span>
                             ) : (
-                              <span className="bg-gray-100 text-gray-600 text-[8px] px-1 py-0.2 rounded font-semibold scale-90">VL</span>
+                              <span className="bg-gray-100 text-gray-600 border border-gray-200 text-[8px] px-1 py-0.2 rounded font-bold">VL</span>
                             )}
                           </h4>
-                          <span className="text-[10px] text-gray-400 shrink-0">
+                          <span className="text-[10px] text-gray-400 shrink-0 font-medium">
                             {relativeTime}
                           </span>
                         </div>
-                        <p className="text-[11px] text-gray-500 truncate mt-0.5">{lastMsg}</p>
+                        <p className="text-[11px] text-gray-500 truncate mt-1 font-medium">{lastMsg}</p>
                       </div>
                     </button>
                   )
@@ -778,30 +827,42 @@ export default function AdminChat() {
                     <button
                       key={room.id}
                       onClick={() => handleSelectInternalRoom(room)}
-                      className={`w-full flex items-start gap-3 p-2.5 rounded-lg text-left transition border ${
-                        isActive ? 'bg-red-50 border-red-100 shadow-sm' : 'hover:bg-gray-50 border-transparent bg-white'
+                      className={`chat-thread-card w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all duration-200 border relative overflow-hidden ${
+                        isActive 
+                          ? 'bg-red-50/70 border-red-100/80 shadow-sm pl-4' 
+                          : 'hover:bg-gray-50/80 border-gray-100 bg-white'
                       }`}
                     >
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 ${
-                        isActive ? 'bg-red-500' : 'bg-amber-500'
-                      }`}>
-                        {title.charAt(0).toUpperCase()}
+                      {isActive && (
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#D71920] rounded-r" />
+                      )}
+                      <div className="relative shrink-0">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm ${
+                          isActive 
+                            ? 'bg-gradient-to-tr from-[#D71920] to-[#f54950]' 
+                            : 'bg-gradient-to-tr from-amber-500 to-orange-600'
+                        }`}>
+                          {title.charAt(0).toUpperCase()}
+                        </div>
+                        {isActive && connStatus === 'online' && (
+                          <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-white bg-green-500 animate-pulse" />
+                        )}
                       </div>
-                      <div className="min-width-0 flex-1">
+                      <div className="min-w-0 flex-1">
                         <div className="flex justify-between items-baseline">
                           <h4 className="text-xs font-bold text-gray-800 truncate pr-2 flex items-center gap-1.5">
                             {title}
                             {room.room_type === 'group' ? (
-                              <span className="text-[9px] text-gray-400"><i className="fas fa-users" /> {members.length}</span>
+                              <span className="bg-amber-50 text-amber-800 border border-amber-100 text-[8px] px-1 py-0.2 rounded font-bold"><i className="fas fa-users" /> {members.length}</span>
                             ) : (
-                              <span className="text-[9px] text-gray-400"><i className="fas fa-user" /></span>
+                              <span className="bg-gray-100 text-gray-600 border border-gray-200 text-[8px] px-1 py-0.2 rounded font-bold"><i className="fas fa-user" /></span>
                             )}
                           </h4>
-                          <span className="text-[10px] text-gray-400 shrink-0">
+                          <span className="text-[10px] text-gray-400 shrink-0 font-medium">
                             {relativeTime}
                           </span>
                         </div>
-                        <p className="text-[11px] text-gray-500 truncate mt-0.5">{lastMsg}</p>
+                        <p className="text-[11px] text-gray-500 truncate mt-1 font-medium">{lastMsg}</p>
                       </div>
                     </button>
                   )
@@ -812,11 +873,11 @@ export default function AdminChat() {
         </aside>
 
         {/* Right Active Chat Panel */}
-        <section className="lg:col-span-8 bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
+        <section className="admin-chat-panel lg:col-span-8 bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
           {activeConv || activeRoom ? (
             <>
               {/* Header */}
-              <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-50/50">
+              <div className="chat-panel-head p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-50/50">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-red-500 text-white font-bold flex items-center justify-center text-base">
                     {(activeConv?.customer_name || activeRoom?.name || 'C').charAt(0).toUpperCase()}
@@ -919,7 +980,7 @@ export default function AdminChat() {
               {/* Message History display */}
               <div
                 ref={messageBoxRef}
-                className="flex-1 p-4 bg-gray-50 overflow-y-auto space-y-4 flex flex-col"
+                className="chat-message-canvas flex-1 p-4 bg-gray-50 overflow-y-auto space-y-4 flex flex-col"
               >
                 {loadingMessages ? (
                   <div className="my-auto flex flex-col items-center justify-center space-y-2">
@@ -946,24 +1007,27 @@ export default function AdminChat() {
 
                     if (isCallLog) {
                       let icon = 'fa-video'
-                      let color = 'text-green-600'
+                      let color = 'text-red-500'
                       let label = 'Cuộc gọi đã kết thúc'
+                      let bg = 'bg-red-50/50 border-red-100/60'
                       
                       if (msg.message.includes('missed')) {
                         icon = 'fa-phone-slash'
                         color = 'text-amber-500'
                         label = 'Cuộc gọi nhỡ'
+                        bg = 'bg-amber-50/50 border-amber-100/60'
                       } else if (msg.message.includes('rejected')) {
                         icon = 'fa-video-slash'
-                        color = 'text-red-500'
+                        color = 'text-rose-500'
                         label = 'Cuộc gọi bị từ chối'
+                        bg = 'bg-rose-50/50 border-rose-100/60'
                       }
 
                       return (
-                        <div key={msg.id || index} className="self-center bg-gray-200/60 text-gray-700 text-[11px] font-semibold px-4 py-1.5 rounded-full flex items-center gap-2">
-                          <i className={`fas ${icon} ${color}`} />
+                        <div key={msg.id || index} className={`self-center ${bg} border backdrop-blur-sm text-gray-700 text-xs font-semibold px-5 py-2.5 rounded-full flex items-center gap-2.5 shadow-sm my-3 max-w-md`}>
+                          <i className={`fas ${icon} ${color} text-sm`} />
                           <span>{label}</span>
-                          <span className="text-gray-400 font-normal font-mono scale-90">{msg.created_at}</span>
+                          <span className="text-gray-400 font-normal text-[10px] font-mono border-l border-gray-200 pl-2">{msg.created_at}</span>
                         </div>
                       )
                     }
@@ -973,55 +1037,57 @@ export default function AdminChat() {
                         key={msg.id || index}
                         className={`flex flex-col max-w-[70%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}
                       >
-                        <span className="text-[10px] text-gray-400 mb-0.5 px-1">{msg.sender_name || (isMe ? 'Bạn' : 'Khách')}</span>
-                        <div className={`p-2.5 rounded-xl shadow-sm space-y-1.5 ${
+                        <span className="text-[10px] text-gray-400 mb-1 px-1 font-medium">{msg.sender_name || (isMe ? 'Bạn' : 'Khách')}</span>
+                        <div className={`p-3 rounded-2xl shadow-sm space-y-1.5 leading-relaxed text-xs transition-all ${
                           isMe
-                            ? 'bg-blue-600 text-white rounded-tr-none'
-                            : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
+                            ? 'bg-gradient-to-tr from-[#D71920] to-[#f54950] text-white rounded-tr-none shadow-red-100/20'
+                            : 'bg-white text-[#1a1a2e] border border-gray-100 rounded-tl-none'
                         }`}>
                           {msg.message && (
-                            <p className="text-xs whitespace-pre-wrap leading-relaxed">{msg.message}</p>
+                            <p className="whitespace-pre-wrap leading-relaxed">{msg.message}</p>
                           )}
 
                           {msg.attachment_url && (
                             <div className="pt-0.5">
                               {msg.attachment_type === 'image' ? (
-                                <a href={mediaUrl(msg.attachment_url)} target="_blank" rel="noreferrer" className="block max-w-[200px] overflow-hidden rounded-lg">
+                                <a href={mediaUrl(msg.attachment_url)} target="_blank" rel="noreferrer" className="block max-w-[200px] overflow-hidden rounded-xl shadow-sm hover:shadow-md transition">
                                   <img
                                     src={mediaUrl(msg.attachment_url)}
                                     alt="Attachment"
-                                    className="w-full max-h-56 object-cover hover:scale-105 transition"
+                                    className="w-full max-h-56 object-cover hover:scale-102 transition duration-200"
                                   />
                                 </a>
                               ) : msg.attachment_type === 'video' ? (
                                 <video
                                   src={mediaUrl(msg.attachment_url)}
                                   controls
-                                  className="w-full max-w-[240px] rounded bg-black"
+                                  className="w-full max-w-[240px] rounded-xl bg-black shadow-sm"
                                 />
                               ) : (
                                 <a
                                   href={mediaUrl(msg.attachment_url)}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className={`inline-flex items-center gap-1.5 p-2 rounded text-xs font-bold ${
-                                    isMe ? 'bg-blue-700 text-white hover:bg-blue-800' : 'bg-gray-100 text-blue-600 hover:bg-gray-200'
+                                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                                    isMe 
+                                      ? 'bg-white/10 hover:bg-white/20 text-white border border-white/10' 
+                                      : 'bg-gray-50 border border-gray-200 hover:bg-gray-100 text-blue-600'
                                   }`}
                                 >
-                                  <i className="fas fa-file-alt" /> Tải tệp đính kèm
+                                  <i className="fas fa-file-alt text-sm" /> Tải tệp đính kèm
                                 </a>
                               )}
                             </div>
                           )}
                         </div>
                         
-                        <div className="flex items-center gap-1 mt-1 px-1 text-[9px] text-gray-400">
+                        <div className="flex items-center gap-1 mt-1.5 px-1 text-[9px] text-gray-400 font-medium">
                           <span>{msg.created_at}</span>
                           {isMe && (
                             msg.is_read ? (
-                              <span className="text-green-500 font-bold" title="Đã xem">✓✓</span>
+                              <span className="text-green-500 font-bold ml-1" title="Đã xem">✓✓</span>
                             ) : (
-                              <span className="text-gray-300 font-bold" title="Đã gửi">✓</span>
+                              <span className="text-gray-300 font-bold ml-1" title="Đã gửi">✓</span>
                             )
                           )}
                         </div>
@@ -1033,8 +1099,8 @@ export default function AdminChat() {
                 {/* Typing status bubble */}
                 {opponentTyping && (
                   <div className="self-start flex flex-col max-w-[70%]">
-                    <span className="text-[10px] text-gray-400 mb-0.5 px-1">Đang nhập...</span>
-                    <div className="p-3 bg-white text-gray-800 border border-gray-100 rounded-xl rounded-tl-none shadow-sm flex items-center gap-1">
+                    <span className="text-[10px] text-gray-400 mb-1 px-1 font-medium">Đang nhập...</span>
+                    <div className="p-3.5 bg-white text-gray-800 border border-gray-100 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-1">
                       <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
                       <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
                       <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" />
@@ -1044,7 +1110,7 @@ export default function AdminChat() {
               </div>
 
               {/* Chat Input toolbar footer */}
-              <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-100 bg-white flex gap-2 items-center">
+              <form onSubmit={handleSendMessage} className="chat-composer p-3 border-t border-gray-100 bg-white flex gap-2 items-center">
                 <button
                   type="button"
                   onClick={handleAttachClick}

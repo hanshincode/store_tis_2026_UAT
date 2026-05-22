@@ -7,7 +7,7 @@ import api, { getErrorMessage } from '@/lib/api'
 import Swal from 'sweetalert2'
 
 const schema = z.object({
-  otp_code:     z.string().min(1, 'Vui lòng nhập mã OTP'),
+  otp_code:     z.string().optional(),
   new_password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
   confirm_password: z.string().min(1, 'Vui lòng xác nhận mật khẩu'),
 }).refine(d => d.new_password === d.confirm_password, {
@@ -19,6 +19,9 @@ export default function ResetPasswordPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const phone = searchParams.get('phone') || ''
+  const email = searchParams.get('email') || ''
+  const token = searchParams.get('token') || ''
+  const account = searchParams.get('account') || ''
   const [showPass, setShowPass]       = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -27,10 +30,16 @@ export default function ResetPasswordPage() {
   })
 
   const onSubmit = async (data) => {
+    if (!token && !data.otp_code) {
+      Swal.fire({ icon: 'warning', title: 'Thông báo', text: 'Vui lòng nhập mã OTP để tiếp tục.' })
+      return
+    }
     try {
-      await api.post('/reset-password/', {
+      await api.post('/users/reset-password/', {
         phone,
-        otp_code: data.otp_code,
+        email,
+        token,
+        otp_code: data.otp_code || '',
         new_password: data.new_password,
       })
       await Swal.fire({
@@ -41,20 +50,20 @@ export default function ResetPasswordPage() {
       })
       navigate('/login', { replace: true })
     } catch (err) {
-      const msg = getErrorMessage(err, 'Mã OTP không đúng hoặc đã hết hạn.')
+      const msg = getErrorMessage(err, 'Mã OTP hoặc liên kết khôi phục không đúng hoặc đã hết hạn.')
       Swal.fire({ icon: 'error', title: 'Có lỗi xảy ra', text: msg, confirmButtonColor: '#D71920' })
     }
   }
 
-  // If no phone param, show error
-  if (!phone) {
+  // If no params, show error
+  if (!phone && !email && !token) {
     return (
       <div className="text-center py-12">
         <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
           <i className="fas fa-exclamation-triangle text-red-400 text-2xl" />
         </div>
         <h3 className="text-lg font-semibold text-gray-900 mb-2">Thiếu thông tin</h3>
-        <p className="text-gray-500 text-sm mb-6">Vui lòng thực hiện quên mật khẩu trước.</p>
+        <p className="text-gray-500 text-sm mb-6">Vui lòng thực hiện yêu cầu khôi phục mật khẩu trước hoặc sử dụng link trong email.</p>
         <Link to="/forgot-password" className="btn-tis-danger px-6 py-2.5">
           <i className="fas fa-arrow-left mr-2" /> Quên mật khẩu
         </Link>
@@ -66,35 +75,40 @@ export default function ResetPasswordPage() {
     <div>
       {/* Header */}
       <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+        <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
           <i className="fas fa-unlock-alt text-white text-2xl" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900">Đặt lại mật khẩu</h2>
         <p className="text-gray-500 text-sm mt-1">
-          Nhập mã OTP đã gửi đến <span className="font-semibold text-gray-700">{phone}</span>
+          {token
+            ? `Thiết lập mật khẩu mới cho tài khoản ${email || account}`
+            : `Nhập mã OTP đã gửi đến ${email || phone || account}`
+          }
         </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        {/* OTP */}
-        <div>
-          <label className="label-tis">Mã OTP</label>
-          <div className="relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
-              <i className="fas fa-hashtag" />
-            </span>
-            <input
-              {...register('otp_code')}
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="Nhập mã OTP"
-              autoFocus
-              className={`input-tis pl-10 text-center text-lg tracking-[0.3em] font-mono ${errors.otp_code ? 'border-red-400 focus:ring-red-200' : ''}`}
-            />
+        {/* OTP - Hide when token is present */}
+        {!token && (
+          <div>
+            <label className="label-tis">Mã OTP</label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                <i className="fas fa-hashtag" />
+              </span>
+              <input
+                {...register('otp_code')}
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="Nhập mã OTP"
+                autoFocus
+                className={`input-tis pl-10 text-center text-lg tracking-[0.3em] font-mono ${errors.otp_code ? 'border-red-400 focus:ring-red-200' : ''}`}
+              />
+            </div>
+            {errors.otp_code && <p className="mt-1 text-xs text-red-500">{errors.otp_code.message}</p>}
           </div>
-          {errors.otp_code && <p className="mt-1 text-xs text-red-500">{errors.otp_code.message}</p>}
-        </div>
+        )}
 
         {/* New Password */}
         <div>
@@ -152,7 +166,7 @@ export default function ResetPasswordPage() {
 
       <div className="mt-8 pt-6 border-t border-gray-100 text-center">
         <Link to="/forgot-password" className="text-sm text-gray-500 hover:text-tis-red transition-colors">
-          <i className="fas fa-redo mr-1" /> Gửi lại mã OTP
+          <i className="fas fa-arrow-left mr-1" /> Quay lại quên mật khẩu
         </Link>
       </div>
     </div>

@@ -17,8 +17,11 @@ export default function VerifyEmailPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const phone = searchParams.get('phone') || ''
+  const email = searchParams.get('email') || ''
+  const token = searchParams.get('token') || ''
   const [countdown, setCountdown] = useState(0)
   const [resending, setResending] = useState(false)
+  const [verifyingToken, setVerifyingToken] = useState(false)
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
@@ -41,9 +44,34 @@ export default function VerifyEmailPage() {
     setCountdown(RESEND_COOLDOWN)
   }, [])
 
+  // Auto verification if token exists
+  useEffect(() => {
+    if (token) {
+      const autoVerify = async () => {
+        setVerifyingToken(true)
+        try {
+          await api.post('/users/verify-email/', { token, email, phone })
+          await Swal.fire({
+            icon: 'success',
+            title: 'Xác thực thành công!',
+            text: 'Tài khoản đã được kích hoạt thành công. Vui lòng đăng nhập.',
+            confirmButtonColor: '#D71920',
+          })
+          navigate('/login', { replace: true })
+        } catch (err) {
+          const msg = getErrorMessage(err, 'Liên kết xác thực không hợp lệ hoặc đã hết hạn.')
+          Swal.fire({ icon: 'error', title: 'Xác thực thất bại', text: msg, confirmButtonColor: '#D71920' })
+        } finally {
+          setVerifyingToken(false)
+        }
+      }
+      autoVerify()
+    }
+  }, [token, email, phone, navigate])
+
   const onSubmit = async (data) => {
     try {
-      await api.post('/verify-email/', { phone, code: data.code })
+      await api.post('/users/verify-email/', { phone, email, token, code: data.code })
       await Swal.fire({
         icon: 'success',
         title: 'Xác thực thành công!',
@@ -61,8 +89,8 @@ export default function VerifyEmailPage() {
     if (countdown > 0 || resending) return
     setResending(true)
     try {
-      await api.post('/resend-verification/', { phone })
-      toast.success('Mã xác thực mới đã được gửi')
+      await api.post('/users/resend-verification/', { email_or_phone: email || phone })
+      toast.success('Mã xác thực mới đã được gửi đến email của bạn.')
       setCountdown(RESEND_COOLDOWN)
     } catch (err) {
       const msg = getErrorMessage(err, 'Không thể gửi lại mã. Vui lòng thử lại.')
@@ -70,17 +98,29 @@ export default function VerifyEmailPage() {
     } finally {
       setResending(false)
     }
-  }, [phone, countdown, resending])
+  }, [phone, email, countdown, resending])
 
-  // If no phone param, show error
-  if (!phone) {
+  if (verifyingToken) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 text-tis-red">
+          <i className="fas fa-spinner fa-spin text-2xl" />
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Đang xác thực liên kết...</h3>
+        <p className="text-gray-500 text-sm">Vui lòng chờ trong giây lát hệ thống đang kích hoạt tài khoản của bạn.</p>
+      </div>
+    )
+  }
+
+  // If no email, phone and token param, show error
+  if (!phone && !email && !token) {
     return (
       <div className="text-center py-12">
         <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
           <i className="fas fa-exclamation-triangle text-red-400 text-2xl" />
         </div>
         <h3 className="text-lg font-semibold text-gray-900 mb-2">Thiếu thông tin</h3>
-        <p className="text-gray-500 text-sm mb-6">Vui lòng đăng ký tài khoản trước.</p>
+        <p className="text-gray-500 text-sm mb-6">Vui lòng đăng ký tài khoản trước hoặc sử dụng liên kết xác minh từ email.</p>
         <Link to="/register" className="btn-tis-danger px-6 py-2.5">
           <i className="fas fa-user-plus mr-2" /> Đăng ký
         </Link>
@@ -92,12 +132,12 @@ export default function VerifyEmailPage() {
     <div>
       {/* Header */}
       <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+        <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
           <i className="fas fa-envelope-open-text text-white text-2xl" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900">Xác thực tài khoản</h2>
         <p className="text-gray-500 text-sm mt-1">
-          Nhập mã xác thực đã gửi đến <span className="font-semibold text-gray-700">{phone}</span>
+          Nhập mã xác thực đã gửi đến <span className="font-semibold text-gray-700">{email || phone}</span>
         </p>
       </div>
 

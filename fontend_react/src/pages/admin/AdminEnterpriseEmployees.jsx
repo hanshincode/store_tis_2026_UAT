@@ -3,6 +3,7 @@ import api, { fetchList, getErrorMessage } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
 import Swal from 'sweetalert2'
 import toast from 'react-hot-toast'
+import PasswordField from '@/components/ui/PasswordField'
 
 export default function AdminEnterpriseEmployees() {
   const [enterprises, setEnterprises] = useState([])
@@ -296,30 +297,58 @@ export default function AdminEnterpriseEmployees() {
 
   // Get eligible packages for dropdowns
   const approvedOrderItems = flattenOrderItems(enterpriseOrders).filter(({ order }) => isOrderApproved(order))
+  const remainingCoverageSlots = approvedOrderItems.reduce((total, { item }) => total + getRemainingSlots(item), 0)
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      {/* Title */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="admin-inbox-page enterprise-employees-page space-y-5">
+      <div className="admin-inbox-hero">
         <div>
-          <span className="text-xs font-semibold text-red-500 uppercase tracking-wider">Doanh nghiệp & Nhân sự</span>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2 mt-0.5">
-            <i className="fas fa-building text-blue-600" /> Nhân viên Doanh nghiệp
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <span className="admin-page-kicker">Doanh nghiệp & Nhân sự</span>
+          <h1>Nhân viên doanh nghiệp</h1>
+          <p>
             Quản lý danh sách nhân sự của doanh nghiệp và phân bổ quyền lợi bảo hiểm từ đơn hàng đã mua.
           </p>
+        </div>
+        <button
+          onClick={handleDownloadTemplate}
+          className="btn-tis btn-tis-ghost text-sm self-start sm:self-auto"
+        >
+          <i className="fas fa-download mr-2" />
+          Tải template Excel
+        </button>
+      </div>
+
+      <div className="chat-overview">
+        <div className="admin-inbox-metric">
+          <span>Doanh nghiệp đang chọn</span>
+          <strong>{selectedEnt ? getEnterpriseLabel(selectedEnt) : 'Chưa chọn'}</strong>
+          <small>Tìm doanh nghiệp bên dưới để mở workspace</small>
+        </div>
+        <div className="admin-inbox-metric is-live">
+          <span>Nhân viên</span>
+          <strong>{employees.length}</strong>
+          <small>Nhân sự trong doanh nghiệp hiện tại</small>
+        </div>
+        <div className="admin-inbox-metric">
+          <span>Suất còn phân bổ</span>
+          <strong>{remainingCoverageSlots}</strong>
+          <small>Từ đơn hàng đã duyệt hiệu lực</small>
         </div>
       </div>
 
       {/* Enterprise Selection card */}
-      <div className="admin-card p-6 bg-white shadow-sm rounded-xl space-y-4">
-        <h3 className="text-sm font-bold text-gray-800">Chọn doanh nghiệp để quản lý</h3>
+      <div className="admin-card enterprise-picker-card space-y-4">
+        <div className="consultation-table-head !p-0 !pb-4 !border-b">
+          <div>
+            <h2>Chọn doanh nghiệp</h2>
+            <p>Tìm theo tên, mã số thuế hoặc số điện thoại để quản lý nhân sự và quyền lợi.</p>
+          </div>
+        </div>
         
         <div className="relative w-full max-w-xl" ref={dropdownRef}>
           <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <i className="fas fa-search text-gray-400 text-sm" />
+            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+              <i className="fas fa-building text-gray-400 text-sm" />
             </span>
             <input
               type="text"
@@ -330,7 +359,7 @@ export default function AdminEnterpriseEmployees() {
                 setShowEntDropdown(true)
               }}
               onFocus={() => setShowEntDropdown(true)}
-              className="input-tis w-full pl-9 pr-4 py-2"
+              className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200/80 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] focus:bg-white text-xs font-medium transition-all"
             />
             {selectedEnt && (
               <button
@@ -338,20 +367,20 @@ export default function AdminEnterpriseEmployees() {
                   setSelectedEnt(null)
                   setEntSearch('')
                 }}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
               >
-                <i className="fas fa-times-circle" />
+                <i className="fas fa-times-circle text-sm" />
               </button>
             )}
           </div>
 
           {/* Autocomplete list */}
           {showEntDropdown && (entSearch.trim().length > 0) && (
-            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto divide-y divide-gray-100">
+            <div className="absolute z-10 w-full mt-1.5 bg-white/95 backdrop-blur-md border border-gray-200/75 rounded-xl shadow-xl max-h-60 overflow-y-auto divide-y divide-gray-100 animate-slide-up">
               {loadingEnt ? (
                 <div className="p-4 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
                   <div className="spinner-tis !w-4 !h-4 !border-2" />
-                  Đang tìm kiếm...
+                  Đang tìm kiếm doanh nghiệp...
                 </div>
               ) : enterprises.length === 0 ? (
                 <div className="p-4 text-center text-xs text-gray-400">
@@ -363,10 +392,13 @@ export default function AdminEnterpriseEmployees() {
                     key={ent.id}
                     type="button"
                     onClick={() => handleSelectEnterprise(ent)}
-                    className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-xs transition flex flex-col gap-0.5"
+                    className="w-full text-left px-4 py-3 hover:bg-red-50/40 text-xs transition flex flex-col gap-1"
                   >
-                    <strong className="text-gray-800 font-bold">{getEnterpriseLabel(ent)}</strong>
-                    <span className="text-gray-500 text-[10px]">{getEnterpriseSubtitle(ent)}</span>
+                    <strong className="text-gray-800 font-bold flex items-center gap-1.5">
+                      <i className="fas fa-building text-gray-400" />
+                      {getEnterpriseLabel(ent)}
+                    </strong>
+                    <span className="text-gray-500 text-[10px] pl-5">{getEnterpriseSubtitle(ent)}</span>
                   </button>
                 ))
               )}
@@ -375,29 +407,23 @@ export default function AdminEnterpriseEmployees() {
         </div>
 
         {selectedEnt && (
-          <div className="flex flex-wrap items-center gap-3 pt-2">
+          <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-50">
             <button
               onClick={() => openEmployeeModal()}
-              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
+              className="px-4 py-2 bg-gradient-to-r from-[#D71920] to-[#f54950] hover:shadow-md hover:shadow-red-500/10 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5"
             >
-              <i className="fas fa-plus" /> Thêm nhân viên
+              <i className="fas fa-plus text-xs" /> Thêm nhân viên
             </button>
             <button
               onClick={() => setImportModal({ show: true, form: { order_item: '', file: null } })}
-              className="px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
+              className="px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
             >
-              <i className="fas fa-file-excel text-green-600" /> Import Excel hàng loạt
-            </button>
-            <button
-              onClick={handleDownloadTemplate}
-              className="px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
-            >
-              <i className="fas fa-download text-blue-600" /> Tải template Excel
+              <i className="fas fa-file-excel text-green-600 text-sm" /> Import Excel hàng loạt
             </button>
             <button
               onClick={loadWorkspace}
               disabled={loadingWorkspace}
-              className="px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1.5 ml-auto"
+              className="px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold shadow-sm transition flex items-center gap-1.5 ml-auto disabled:opacity-40"
             >
               <i className={`fas fa-sync ${loadingWorkspace ? 'fa-spin' : ''}`} /> Đồng bộ dữ liệu
             </button>
@@ -408,9 +434,9 @@ export default function AdminEnterpriseEmployees() {
       {selectedEnt ? (
         <div className="grid grid-cols-1 gap-6">
           {/* Section 1: Employees List */}
-          <div className="admin-card bg-white shadow-sm rounded-xl overflow-hidden border border-gray-100">
-            <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-              <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+          <div className="admin-card bg-white shadow-sm rounded-2xl overflow-hidden border border-gray-100 bg-gradient-to-b from-white to-gray-50/20">
+            <div className="p-5 border-b border-gray-100 bg-gray-50/30 flex justify-between items-center">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                 <i className="fas fa-users text-gray-500" /> Danh sách nhân viên ({employees.length})
               </h3>
             </div>
@@ -421,71 +447,71 @@ export default function AdminEnterpriseEmployees() {
                   <div className="spinner-tis" />
                 </div>
               ) : employees.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 text-xs">
+                <div className="text-center py-12 text-gray-400 text-xs font-medium">
                   Chưa có nhân viên nào trong doanh nghiệp này. Hãy thêm mới hoặc import.
                 </div>
               ) : (
                 <table className="admin-table w-full text-left border-collapse">
                   <thead>
-                    <tr>
-                      <th className="p-4 border-b font-semibold text-gray-700 text-sm">Họ và tên</th>
-                      <th className="p-4 border-b font-semibold text-gray-700 text-sm">Số điện thoại</th>
-                      <th className="p-4 border-b font-semibold text-gray-700 text-sm">Địa chỉ</th>
-                      <th className="p-4 border-b font-semibold text-gray-700 text-sm">Gói bảo hiểm đang gắn</th>
-                      <th className="p-4 border-b font-semibold text-gray-700 text-sm">Trạng thái sửa</th>
-                      <th className="p-4 border-b font-semibold text-gray-700 text-sm text-end">Hành động</th>
+                    <tr className="bg-gray-50/70">
+                      <th className="p-4 border-b border-gray-100 font-bold text-gray-500 text-[10px] uppercase tracking-wider">Họ và tên</th>
+                      <th className="p-4 border-b border-gray-100 font-bold text-gray-500 text-[10px] uppercase tracking-wider">Số điện thoại</th>
+                      <th className="p-4 border-b border-gray-100 font-bold text-gray-500 text-[10px] uppercase tracking-wider">Địa chỉ</th>
+                      <th className="p-4 border-b border-gray-100 font-bold text-gray-500 text-[10px] uppercase tracking-wider">Gói bảo hiểm đang gắn</th>
+                      <th className="p-4 border-b border-gray-100 font-bold text-gray-500 text-[10px] uppercase tracking-wider">Quyền sửa đổi</th>
+                      <th className="p-4 border-b border-gray-100 font-bold text-gray-500 text-[10px] uppercase tracking-wider text-end">Hành động</th>
                     </tr>
                   </thead>
                   <tbody>
                     {employees.map((emp) => (
-                      <tr key={emp.id} className="hover:bg-gray-50 border-b last:border-b-0">
+                      <tr key={emp.id} className="hover:bg-red-50/10 border-b border-gray-100 last:border-b-0 transition-colors duration-150">
                         <td className="p-4">
-                          <div className="font-semibold text-gray-900">{emp.full_name}</div>
-                          <div className="text-xs text-gray-500">{emp.email || '--'}</div>
+                          <div className="font-bold text-gray-800 text-xs">{emp.full_name}</div>
+                          <div className="text-[10px] text-gray-400 font-medium mt-0.5">{emp.email || '--'}</div>
                         </td>
-                        <td className="p-4 text-sm text-gray-600 font-mono">{emp.phone || '-'}</td>
-                        <td className="p-4 text-sm text-gray-600">{emp.address || '-'}</td>
+                        <td className="p-4 text-xs text-gray-600 font-mono font-medium">{emp.phone || '-'}</td>
+                        <td className="p-4 text-xs text-gray-600 font-medium">{emp.address || '-'}</td>
                         <td className="p-4 space-y-1.5">
                           {emp.coverages && emp.coverages.length > 0 ? (
                             emp.coverages.map((cov, idx) => (
-                              <div key={idx} className="bg-red-50 text-tis-red border border-red-100 rounded p-1.5 text-xs">
+                              <div key={idx} className="bg-red-50/60 text-[#D71920] border border-red-100/60 rounded-lg p-2 text-xs shadow-sm max-w-xs">
                                 <strong className="font-bold block">{cov.product_name || '-'}</strong>
-                                <span className="text-[10px] text-gray-500 font-mono block mt-0.5">
+                                <span className="text-[10px] text-gray-500 font-semibold font-mono block mt-1">
                                   Hạn: {formatDate(cov.start_date)} - {formatDate(cov.end_date)}
                                 </span>
                               </div>
                             ))
                           ) : (
-                            <span className="text-xs text-gray-400 italic">Chưa gắn bảo hiểm</span>
+                            <span className="text-xs text-gray-400 italic font-medium">Chưa gắn bảo hiểm</span>
                           )}
                         </td>
                         <td className="p-4">
                           {emp.can_edit ? (
-                            <span className="badge-tis bg-green-50 text-green-700 border border-green-200 text-xs px-2 py-0.5 rounded font-semibold">
-                              Được sửa
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-150">
+                              <span className="w-1 h-1 rounded-full bg-green-500" /> Được sửa
                             </span>
                           ) : (
-                            <span className="badge-tis bg-gray-100 text-gray-600 border border-gray-200 text-xs px-2 py-0.5 rounded font-semibold">
-                              Khóa sửa
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-50 text-gray-500 border border-gray-200">
+                              <span className="w-1 h-1 rounded-full bg-gray-400" /> Khóa sửa
                             </span>
                           )}
                         </td>
                         <td className="p-4 text-end">
-                          <div className="flex justify-end gap-1.5">
+                          <div className="flex justify-end items-center gap-2">
                             {emp.can_edit && (
                               <button
                                 onClick={() => openEmployeeModal(emp)}
-                                className="w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-900 flex items-center justify-center shadow-sm transition"
+                                className="w-8 h-8 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-900 flex items-center justify-center shadow-sm transition-all"
                                 title="Sửa thông tin"
                               >
-                                <i className="fas fa-pen text-xs" />
+                                <i className="fas fa-pen text-[10px]" />
                               </button>
                             )}
                             <button
                               onClick={() => openCoverageModal(emp.id)}
-                              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-tis-red rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1"
+                              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 border border-red-100/60 text-[#D71920] rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-1"
                             >
-                              <i className="fas fa-shield-alt" /> Gắn bảo hiểm
+                              <i className="fas fa-shield-alt text-[10px]" /> Quyền lợi
                             </button>
                           </div>
                         </td>
@@ -498,9 +524,9 @@ export default function AdminEnterpriseEmployees() {
           </div>
 
           {/* Section 2: Paid Orders */}
-          <div className="admin-card bg-white shadow-sm rounded-xl overflow-hidden border border-gray-100">
-            <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-              <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+          <div className="admin-card bg-white shadow-sm rounded-2xl overflow-hidden border border-gray-100 bg-gradient-to-b from-white to-gray-50/20">
+            <div className="p-5 border-b border-gray-100 bg-gray-50/30">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                 <i className="fas fa-file-invoice-dollar text-gray-500" /> Đơn hàng doanh nghiệp đã thanh toán
               </h3>
             </div>
@@ -511,18 +537,18 @@ export default function AdminEnterpriseEmployees() {
                   <div className="spinner-tis" />
                 </div>
               ) : enterpriseOrders.length === 0 ? (
-                <div className="text-center py-10 text-gray-400 text-xs">
+                <div className="text-center py-10 text-gray-400 text-xs font-medium">
                   Doanh nghiệp chưa phát sinh đơn hàng đã thanh toán.
                 </div>
               ) : (
                 <table className="admin-table w-full text-left border-collapse">
                   <thead>
-                    <tr>
-                      <th className="p-4 border-b font-semibold text-gray-700 text-sm">Mã đơn hàng</th>
-                      <th className="p-4 border-b font-semibold text-gray-700 text-sm">Nội dung sản phẩm (Số lượng suất mua)</th>
-                      <th className="p-4 border-b font-semibold text-gray-700 text-sm">Tổng thanh toán</th>
-                      <th className="p-4 border-b font-semibold text-gray-700 text-sm">Trạng thái duyệt</th>
-                      <th className="p-4 border-b font-semibold text-gray-700 text-sm">Ghi chú vận hành</th>
+                    <tr className="bg-gray-50/70">
+                      <th className="p-4 border-b border-gray-100 font-bold text-gray-500 text-[10px] uppercase tracking-wider">Mã đơn hàng</th>
+                      <th className="p-4 border-b border-gray-100 font-bold text-gray-500 text-[10px] uppercase tracking-wider">Sản phẩm (Số suất)</th>
+                      <th className="p-4 border-b border-gray-100 font-bold text-gray-500 text-[10px] uppercase tracking-wider">Tổng thanh toán</th>
+                      <th className="p-4 border-b border-gray-100 font-bold text-gray-500 text-[10px] uppercase tracking-wider">Trạng thái duyệt</th>
+                      <th className="p-4 border-b border-gray-100 font-bold text-gray-500 text-[10px] uppercase tracking-wider">Ghi chú vận hành</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -531,35 +557,35 @@ export default function AdminEnterpriseEmployees() {
                       const items = order.items || []
 
                       return (
-                        <tr key={order.id} className="hover:bg-gray-50 border-b last:border-b-0">
+                        <tr key={order.id} className="hover:bg-red-50/10 border-b border-gray-100 last:border-b-0 transition-colors duration-150">
                           <td className="p-4">
-                            <strong className="text-gray-900 font-bold block">{order.code || `#${order.id}`}</strong>
-                            <span className="text-xs text-gray-400 block mt-0.5 font-mono">
+                            <strong className="text-gray-800 font-bold text-xs block">{order.code || `#${order.id}`}</strong>
+                            <span className="text-[10px] text-gray-400 block mt-1 font-mono font-medium">
                               Ngày: {formatDate(order.payment_paid_at || order.created_at)}
                             </span>
                           </td>
-                          <td className="p-4 space-y-1">
+                          <td className="p-4 space-y-1.5">
                             {items.map((item, idx) => (
-                              <div key={idx} className="text-xs text-gray-700">
-                                {item.product_name} · <span className="font-semibold">{item.duration}</span> · SL mua: <strong className="font-bold text-gray-900">{item.quantity}</strong> (đã gắn {item.covered_count || 0})
+                              <div key={idx} className="text-xs text-gray-600 font-medium">
+                                <span className="text-gray-900 font-semibold">{item.product_name}</span> · <span>{item.duration}</span> · SL: <strong className="font-bold text-gray-900 bg-gray-100 border border-gray-200/80 px-1 py-0.5 rounded text-[10px]">{item.quantity} suất</strong> (Đã gắn <strong className="text-[#D71920]">{item.covered_count || 0}</strong>)
                               </div>
                             ))}
                           </td>
-                          <td className="p-4 text-sm text-red-600 font-bold font-mono">
+                          <td className="p-4 text-xs text-[#D71920] font-bold font-mono">
                             {formatMoney(order.total_amount || 0)}
                           </td>
                           <td className="p-4">
                             {approved ? (
-                              <span className="badge-tis bg-green-50 text-green-700 border border-green-200 text-xs px-2 py-0.5 rounded font-semibold">
-                                Đã duyệt hiệu lực
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-150">
+                                <span className="w-1 h-1 rounded-full bg-green-500" /> Đã duyệt hiệu lực
                               </span>
                             ) : (
-                              <span className="badge-tis bg-amber-50 text-amber-700 border border-amber-200 text-xs px-2 py-0.5 rounded font-semibold">
-                                Chờ duyệt hiệu lực
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" /> Chờ duyệt hiệu lực
                               </span>
                             )}
                           </td>
-                          <td className="p-4 text-xs text-gray-500">
+                          <td className="p-4 text-[11px] text-gray-400 leading-relaxed font-medium">
                             {approved ? 'Đơn hàng đủ điều kiện phân bổ bảo hiểm cho nhân viên' : 'Giao dịch chưa được leader duyệt hoặc đang xử lý. Nhân viên chưa được cấp gói bảo hiểm.'}
                           </td>
                         </tr>
@@ -659,8 +685,7 @@ export default function AdminEnterpriseEmployees() {
               {!employeeModal.id && (
                 <div>
                   <label className="label-tis block text-xs mb-1">Mật khẩu tài khoản (dành cho app di động)</label>
-                  <input
-                    type="password"
+                  <PasswordField
                     required
                     value={employeeModal.form.password}
                     onChange={(e) => setEmployeeModal({

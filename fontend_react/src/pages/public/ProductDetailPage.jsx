@@ -15,41 +15,67 @@ const escapeHtml = (value = '') => String(value)
 
 function GallerySection({ images, name }) {
   const [current, setCurrent] = useState(0)
+  const [autoPlay, setAutoPlay] = useState(images.length > 1)
+
+  useEffect(() => {
+    setCurrent(0)
+    setAutoPlay(images.length > 1)
+  }, [images])
+
+  useEffect(() => {
+    if (!autoPlay || images.length <= 1) return undefined
+
+    const galleryTimer = window.setInterval(() => {
+      setCurrent((index) => (index + 1) % images.length)
+    }, 4200)
+
+    return () => window.clearInterval(galleryTimer)
+  }, [autoPlay, images.length])
+
   if (!images.length) return null
 
+  const selectImage = (index) => {
+    setCurrent(index)
+    setAutoPlay(false)
+  }
+
   return (
-    <div>
-      {/* Main Image */}
-      <div className="relative rounded-2xl overflow-hidden bg-gray-100 mb-3" style={{ height: 380 }}>
+    <div className="product-gallery">
+      <div className="product-gallery-stage">
         <img
           src={images[current]}
-          alt={name}
-          className="w-full h-full object-cover transition-opacity duration-200"
+          alt={`${name} - ảnh ${current + 1}`}
+          className="product-gallery-image"
           onError={e => { e.target.src = 'https://placehold.co/800x600/f8f9fa/d71920?text=TIS' }}
         />
         {images.length > 1 && (
           <>
-            <button onClick={() => setCurrent((current - 1 + images.length) % images.length)}
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/80 rounded-full flex items-center justify-center shadow hover:bg-white">
-              <i className="fas fa-chevron-left text-sm text-gray-700" />
+            <button onClick={() => selectImage((current - 1 + images.length) % images.length)}
+              className="product-gallery-arrow is-prev" aria-label="Ảnh trước">
+              <i className="fas fa-chevron-left" />
             </button>
-            <button onClick={() => setCurrent((current + 1) % images.length)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/80 rounded-full flex items-center justify-center shadow hover:bg-white">
-              <i className="fas fa-chevron-right text-sm text-gray-700" />
+            <button onClick={() => selectImage((current + 1) % images.length)}
+              className="product-gallery-arrow is-next" aria-label="Ảnh tiếp theo">
+              <i className="fas fa-chevron-right" />
             </button>
-            <div className="absolute bottom-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
-              {current + 1}/{images.length}
+            <div className="product-gallery-meta">
+              <span>{current + 1} / {images.length}</span>
+              <button type="button" onClick={() => setAutoPlay((playing) => !playing)}>
+                <i className={`fas ${autoPlay ? 'fa-pause' : 'fa-play'}`} />
+                {autoPlay ? 'Tạm dừng' : 'Tự chuyển'}
+              </button>
             </div>
           </>
         )}
       </div>
-      {/* Thumbnails */}
       {images.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="product-gallery-thumbs" aria-label="Danh sách ảnh sản phẩm">
           {images.map((img, i) => (
-            <button key={i} onClick={() => setCurrent(i)}
-              className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${i === current ? 'border-tis-red' : 'border-transparent hover:border-gray-300'}`}>
-              <img src={img} alt="" className="w-full h-full object-cover"
+            <button key={`${img}-${i}`} onClick={() => selectImage(i)}
+              className={`product-gallery-thumb ${i === current ? 'is-active' : ''}`}
+              aria-label={`Xem ảnh ${i + 1}`}
+            >
+              <img src={img} alt=""
                 onError={e => { e.target.src = 'https://placehold.co/100x100/f8f9fa/d71920?text=TIS' }} />
             </button>
           ))}
@@ -203,8 +229,13 @@ export default function ProductDetailPage() {
 
   if (!product) return null
 
-  const galleryImages = (product.images || [])
-    .map(img => getValidImageUrl(img.image_url || img.image))
+  const galleryImages = [
+    ...(product.images || []).map(img => img.image_url || img.image),
+    product.image_url,
+  ]
+    .filter(Boolean)
+    .map(image => getValidImageUrl(image))
+    .filter((image, index, allImages) => allImages.indexOf(image) === index)
     .filter(Boolean)
   if (!galleryImages.length) galleryImages.push(getValidImageUrl(null))
 
@@ -356,40 +387,131 @@ export default function ProductDetailPage() {
       {/* ── Consultation Modal ── */}
       {consultModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-slide-up">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
-              <div>
-                <h5 className="font-bold text-gray-900">Yêu cầu tư vấn</h5>
-                <p className="text-xs text-gray-400 mt-0.5">Chuyên viên sẽ liên hệ trong vòng 30 phút</p>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up">
+            {/* Premium Gradient Header */}
+            <div className="relative overflow-hidden bg-gradient-to-r from-[#D71920] to-[#f54950] text-white p-6">
+              {/* Decorative background blur shapes */}
+              <div className="absolute right-[-20px] top-[-20px] w-32 h-32 rounded-full bg-white/10 blur-xl pointer-events-none" />
+              <div className="absolute left-[-10px] bottom-[-30px] w-24 h-24 rounded-full bg-white/5 blur-lg pointer-events-none" />
+              
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center text-white border border-white/20 shadow-inner">
+                  <i className="fas fa-headset text-xl animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg leading-tight">Yêu cầu tư vấn</h3>
+                  <p className="text-white/80 text-xs mt-1">Chuyên viên sẽ liên hệ với bạn sau</p>
+                </div>
               </div>
-              <button onClick={() => setConsultModal(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200">
-                <i className="fas fa-times text-sm text-gray-600" />
+              
+              <button 
+                onClick={() => setConsultModal(false)} 
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all duration-200"
+                aria-label="Đóng"
+              >
+                <i className="fas fa-times text-sm" />
               </button>
             </div>
-            <form onSubmit={submitConsultation} className="p-5 space-y-4">
-              <div>
-                <label className="label-tis">Họ và tên</label>
-                <input value={consultForm.name} onChange={e => setConsultForm({ ...consultForm, name: e.target.value })}
-                  className="input-tis" placeholder="Nguyễn Văn A" required />
+
+            {/* Premium Form Layout */}
+            <form onSubmit={submitConsultation} className="p-6 space-y-5">
+              {/* Name */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Họ và tên</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">
+                    <i className="far fa-user text-sm" />
+                  </span>
+                  <input 
+                    value={consultForm.name} 
+                    onChange={e => setConsultForm({ ...consultForm, name: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:bg-white focus:border-[#D71920] focus:ring-4 focus:ring-[#D71920]/10 transition-all outline-none" 
+                    placeholder="Nguyễn Văn A" 
+                    required 
+                  />
+                </div>
               </div>
-              <div>
-                <label className="label-tis">Số điện thoại <span className="text-red-400">*</span></label>
-                <input value={consultForm.phone} onChange={e => setConsultForm({ ...consultForm, phone: e.target.value })}
-                  className="input-tis" placeholder="09xx xxx xxx" required inputMode="tel" />
+
+              {/* Phone */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
+                  Số điện thoại <span className="text-[#D71920]">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">
+                    <i className="fas fa-phone-alt text-sm" />
+                  </span>
+                  <input 
+                    value={consultForm.phone} 
+                    onChange={e => setConsultForm({ ...consultForm, phone: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:bg-white focus:border-[#D71920] focus:ring-4 focus:ring-[#D71920]/10 transition-all outline-none" 
+                    placeholder="09xx xxx xxx" 
+                    required 
+                    inputMode="tel" 
+                  />
+                </div>
               </div>
-              <div>
-                <label className="label-tis">Email <span className="text-red-400">*</span></label>
-                <input value={consultForm.email} onChange={e => setConsultForm({ ...consultForm, email: e.target.value })}
-                  className="input-tis" placeholder="email@gmail.com" type="email" required />
+
+              {/* Email */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
+                  Email <span className="text-[#D71920]">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">
+                    <i className="far fa-envelope text-sm" />
+                  </span>
+                  <input 
+                    value={consultForm.email} 
+                    onChange={e => setConsultForm({ ...consultForm, email: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:bg-white focus:border-[#D71920] focus:ring-4 focus:ring-[#D71920]/10 transition-all outline-none" 
+                    placeholder="email@gmail.com" 
+                    type="email" 
+                    required 
+                  />
+                </div>
               </div>
-              <div>
-                <label className="label-tis">Nội dung</label>
-                <textarea value={consultForm.note} onChange={e => setConsultForm({ ...consultForm, note: e.target.value })}
-                  className="input-tis resize-none" rows={3} />
+
+              {/* Note */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Nội dung</label>
+                <div className="relative">
+                  <span className="absolute top-3 left-0 pl-3.5 flex items-start text-gray-400 pointer-events-none">
+                    <i className="far fa-edit text-sm" />
+                  </span>
+                  <textarea 
+                    value={consultForm.note} 
+                    onChange={e => setConsultForm({ ...consultForm, note: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:bg-white focus:border-[#D71920] focus:ring-4 focus:ring-[#D71920]/10 transition-all outline-none resize-none" 
+                    rows={3} 
+                    placeholder="Nhập nội dung cần tư vấn..."
+                  />
+                </div>
               </div>
-              <button type="submit" disabled={submitting} className="btn-tis-danger w-full py-3 disabled:opacity-60">
-                {submitting ? <><i className="fas fa-spinner fa-spin mr-2" />Đang gửi...</> : <><i className="fas fa-paper-plane mr-2" />Gửi yêu cầu</>}
+
+              {/* Submit Button */}
+              <button 
+                type="submit" 
+                disabled={submitting} 
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-[#D71920] to-[#f54950] text-white font-bold rounded-xl shadow-lg shadow-red-500/20 hover:shadow-red-500/35 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 transition-all duration-200 flex items-center justify-center gap-2 mt-2 text-sm cursor-pointer"
+              >
+                {submitting ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin mr-2" />
+                    Đang gửi yêu cầu...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-paper-plane mr-2" />
+                    Gửi yêu cầu ngay
+                  </>
+                )}
               </button>
+
+              <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-2">
+                <i className="fas fa-shield-alt text-[#D71920]/75" />
+                <span>Cam kết bảo mật thông tin tuyệt đối</span>
+              </div>
             </form>
           </div>
         </div>

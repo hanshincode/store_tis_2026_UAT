@@ -42,7 +42,7 @@ function NewsCard({ item, featured = false }) {
       </div>
       <div className="p-5">
         {item.category_name && <span className="badge-tis-red text-xs mb-2 inline-block">{item.category_name}</span>}
-        <h3 className="font-bold text-gray-900 text-sm line-clamp-2 mb-2 group-hover:text-tis-red transition-colors leading-snug">{item.title}</h3>
+        <h3 className="news-card-title font-bold text-gray-900 mb-2 group-hover:text-tis-red transition-colors leading-snug">{item.title}</h3>
         <p className="text-gray-400 text-xs line-clamp-2 mb-3">{truncate(stripHtml(item.content), 100)}</p>
         <div className="flex items-center justify-between">
           <span className="text-gray-400 text-xs flex items-center gap-1">

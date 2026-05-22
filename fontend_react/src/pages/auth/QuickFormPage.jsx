@@ -25,7 +25,7 @@ export default function QuickFormPage() {
     }
     const fetchForm = async () => {
       try {
-        const { data } = await api.get(`/quick-customer-forms/by_token/`, { params: { token } })
+        const { data } = await api.get(`/quick-forms/public/`, { params: { token } })
         setFormData(data)
         // Initialize default values
         const defaults = {}
@@ -88,7 +88,8 @@ export default function QuickFormPage() {
         fd.append(key, file)
       })
 
-      await api.post(`/quick-customer-forms/${formData.id}/submit/`, fd, {
+      fd.append('token', token)
+      await api.post(`/quick-forms/submit/`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
 

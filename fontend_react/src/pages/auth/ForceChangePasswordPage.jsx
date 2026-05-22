@@ -30,7 +30,7 @@ export default function ForceChangePasswordPage() {
 
   const onSubmit = async (data) => {
     try {
-      await api.post('/change-password/', {
+      await api.post('/users/set_password/', {
         current_password: data.current_password,
         new_password: data.new_password,
       })
